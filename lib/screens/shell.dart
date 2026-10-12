@@ -47,7 +47,50 @@ class _AppShellState extends State<AppShell> {
   Section _section = Section.home;
   bool _menuOpen = false;
 
+  // After a menu pick the menu closes, and the mouse resting on it doesn't reopen it until it moves
+  // away (or leaves the menu); otherwise the open menu covers the page and swallows the next click.
+  bool _hoverSuppressed = false;
+  Offset? _suppressedAt;
+  Offset? _pointer;
+  final _menuFocus = FocusNode(canRequestFocus: false, skipTraversal: true, debugLabel: 'menu');
+  final _pageFocus = FocusNode(canRequestFocus: false, skipTraversal: true, debugLabel: 'page');
+
   void _go(Section s) => setState(() => _section = s);
+
+  /// A section picked in the side menu: switch to it and get the menu out of the way.
+  void _pick(Section s) {
+    // A mouse click doesn't focus the menu; the remote or keyboard does, and then lands on the page.
+    final fromRemote = _menuFocus.hasFocus;
+    setState(() {
+      _section = s;
+      _menuOpen = false;
+      _hoverSuppressed = true;
+      _suppressedAt = _pointer;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !fromRemote) return;
+      final target = _pageFocus.traversalDescendants.where((n) => n.canRequestFocus && !n.skipTraversal).firstOrNull;
+      if (target != null) {
+        target.requestFocus();
+      } else {
+        FocusManager.instance.primaryFocus?.unfocus();
+      }
+    });
+  }
+
+  void _hoverMenu(Offset at) {
+    _pointer = at;
+    if (_hoverSuppressed && _suppressedAt != null && (at - _suppressedAt!).distance < 48) return;
+    _hoverSuppressed = false;
+    if (!_menuOpen) setState(() => _menuOpen = true);
+  }
+
+  @override
+  void dispose() {
+    _menuFocus.dispose();
+    _pageFocus.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -112,7 +155,7 @@ class _AppShellState extends State<AppShell> {
     final collapsed = context.px(112);
     final open = context.px(470);
     return Stack(children: [
-      Positioned.fill(left: collapsed, child: FocusTraversalGroup(child: body)),
+      Positioned.fill(left: collapsed, child: FocusTraversalGroup(child: Focus(focusNode: _pageFocus, child: body))),
       // Dim the page while the menu is open, like the design.
       if (_menuOpen)
         Positioned.fill(
@@ -130,11 +173,14 @@ class _AppShellState extends State<AppShell> {
         bottom: 0,
         child: FocusTraversalGroup(
           child: MouseRegion(
-            onEnter: (_) => setState(() => _menuOpen = true),
-            onExit: (_) => setState(() => _menuOpen = false),
+            onEnter: (e) => _hoverMenu(e.position),
+            onHover: (e) => _hoverMenu(e.position),
+            onExit: (_) => setState(() {
+              _menuOpen = false;
+              _hoverSuppressed = false;
+            }),
             child: Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
+            focusNode: _menuFocus,
             onFocusChange: (f) => setState(() => _menuOpen = f),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
@@ -144,13 +190,13 @@ class _AppShellState extends State<AppShell> {
                 _ProfileButton(expanded: _menuOpen),
                 SizedBox(height: context.px(28)),
                 for (final e in _visible(app).where((e) => e.section != Section.settings))
-                  _TvMenuItem(entry: e, selected: e.section == _section, expanded: _menuOpen, onTap: () => _go(e.section)),
+                  _TvMenuItem(entry: e, selected: e.section == _section, expanded: _menuOpen, onTap: () => _pick(e.section)),
                 const Spacer(),
                 _TvMenuItem(
                   entry: _entries.last,
                   selected: _section == Section.settings,
                   expanded: _menuOpen,
-                  onTap: () => _go(Section.settings),
+                  onTap: () => _pick(Section.settings),
                 ),
               ]),
             ),

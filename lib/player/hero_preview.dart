@@ -9,13 +9,16 @@ import 'package:provider/provider.dart';
 import '../api/jellyfin.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
+import '../screens/nav.dart' show youtubeKey;
 import '../ui/widgets.dart';
+import 'youtube_direct.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
 /// A Netflix-style muted trailer that fades in over the backdrop after a short pause.
-/// Uses a trailer file on the server if there is one, otherwise the Ember Trailers plugin.
+/// Uses a trailer file on the server if there is one, otherwise the Ember Trailers plugin, and
+/// straight from YouTube when the server can't stream it.
 /// TV and desktop only; on phones the still backdrop stays.
 class HeroPreview extends StatefulWidget {
   final JfItem item;
@@ -38,6 +41,8 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
   bool _finished = false;
   bool _covered = false;
   late bool _muted;
+  String? _serverKey;
+  bool _triedYouTube = false;
   final List<StreamSubscription> _subs = [];
 
   @override
@@ -69,14 +74,55 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       }
     }
     if (!app.trailerServiceOk || widget.item.remoteTrailers.isEmpty) return null;
-    final key = await jf.trailerKeyForItem(widget.item.id);
+    final key = _serverKey = await jf.trailerKeyForItem(widget.item.id);
     return key == null ? null : jf.trailerStreamUrl(key);
   }
 
   Future<void> _start() async {
     final app = context.read<AppState>();
     final url = await _url(app);
-    if (url == null || !mounted) return;
+    if (!mounted) return;
+    if (url == null) {
+      await _startYouTube();
+      return;
+    }
+    final p = await _open(url);
+    // If the server can't stream it, quietly play it straight from YouTube instead.
+    _subs.add(p.stream.error.listen((_) {
+      if (!_visible && !_triedYouTube && mounted) _startYouTube();
+    }));
+  }
+
+  Future<void> _startYouTube() async {
+    if (_triedYouTube) return;
+    _triedYouTube = true;
+    var key = _serverKey;
+    for (final t in widget.item.remoteTrailers) {
+      key ??= youtubeKey(t['Url'] as String?);
+    }
+    if (key == null) return;
+    YouTubeSource src;
+    try {
+      src = await youTubeSources(key).first;
+    } catch (_) {
+      return; // nothing playable; the still backdrop stays
+    }
+    if (!mounted) return;
+    _finished = false; // a failed server stream can look "finished" to the player
+    final player = await _open(src.video, userAgent: youTubeUserAgent);
+    if (src.audio != null) await player.setAudioTrack(AudioTrack.uri(src.audio!));
+  }
+
+  Future<Player> _open(String url, {String? userAgent}) async {
+    final existing = _player;
+    if (existing != null) {
+      if (userAgent != null && existing.platform is NativePlayer) {
+        await (existing.platform as NativePlayer).setProperty('user-agent', userAgent);
+      }
+      await existing.open(Media(url));
+      _syncPlaying();
+      return existing;
+    }
     final p = Player(configuration: const PlayerConfiguration(title: 'Ember preview', bufferSize: 16 * 1024 * 1024));
     _player = p;
     _video = VideoController(p);
@@ -92,9 +138,11 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
         });
       }
     }));
+    if (userAgent != null && p.platform is NativePlayer) await (p.platform as NativePlayer).setProperty('user-agent', userAgent);
     await p.open(Media(url));
     _syncPlaying();
     if (mounted) setState(() {});
+    return p;
   }
 
   void _syncPlaying() {

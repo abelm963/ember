@@ -57,8 +57,9 @@ Future<void> playSeries(BuildContext context, JellyfinClient jf, JfItem series) 
   if (context.mounted) await play(context, ep);
 }
 
-/// Plays a trailer the best way available: inside Ember when the server's Ember Trailers
-/// plugin can stream it, otherwise in the YouTube app.
+/// Plays a trailer inside Ember: streamed by the server's Ember Trailers plugin when it can, otherwise
+/// straight from YouTube in Ember's own player. Only when in-app trailers are turned off (or YouTube
+/// refuses) does it open the YouTube app.
 Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, required String title, String? backdropUrl}) async {
   final app = context.read<AppState>();
   final jf = app.jf!;
@@ -69,15 +70,17 @@ Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, req
       if (key != null) break;
     }
   }
-  if (app.trailersInApp && app.trailerServiceOk && (item != null || key != null)) {
+  final viaServer = app.trailerServiceOk && (item != null || key != null);
+  if (app.trailersInApp && (viaServer || key != null)) {
     // Open the player at once; it finds the trailer while showing what it's doing.
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => PlayerScreen(
           item: JfItem({'Id': 'trailer-${item?.id ?? key}', 'Name': '$title · Trailer', 'Type': 'Trailer'}),
           isTrailer: true,
           youtubeKey: key,
+          youtubeOnly: !viaServer,
           backdropUrl: backdropUrl ?? (item != null ? jf.backdropImage(item) : null),
-          resolveUrl: () async {
+          resolveUrl: !viaServer ? null : () async {
             String? ok;
             String? reason;
             if (item != null) {
@@ -88,7 +91,7 @@ Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, req
             if (ok == null) {
               throw ApiException(0, reason ?? 'Your server couldn\'t play this trailer.');
             }
-            return jf.trailerStreamUrl(ok);
+            return TrailerStream(jf.trailerStreamUrl(ok), ok);
           },
         ),
     ));
