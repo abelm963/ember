@@ -1,0 +1,11 @@
+# Build output and tool caches
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+*.iml
+.vscode/
+# Never commit secrets
+*.env
+*.key
