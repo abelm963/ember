@@ -79,16 +79,17 @@ class EmberField extends StatelessWidget {
     ]);
   }
 
-  /// On Apple TV the box is a button: Select opens Ember's own keyboard, and the remote moves
-  /// on from the box like from any other button (tvOS's keyboard leaves it stuck in a text field).
+  /// On Apple TV the box is a button: Select opens Apple's keyboard on a native text field, and
+  /// the remote moves on from the box like from any other button (a Flutter text field there
+  /// keeps the remote stuck after the keyboard closes).
   Widget _tvBox(BuildContext context) => Focusable(
         autofocus: autofocus,
         semanticLabel: label,
         onTap: () async {
-          final text = await showTvKeyboard(context, label: label, text: controller.text, obscure: obscure, keyboard: keyboard);
-          if (text == null) return;
-          controller.text = text;
-          onSubmitted?.call(text);
+          final r = await editOnAppleTv(context, label: label, text: controller.text, obscure: obscure, keyboard: keyboard);
+          if (r == null) return;
+          controller.text = r.text;
+          if (r.submitted) onSubmitted?.call(r.text);
         },
         builder: (context, active) => ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,

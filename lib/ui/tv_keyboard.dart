@@ -1,12 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Ember's own on-screen keyboard, used for text boxes on Apple TV.
+const _appleKeyboard = MethodChannel('ember/keyboard');
+
+/// Edits a text box on Apple TV with Apple's own keyboard (so the iPhone's keyboard notification
+/// and dictation work), shown by the app's native side (`KeyboardEditor` in
+/// tvos/Runner/AppDelegate.swift) on a text field of its own, so the remote is never left stuck
+/// in a Flutter text field. Falls back to [showTvKeyboard] if the native side isn't there.
+/// Returns the new text, or null when nothing changed; `submitted` is true when the viewer
+/// finished with Done rather than Menu.
+Future<({String text, bool submitted})?> editOnAppleTv(
+  BuildContext context, {
+  required String label,
+  required String text,
+  bool obscure = false,
+  TextInputType? keyboard,
+}) async {
+  try {
+    final r = await _appleKeyboard.invokeMapMethod<String, Object?>('edit', {
+      'label': label,
+      'text': text,
+      'obscure': obscure,
+      'keyboard': keyboard == TextInputType.url
+          ? 'url'
+          : keyboard == TextInputType.number
+              ? 'number'
+              : keyboard == TextInputType.emailAddress
+                  ? 'email'
+                  : 'text',
+    });
+    if (r == null) return null;
+    final newText = r['text'] as String? ?? text;
+    final submitted = r['submitted'] == true;
+    if (newText == text && !submitted) return null;
+    return (text: newText, submitted: submitted || newText != text);
+  } on MissingPluginException {
+    if (!context.mounted) return null;
+    final typed = await showTvKeyboard(context, label: label, text: text, obscure: obscure, keyboard: keyboard);
+    return typed == null ? null : (text: typed, submitted: true);
+  }
+}
+
+/// Ember's own on-screen keyboard, the fallback for [editOnAppleTv].
 ///
-/// tvOS's system keyboard hands focus back to a text box the Siri Remote can't leave, so on Apple
-/// TV a text box is a button that opens this instead. Returns the new text when the viewer picks
+/// Returns the new text when the viewer picks
 /// Done, or null when they press Menu (the text stays as it was).
 Future<String?> showTvKeyboard(
   BuildContext context, {
