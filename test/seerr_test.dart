@@ -40,4 +40,23 @@ void main() {
       expect(s.cookie, 'connect.sid=sid2');
     }, () => mock);
   });
+
+  test('finds Seerr next to Jellyfin and reads recommendations', () async {
+    final mock = MockClient((req) async {
+      final u = req.url;
+      if (u.port != 5055) throw Exception('nothing here');
+      if (u.path == '/api/v1/status') return http.Response(jsonEncode({'version': '3.5.0'}), 200);
+      if (u.path == '/api/v1/movie/438631/recommendations') {
+        return http.Response(jsonEncode({'results': [{'id': 693134, 'title': 'Dune: Part Two'}]}), 200);
+      }
+      return http.Response('{}', 404);
+    });
+    await http.runWithClient(() async {
+      final found = await SeerrClient.findNear('https://media.example:8920/web');
+      expect(found, 'https://media.example:5055');
+      final recs = await SeerrClient(baseUrl: found!).recommendations('movie', 438631);
+      expect(recs.single.title, 'Dune: Part Two');
+      expect(recs.single.mediaType, 'movie');
+    }, () => mock);
+  });
 }

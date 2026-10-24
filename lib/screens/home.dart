@@ -21,6 +21,7 @@ class _HomeData {
   List<JfItem> nextUp = [];
   List<(String, List<JfItem>)> latest = [];
   List<SeerrMedia> trending = [];
+  List<(String, List<SeerrMedia>)> forYou = [];
   List<JfItem> favorites = [];
 }
 
@@ -62,7 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
     d.trending = (results[3] as List<SeerrMedia>).where((m) => !m.isAvailable).toList();
 
     final libs = views.where((v) => v.collectionType == 'movies' || v.collectionType == 'tvshows').toList();
+    final forYou = app.seerrConfigured && app.showRecommendations
+        ? _becauseYouWatched(app, d.resume).catchError((_) => <(String, List<SeerrMedia>)>[])
+        : Future.value(<(String, List<SeerrMedia>)>[]);
     final latest = await Future.wait(libs.map((v) => jf.latest(parentId: v.id).catchError((_) => <JfItem>[])));
+    d.forYou = await forYou;
+    // Trending repeats less when the personal rows already show a title.
+    final picked = {for (final (_, list) in d.forYou) ...list.map(_key)};
+    d.trending = d.trending.where((m) => !picked.contains(_key(m))).toList();
     for (var i = 0; i < libs.length; i++) {
       if (latest[i].isNotEmpty) d.latest.add(('Recently added in ${libs[i].name}', latest[i]));
     }
@@ -127,20 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
+          for (final (title, list) in d.forYou)
+            MediaRow(title: title, tileHeight: 216, children: [for (final m in list) _seerrTile(context, m)]),
           if (d.trending.isNotEmpty)
             MediaRow(
               title: 'Trending — not in your library yet',
               tileHeight: 216,
-              children: [
-                for (final m in d.trending)
-                  MediaTile(
-                    title: m.title,
-                    imageUrl: m.backdropUrl,
-                    badge: m.isRequested ? 'Requested' : 'Not on server',
-                    badgeAlt: m.isRequested,
-                    onTap: () => openSeerr(context, m),
-                  ),
-              ],
+              children: [for (final m in d.trending) _seerrTile(context, m)],
             ),
           for (final (title, items) in d.latest)
             MediaRow(
@@ -203,22 +204,12 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Next Up',
         entries: [for (final it in d.nextUp) posterEntry(context, jf, it, onTap: () => play(context, it), resume: true)],
       ),
+      for (final (title, list) in d.forYou)
+        PosterRow(title: title, entries: [for (final m in list) _seerrEntry(context, m)]),
       if (d.trending.isNotEmpty)
         PosterRow(
           title: 'Trending — not in your library yet',
-          entries: [
-            for (final m in d.trending)
-              PosterEntry(
-                title: m.title,
-                poster: m.posterUrl,
-                wide: m.backdropUrl,
-                badge: m.isRequested ? 'Requested' : null,
-                badgeAlt: true,
-                overview: m.overview,
-                meta: [if (m.year != null) '${m.year}'],
-                onTap: () => openSeerr(context, m),
-              ),
-          ],
+          entries: [for (final m in d.trending) _seerrEntry(context, m)],
         ),
       for (final (title, items) in d.latest)
         PosterRow(title: title, entries: [for (final it in items) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
@@ -232,6 +223,39 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(4000), padding: EdgeInsets.zero, children: rows),
     );
+  }
+
+  static String _key(SeerrMedia m) => '${m.mediaType}:${m.id}';
+
+  /// "Because you watched X" rows: Seerr's recommendations for the last few movies and shows
+  /// watched, keeping only titles that aren't on the server yet.
+  Future<List<(String, List<SeerrMedia>)>> _becauseYouWatched(AppState app, List<JfItem> resume) async {
+    final jf = app.jf!;
+    final watched = await jf.recentlyWatched().catchError((_) => <JfItem>[]);
+    // One seed per movie or series, most recent first.
+    final seen = <String>{};
+    final seeds = <JfItem>[];
+    for (final it in [...resume, ...watched]) {
+      final key = it.isEpisode ? it.seriesId : (it.isMovie ? it.id : null);
+      if (key == null || !seen.add(key)) continue;
+      seeds.add(it);
+      if (seeds.length == 3) break;
+    }
+    // Episodes carry the episode's ids; the series holds the TMDB id Seerr needs.
+    final titles = await Future.wait(
+        seeds.map((it) => it.isEpisode ? jf.item(it.seriesId!).then<JfItem?>((s) => s).catchError((_) => null) : Future.value(it)));
+    final picks = await Future.wait(titles.map((t) {
+      final id = int.tryParse(t?.tmdbId ?? '');
+      if (t == null || id == null) return Future.value(<SeerrMedia>[]);
+      return app.seerr!.recommendations(t.isSeries ? 'tv' : 'movie', id).catchError((_) => <SeerrMedia>[]);
+    }));
+    final shown = <String>{};
+    final rows = <(String, List<SeerrMedia>)>[];
+    for (var i = 0; i < titles.length; i++) {
+      final list = picks[i].where((m) => !m.isAvailable && shown.add(_key(m))).take(20).toList();
+      if (list.isNotEmpty) rows.add(('Because you watched ${titles[i]!.name}', list));
+    }
+    return rows;
   }
 
   static String? _left(JfItem it) {
@@ -472,3 +496,24 @@ class _HeroCard extends StatelessWidget {
     );
   }
 }
+
+/// A Seerr title (not on the server, or only requested) in a TV / desktop poster row.
+PosterEntry _seerrEntry(BuildContext context, SeerrMedia m) => PosterEntry(
+      title: m.title,
+      poster: m.posterUrl,
+      wide: m.backdropUrl,
+      badge: m.isRequested ? 'Requested' : null,
+      badgeAlt: true,
+      overview: m.overview,
+      meta: [if (m.year != null) '${m.year}'],
+      onTap: () => openSeerr(context, m),
+    );
+
+/// A Seerr title in a phone row.
+Widget _seerrTile(BuildContext context, SeerrMedia m) => MediaTile(
+      title: m.title,
+      imageUrl: m.backdropUrl,
+      badge: m.isRequested ? 'Requested' : 'Not on server',
+      badgeAlt: m.isRequested,
+      onTap: () => openSeerr(context, m),
+    );

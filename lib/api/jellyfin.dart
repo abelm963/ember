@@ -612,6 +612,19 @@ class JellyfinClient {
         limit: limit,
       );
 
+  /// Movies and episodes most recently watched (finished or started), newest first.
+  Future<List<JfItem>> recentlyWatched({int limit = 40}) async => _items(await _send('GET', '/Items', query: {
+        'userId': userId,
+        'recursive': true,
+        'includeItemTypes': 'Movie,Episode',
+        'sortBy': 'DatePlayed',
+        'sortOrder': 'Descending',
+        'filters': 'IsPlayed',
+        'limit': limit,
+        'fields': 'ProviderIds',
+        'enableImages': false,
+      }));
+
   Future<List<JfItem>> favorites() => items(filters: 'IsFavorite', types: const ['Movie', 'Series'], sortBy: 'SortName');
 
   /// The movie or series in the library with this TMDB id, or null.

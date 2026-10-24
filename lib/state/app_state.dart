@@ -99,6 +99,8 @@ class AppState extends ChangeNotifier {
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
+  /// Jellyfin addresses already searched for a Seerr next to them this run.
+  final Set<String> _seerrSearched = {};
 
   // Preferences
   bool autoSkipIntro = false;
@@ -112,6 +114,7 @@ class AppState extends ChangeNotifier {
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
   bool showTrendingRow = true;
+  bool showRecommendations = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
   String? preferredAudioLanguage;
@@ -166,6 +169,7 @@ class AppState extends ChangeNotifier {
     hdrOutput = _prefs.getBool('hdrOutput') ?? true;
     autoplayNext = _prefs.getBool('autoplayNext') ?? true;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
+    showRecommendations = _prefs.getBool('showRecommendations') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
     preferredAudioLanguage = _prefs.getString('preferredAudioLanguage');
@@ -254,6 +258,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setBool('hdrOutput', hdrOutput);
     await _prefs.setBool('autoplayNext', autoplayNext);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
+    await _prefs.setBool('showRecommendations', showRecommendations);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);
     await _prefs.setString('subtitleMode', subtitleMode);
@@ -354,6 +359,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> setSeerr({required String url, String? apiKey}) async {
     seerrUrl = url.trim().isEmpty ? null : url.trim();
+    // Clearing the address on purpose stops Ember from finding it again by itself.
+    await _prefs.setBool('seerrAutoFind', seerrUrl != null);
     seerrApiKey = (apiKey == null || apiKey.trim().isEmpty) ? null : apiKey.trim();
     seerrError = null;
     _rebuildClients();
@@ -527,6 +534,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _refreshSeerrUser() async {
     refreshTrailerService();
+    await _findSeerr();
     final s = seerr;
     final wasConnected = seerrUser != null;
     if (s == null || account == null) {
@@ -561,9 +569,23 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// No Seerr address yet: try the Jellyfin server's machine, so requests work with no setup.
+  Future<void> _findSeerr() async {
+    final url = serverUrl;
+    if (seerrUrl != null || url == null || account == null) return;
+    if (!(_prefs.getBool('seerrAutoFind') ?? true) || !_seerrSearched.add(url)) return;
+    final found = await SeerrClient.findNear(url);
+    if (found == null || seerrUrl != null || serverUrl != url) return;
+    seerrUrl = found;
+    _rebuildClients();
+    _setOrRemove('seerrUrl', seerrUrl);
+    notifyListeners();
+  }
+
   /// Re-checks Seerr from scratch (used by Settings › Seerr › Check connection).
   Future<void> refreshSeerr() async {
     seerrError = null;
+    _seerrSearched.clear();
     await _refreshSeerrUser();
   }
 
