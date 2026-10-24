@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../platform.dart';
 
 /// How the person is using Ember. Decides layout and navigation style.
 ///  - tv: remote / D-pad, focus highlight always on, side menu, 10-foot sizes.
@@ -190,6 +191,7 @@ class AppState extends ChangeNotifier {
 
   String _deviceName() {
     try {
+      if (isAppleTv) return 'Apple TV';
       if (Platform.isWindows) return 'Windows - ${Platform.localHostname}';
       if (Platform.isAndroid) return 'Android';
       if (Platform.isIOS) return 'iOS';
@@ -209,6 +211,7 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
       return FormFactor.phone;
     }
+    if (isAppleTv) return FormFactor.tv;
     if (Platform.isIOS) return FormFactor.phone;
     return FormFactor.desktop;
   }

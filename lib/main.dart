@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 
+import 'platform.dart';
 import 'player/hero_preview.dart';
 import 'screens/connect.dart';
 import 'screens/profiles.dart';
@@ -19,7 +20,8 @@ class BackIntent extends Intent {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
+  // Apple TV plays through Apple's own player instead of mpv (see player/engine.dart).
+  if (!isAppleTv) MediaKit.ensureInitialized();
   final state = AppState();
   await state.init();
   // Back (Esc / remote Back) must work even when nothing on screen has keyboard focus,

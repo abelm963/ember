@@ -2,14 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'engine.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -31,8 +30,7 @@ class HeroPreview extends StatefulWidget {
 }
 
 class _HeroPreviewState extends State<HeroPreview> with RouteAware {
-  Player? _player;
-  VideoController? _video;
+  PlaybackEngine? _player;
   Timer? _delay;
   bool _visible = false;
   bool _finished = false;
@@ -77,14 +75,13 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
     final app = context.read<AppState>();
     final url = await _url(app);
     if (url == null || !mounted) return;
-    final p = Player(configuration: const PlayerConfiguration(title: 'Ember preview', bufferSize: 16 * 1024 * 1024));
+    final p = PlaybackEngine(title: 'Ember preview', bufferSize: 16 * 1024 * 1024);
     _player = p;
-    _video = VideoController(p);
     await p.setVolume(_muted ? 0 : 100);
-    _subs.add(p.stream.position.listen((pos) {
+    _subs.add(p.position.listen((pos) {
       if (!_visible && pos > const Duration(milliseconds: 300) && mounted) setState(() => _visible = true);
     }));
-    _subs.add(p.stream.completed.listen((done) {
+    _subs.add(p.completed.listen((done) {
       if (done && mounted) {
         setState(() {
           _visible = false;
@@ -92,7 +89,11 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
         });
       }
     }));
-    await p.open(Media(url));
+    try {
+      await p.open(url);
+    } catch (_) {
+      return; // no preview; the still backdrop stays
+    }
     _syncPlaying();
     if (mounted) setState(() {});
   }
@@ -139,13 +140,14 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    if (_video == null) return widget.overlay;
+    final player = _player;
+    if (player == null) return widget.overlay;
     return Stack(fit: StackFit.expand, children: [
       IgnorePointer(
         child: AnimatedOpacity(
           opacity: _visible ? 1 : 0,
           duration: const Duration(milliseconds: 700),
-          child: ExcludeFocus(child: Video(controller: _video!, controls: NoVideoControls, fit: BoxFit.cover, fill: Colors.transparent)),
+          child: ExcludeFocus(child: player.view(fit: BoxFit.cover, fill: Colors.transparent)),
         ),
       ),
       widget.overlay,
