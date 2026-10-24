@@ -321,15 +321,26 @@ class JellyfinClient {
   static Future<List<DiscoveredServer>> discover({Duration wait = const Duration(seconds: 3)}) async {
     final found = <String, DiscoveredServer>{};
     final targets = <InternetAddress>{InternetAddress('255.255.255.255')};
+    final subnets = <List<int>>[];
     try {
       for (final nic in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
         for (final a in nic.addresses) {
           final b = a.rawAddress;
           if (a.isLoopback || b[0] == 169) continue;
           targets.add(InternetAddress.fromRawAddress(Uint8List.fromList([b[0], b[1], b[2], 255])));
+          subnets.add([b[0], b[1], b[2]]);
         }
       }
     } catch (_) {}
+    // Apple only lets apps broadcast with an entitlement a free Apple ID can't get, so on Apple TV
+    // also ask every address on the local network one by one.
+    if (isAppleTv) {
+      for (final s in subnets) {
+        for (var i = 1; i < 255; i++) {
+          targets.add(InternetAddress.fromRawAddress(Uint8List.fromList([...s, i])));
+        }
+      }
+    }
 
     RawDatagramSocket? socket;
     try {
@@ -365,7 +376,41 @@ class JellyfinClient {
     } finally {
       socket?.close();
     }
+    if (found.isEmpty && isAppleTv) {
+      for (final s in await _probeSubnets(subnets)) {
+        found[s.id] = s;
+      }
+    }
     return found.values.toList();
+  }
+
+  /// Last resort for [discover]: looks for Jellyfin's web port (8096) on every address of the
+  /// local networks, 64 at a time.
+  static Future<List<DiscoveredServer>> _probeSubnets(List<List<int>> subnets) async {
+    final found = <DiscoveredServer>[];
+    final client = HttpClient()..connectionTimeout = const Duration(milliseconds: 700);
+    Future<void> probe(String host) async {
+      try {
+        final req = await client.getUrl(Uri.parse('http://$host:8096/System/Info/Public'));
+        final res = await req.close().timeout(const Duration(seconds: 2));
+        if (res.statusCode != 200) return;
+        final m = jsonDecode(await utf8.decodeStream(res).timeout(const Duration(seconds: 2))) as Map;
+        if (m['Id'] == null) return;
+        found.add(DiscoveredServer(m['ServerName'] as String? ?? 'Jellyfin', 'http://$host:8096', m['Id'] as String));
+      } catch (_) {}
+    }
+
+    try {
+      for (final s in subnets) {
+        final hosts = [for (var i = 1; i < 255; i++) '${s[0]}.${s[1]}.${s[2]}.$i'];
+        for (var i = 0; i < hosts.length; i += 64) {
+          await Future.wait(hosts.skip(i).take(64).map(probe));
+        }
+      }
+    } finally {
+      client.close(force: true);
+    }
+    return found;
   }
 
   // ---------------------------------------------------------------- auth
