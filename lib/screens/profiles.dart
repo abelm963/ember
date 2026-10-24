@@ -62,7 +62,7 @@ class ProfilesScreen extends StatelessWidget {
           builder: (context, publicUsers) {
             final savedIds = saved.map((a) => a.userId).toSet();
             final others = publicUsers.where((u) => !savedIds.contains(u['Id'])).toList();
-            final tiles = <Widget>[
+            final tiles = <_ProfileTile>[
               for (final a in saved)
                 _ProfileTile(
                   name: a.name,
@@ -88,6 +88,7 @@ class ProfilesScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignInScreen())),
               ),
             ];
+            if (!app.isPhone) return _TvPicker(tiles: tiles);
             return Stack(children: [
               Positioned(left: context.px(app.isPhone ? 40 : 160), top: context.px(70), child: const EmberLogo()),
               Center(
@@ -113,6 +114,131 @@ class ProfilesScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// TV and desktop: the profiles in a column down the left, and the one in focus shown large on
+/// the right, over a warm glow.
+class _TvPicker extends StatefulWidget {
+  final List<_ProfileTile> tiles;
+  const _TvPicker({required this.tiles});
+  @override
+  State<_TvPicker> createState() => _TvPickerState();
+}
+
+class _TvPickerState extends State<_TvPicker> {
+  late int _focused = widget.tiles.indexWhere((t) => t.autofocus).clamp(0, widget.tiles.length - 1);
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final t = widget.tiles[_focused];
+    return Stack(children: [
+      Positioned(
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: MediaQuery.sizeOf(context).width * 0.62,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Container(
+            key: ValueKey(t.name),
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.2, -0.1),
+                radius: 1.1,
+                colors: [t.add ? const Color(0xFF26262B) : avatarColor(t.name).withValues(alpha: 0.55), C.bg],
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              t.add
+                  ? Icon(Icons.add_circle_outline, size: context.px(200), color: C.muted)
+                  : Avatar(name: t.name, imageUrl: t.imageUrl, size: 300),
+              SizedBox(height: context.px(36)),
+              Text(t.add ? 'Add a profile' : t.name, style: display(context.px(76))),
+              if (t.note.isNotEmpty) ...[
+                SizedBox(height: context.px(8)),
+                Text(t.note, style: body(context.px(26), color: C.muted)),
+              ],
+            ]),
+          ),
+        ),
+      ),
+      Positioned(
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: MediaQuery.sizeOf(context).width * 0.38,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [C.bg, C.bg, Color(0x00000000)], stops: [0, 0.75, 1]),
+          ),
+          padding: EdgeInsets.fromLTRB(context.px(110), context.px(80), context.px(40), context.px(60)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const EmberLogo(),
+            SizedBox(height: context.px(70)),
+            Text("Who's watching?", style: display(context.px(56))),
+            SizedBox(height: context.px(36)),
+            Expanded(
+              child: FocusTraversalGroup(
+                child: ListView(children: [
+                  for (var i = 0; i < widget.tiles.length; i++)
+                    Focusable(
+                      autofocus: widget.tiles[i].autofocus,
+                      semanticLabel: widget.tiles[i].name,
+                      onTap: widget.tiles[i].onTap,
+                      onFocusChange: (f) {
+                        if (f) setState(() => _focused = i);
+                      },
+                      builder: (context, active) => Padding(
+                        padding: EdgeInsets.symmetric(vertical: context.px(10)),
+                        child: Row(children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: EdgeInsets.all(context.px(4)),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(context.px(active ? 26 : 20)),
+                              border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(4)),
+                            ),
+                            child: widget.tiles[i].add
+                                ? Container(
+                                    width: context.px(active ? 110 : 84),
+                                    height: context.px(active ? 110 : 84),
+                                    decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(context.px(20))),
+                                    child: Icon(Icons.add, color: C.faint, size: context.px(48)),
+                                  )
+                                : Avatar(name: widget.tiles[i].name, imageUrl: widget.tiles[i].imageUrl, size: active ? 110 : 84),
+                          ),
+                          SizedBox(width: context.px(26)),
+                          Expanded(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 150),
+                              opacity: active ? 1 : 0.55,
+                              child: Text(widget.tiles[i].name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: body(context.px(active ? 34 : 28), weight: FontWeight.w700)),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+            SizedBox(height: context.px(20)),
+            EmberButton(
+              label: 'Change server · ${app.serverName ?? ''}',
+              icon: Icons.dns_outlined,
+              kind: BtnKind.ghost,
+              compact: true,
+              onTap: () => app.forgetServer(),
+            ),
+          ]),
+        ),
+      ),
+    ]);
   }
 }
 

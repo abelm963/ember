@@ -45,7 +45,6 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   Section _section = Section.home;
-  bool _menuOpen = false;
 
   void _go(Section s) => setState(() => _section = s);
 
@@ -108,53 +107,42 @@ class _AppShellState extends State<AppShell> {
 
   // ------------------------------------------------------------------ TV
 
+  /// TV and desktop: a menu bar across the top (profile on the left, the sections in a pill in
+  /// the middle, the Ember mark on the right), with the page underneath.
   Widget _tvLayout(BuildContext context, AppState app, Widget body) {
-    final collapsed = context.px(112);
-    final open = context.px(470);
+    final barH = context.px(118);
+    final items = _visible(app).where((e) => e.section != Section.requests || app.seerrConfigured).toList();
     return Stack(children: [
-      Positioned.fill(left: collapsed, child: FocusTraversalGroup(child: body)),
-      // Dim the page while the menu is open, like the design.
-      if (_menuOpen)
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [Color(0xF5050506), Color(0xCC050506), Color(0x66050506)]),
-              ),
-            ),
-          ),
-        ),
+      Positioned.fill(top: barH, child: FocusTraversalGroup(child: body)),
       Positioned(
         left: 0,
+        right: 0,
         top: 0,
-        bottom: 0,
-        child: FocusTraversalGroup(
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _menuOpen = true),
-            onExit: (_) => setState(() => _menuOpen = false),
-            child: Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
-            onFocusChange: (f) => setState(() => _menuOpen = f),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: _menuOpen ? open : collapsed,
-              padding: EdgeInsets.fromLTRB(context.px(24), context.px(48), context.px(24), context.px(40)),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _ProfileButton(expanded: _menuOpen),
-                SizedBox(height: context.px(28)),
-                for (final e in _visible(app).where((e) => e.section != Section.settings))
-                  _TvMenuItem(entry: e, selected: e.section == _section, expanded: _menuOpen, onTap: () => _go(e.section)),
-                const Spacer(),
-                _TvMenuItem(
-                  entry: _entries.last,
-                  selected: _section == Section.settings,
-                  expanded: _menuOpen,
-                  onTap: () => _go(Section.settings),
+        height: barH,
+        child: Container(
+          color: C.bg,
+          padding: EdgeInsets.symmetric(horizontal: context.px(60)),
+          child: FocusTraversalGroup(
+            child: Row(children: [
+              const _ProfileButton(expanded: false),
+              Expanded(
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.all(context.px(6)),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C20),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFF2E2E34), width: context.px(1.5)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      for (final e in items)
+                        _TopItem(entry: e, selected: e.section == _section, onTap: () => _go(e.section)),
+                    ]),
+                  ),
                 ),
-              ]),
-            ),
-          ),
+              ),
+              Icon(Icons.local_fire_department, color: C.accent, size: context.px(54)),
+            ]),
           ),
         ),
       ),
@@ -188,45 +176,38 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-class _TvMenuItem extends StatelessWidget {
+/// One section in the top menu: the icon alone for Search and Settings, a word for the rest.
+class _TopItem extends StatelessWidget {
   final _NavEntry entry;
   final bool selected;
-  final bool expanded;
   final VoidCallback onTap;
-  const _TvMenuItem({required this.entry, required this.selected, required this.expanded, required this.onTap});
+  const _TopItem({required this.entry, required this.selected, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: context.px(8)),
-        child: Focusable(
-          onTap: onTap,
-          semanticLabel: entry.label,
-          builder: (context, active) {
-            final fg = active ? const Color(0xFF111111) : (selected ? C.accent : C.faint);
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              height: context.px(68),
-              padding: EdgeInsets.symmetric(horizontal: context.px(16)),
-              decoration: BoxDecoration(
-                color: active ? C.text : Colors.transparent,
-                borderRadius: BorderRadius.circular(context.px(14)),
-              ),
-              child: Row(children: [
-                Icon(entry.icon, color: fg, size: context.px(32)),
-                if (expanded) ...[
-                  SizedBox(width: context.px(24)),
-                  Flexible(
-                    child: Text(entry.label,
-                        overflow: TextOverflow.clip,
-                        softWrap: false,
-                        style: body(context.px(28), weight: FontWeight.w600, color: active ? fg : (selected ? C.accent : C.muted))),
-                  ),
-                ],
-              ]),
-            );
-          },
-        ),
-      );
+  Widget build(BuildContext context) {
+    final iconOnly = entry.section == Section.search || entry.section == Section.settings;
+    return Focusable(
+      onTap: onTap,
+      semanticLabel: entry.label,
+      scrollIntoView: false,
+      builder: (context, active) {
+        final fg = active ? const Color(0xFF111111) : (selected ? C.text : C.muted);
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: context.px(56),
+          padding: EdgeInsets.symmetric(horizontal: context.px(iconOnly ? 16 : 24)),
+          decoration: BoxDecoration(
+            color: active ? C.text : (selected ? const Color(0xFF3A3A40) : Colors.transparent),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          alignment: Alignment.center,
+          child: iconOnly
+              ? Icon(entry.icon, color: fg, size: context.px(30))
+              : Text(entry.label, style: body(context.px(23), weight: FontWeight.w600, color: fg)),
+        );
+      },
+    );
+  }
 }
 
 class _ProfileButton extends StatelessWidget {

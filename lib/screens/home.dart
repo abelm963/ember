@@ -9,6 +9,7 @@ import '../api/jellyfin.dart';
 import '../api/seerr.dart';
 import '../player/hero_preview.dart';
 import '../state/app_state.dart';
+import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
@@ -87,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
       load: () => _load(app),
       builder: (context, d) {
         final jf = app.jf!;
+        if (!app.isPhone) return _tvHome(context, app, d);
         final rows = <Widget>[
           if (d.hero != null) _Hero(item: d.hero!, jf: jf, active: _heroActive) else SizedBox(height: context.px(60)),
           if (app.isPhone)
@@ -178,6 +180,57 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(4000), padding: EdgeInsets.zero, children: rows),
         );
       },
+    );
+  }
+
+  /// TV and desktop: a rounded hero card under the menu bar, then poster rows.
+  Widget _tvHome(BuildContext context, AppState app, _HomeData d) {
+    final jf = app.jf!;
+    if (d.hero == null && d.resume.isEmpty && d.latest.isEmpty) {
+      return Center(
+        child: Text('Your library is empty. Add some movies or shows to Jellyfin to see them here.',
+            style: body(context.px(26), color: C.muted)),
+      );
+    }
+    final rows = <Widget>[
+      if (d.hero != null) _HeroCard(item: d.hero!, jf: jf, active: _heroActive),
+      PosterRow(
+        title: 'Continue Watching',
+        autofocusFirst: d.hero == null,
+        entries: [for (final it in d.resume) posterEntry(context, jf, it, onTap: () => play(context, it), resume: true)],
+      ),
+      PosterRow(
+        title: 'Next Up',
+        entries: [for (final it in d.nextUp) posterEntry(context, jf, it, onTap: () => play(context, it), resume: true)],
+      ),
+      if (d.trending.isNotEmpty)
+        PosterRow(
+          title: 'Trending — not in your library yet',
+          entries: [
+            for (final m in d.trending)
+              PosterEntry(
+                title: m.title,
+                poster: m.posterUrl,
+                wide: m.backdropUrl,
+                badge: m.isRequested ? 'Requested' : null,
+                badgeAlt: true,
+                overview: m.overview,
+                meta: [if (m.year != null) '${m.year}'],
+                onTap: () => openSeerr(context, m),
+              ),
+          ],
+        ),
+      for (final (title, items) in d.latest)
+        PosterRow(title: title, entries: [for (final it in items) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
+      PosterRow(title: 'My List', entries: [for (final it in d.favorites) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
+      SizedBox(height: context.px(300)),
+    ];
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n.metrics.axis == Axis.vertical) _heroActive.value = n.metrics.pixels < context.px(350);
+        return false;
+      },
+      child: ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(4000), padding: EdgeInsets.zero, children: rows),
     );
   }
 
@@ -297,4 +350,114 @@ String? _videoBadge(JfItem item) {
 
 class MetaLine extends _MetaLine {
   const MetaLine({required super.item});
+}
+
+/// The poster-row entry for a library item. Episodes show their series' poster and logo, with
+/// the episode and the time left underneath when focused ([resume]).
+PosterEntry posterEntry(BuildContext context, JellyfinClient jf, JfItem it, {required VoidCallback onTap, bool resume = false}) {
+  final left = _HomeScreenState._left(it);
+  return PosterEntry(
+    title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
+    poster: jf.posterImage(it),
+    wide: jf.landscapeImage(it, maxWidth: 960),
+    logo: jf.logoImage(it, maxWidth: 600),
+    progress: it.progress,
+    subtitle: resume && it.isEpisode ? '${it.episodeLabel.replaceAll(' : ', ' ')} · ${it.name}' : null,
+    note: resume ? left : null,
+    meta: metaParts(it),
+    rating: it.officialRating,
+    overview: it.overview,
+    onTap: onTap,
+  );
+}
+
+/// "Series · Drama · 2026 · 5 Seasons" for a movie or series.
+List<String> metaParts(JfItem it) => [
+      if (it.isSeries) 'Series' else if (it.isMovie) 'Film',
+      if (it.genres.isNotEmpty) it.genres.first,
+      if (it.year != null) '${it.year}',
+      if (it.isSeries && it.childCount != null) '${it.childCount} Season${it.childCount == 1 ? '' : 's'}',
+      if (it.isMovie && it.runtime != null) formatRuntime(it.runtime),
+      if (_videoBadge(it) != null) _videoBadge(it)!,
+    ];
+
+/// The hero on TV and desktop: a rounded card with the backdrop (and muted preview), the logo,
+/// a meta line, the overview and Play / More Info.
+class _HeroCard extends StatelessWidget {
+  final JfItem item;
+  final JellyfinClient jf;
+  final ValueListenable<bool> active;
+  const _HeroCard({required this.item, required this.jf, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final logo = jf.logoImage(item);
+    final r = BorderRadius.circular(context.px(28));
+    return Padding(
+      padding: EdgeInsets.fromLTRB(context.px(60), context.px(6), context.px(60), context.px(44)),
+      child: Container(
+        height: context.px(600),
+        decoration: BoxDecoration(borderRadius: r, border: Border.all(color: const Color(0xFF2A2A30), width: context.px(1.5))),
+        child: ClipRRect(
+          borderRadius: r,
+          child: Stack(fit: StackFit.expand, children: [
+            NetImage(jf.backdropImage(item), alignment: Alignment.topCenter),
+            HeroPreview(
+              item: item,
+              active: active,
+              overlay: const Stack(fit: StackFit.expand, children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [Color(0xE6000000), Color(0x80000000), Color(0x00000000)], stops: [0, 0.35, 0.65]),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Color(0xB3000000), Color(0x00000000)], stops: [0, 0.5]),
+                  ),
+                ),
+              ]),
+            ),
+            Positioned(
+              left: context.px(56),
+              bottom: context.px(48),
+              width: context.px(780),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                if (logo != null)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: context.px(150), maxWidth: context.px(560)),
+                    child: NetImage(logo,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.centerLeft,
+                        loading: SizedBox(height: context.px(130)),
+                        fallback: Text(item.name, style: display(context.px(84)))),
+                  )
+                else
+                  Text(item.name, maxLines: 2, style: display(context.px(84))),
+                SizedBox(height: context.px(20)),
+                MetaDots(parts: metaParts(item), rating: item.officialRating),
+                if (item.overview != null) ...[
+                  SizedBox(height: context.px(12)),
+                  Text(item.overview!,
+                      maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(23), color: C.soft, height: 1.4)),
+                ],
+                SizedBox(height: context.px(26)),
+                Wrap(spacing: context.px(16), children: [
+                  PillButton(
+                    label: item.progress != null ? 'Resume' : 'Play',
+                    icon: Icons.play_arrow_rounded,
+                    autofocus: app.isTv,
+                    onTap: () => item.isSeries ? playSeries(context, jf, item) : play(context, item),
+                  ),
+                  PillButton(label: 'More Info', onTap: () => openItem(context, item)),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 }

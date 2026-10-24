@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
 import '../state/app_state.dart';
+import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'home.dart';
@@ -148,11 +149,166 @@ class _DetailsBodyState extends State<_DetailsBody> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final d = widget.d;
+    if (!app.isPhone) return _tvPage(context, app);
     return ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(4000), padding: EdgeInsets.zero, children: [
       _header(context, app),
       SizedBox(height: context.px(10)),
       if (d.item.isSeries) _seriesBody(context, app) else _movieBody(context, app),
       SizedBox(height: context.px(80)),
+    ]);
+  }
+
+  // ------------------------------------------------------------------ TV / desktop
+
+  /// Text and a list of actions on the left, the backdrop on the right fading into black;
+  /// More Like This and extras further down.
+  Widget _tvPage(BuildContext context, AppState app) {
+    final jf = app.jf!;
+    final d = widget.d;
+    final it = d.item;
+    final size = MediaQuery.sizeOf(context);
+    final logo = jf.logoImage(it);
+    final next = d.nextEpisode;
+    final hasTrailer = d.localTrailers.isNotEmpty || it.remoteTrailers.isNotEmpty;
+    final cast = it.people.where((p) => p['Type'] == 'Actor').take(3).map((p) => p['Name']).join(', ');
+    final is4k = FormatInfo.fromStreams(it.mediaStreams).badges.contains('4K');
+    final resume = it.isSeries ? next?.progress : it.progress;
+    final epLabel = next == null ? '' : ' ${next.episodeLabel.replaceAll(' : ', ': ')}';
+    final playLabel = it.isSeries ? '${resume != null ? 'Resume' : 'Play'}$epLabel' : (resume != null ? 'Resume' : 'Play');
+    final meta = [
+      if (it.year != null) '${it.year}',
+      if (it.genres.isNotEmpty) it.genres.first,
+      if (it.isSeries && it.childCount != null) '${it.childCount} Season${it.childCount == 1 ? '' : 's'}',
+      if (it.isMovie && it.runtime != null) formatRuntime(it.runtime),
+    ];
+    final badges = [...FormatInfo.fromStreams(it.mediaStreams).badges.take(3)];
+
+    final header = SizedBox(
+      height: size.height,
+      child: Stack(children: [
+        Positioned(
+          right: 0,
+          top: 0,
+          width: size.width * 0.66,
+          height: size.height * 0.78,
+          child: Stack(fit: StackFit.expand, children: [
+            NetImage(jf.backdropImage(it), alignment: Alignment.topCenter),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [C.bg, Color(0x990A0A0B), Color(0x000A0A0B)], stops: [0, 0.3, 0.6]),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [C.bg, Color(0x000A0A0B)], stops: [0, 0.4]),
+              ),
+            ),
+          ]),
+        ),
+        if (!app.isTv) Positioned(left: context.px(36), top: context.px(40), child: BackArrow(onTap: () => Navigator.pop(context))),
+        Positioned(
+          left: context.px(110),
+          top: context.px(90),
+          width: context.px(820),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (logo != null)
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: context.px(150), maxWidth: context.px(520)),
+                child: NetImage(logo,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
+                    loading: SizedBox(height: context.px(130)),
+                    fallback: Text(it.name, style: display(context.px(80)))),
+              )
+            else
+              Text(it.name, maxLines: 2, style: display(context.px(80))),
+            SizedBox(height: context.px(22)),
+            Wrap(spacing: context.px(14), runSpacing: context.px(8), crossAxisAlignment: WrapCrossAlignment.center, children: [
+              for (final m in meta) Text(m, style: body(context.px(22), weight: FontWeight.w600)),
+              for (final b in badges) Badge2(b),
+              if (it.officialRating != null) Badge2(it.officialRating!),
+            ]),
+            if (it.overview != null) ...[
+              SizedBox(height: context.px(18)),
+              Text(it.overview!, maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(23), height: 1.4)),
+            ],
+            if (cast.isNotEmpty) ...[
+              SizedBox(height: context.px(10)),
+              Text('Cast: $cast', maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(19), color: C.muted)),
+            ],
+            SizedBox(height: context.px(30)),
+            FocusTraversalGroup(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ActionItem(
+                  label: playLabel,
+                  icon: Icons.play_arrow_rounded,
+                  autofocus: app.isTv,
+                  progress: resume,
+                  onTap: () => it.isSeries ? (next != null ? play(context, next) : playSeries(context, jf, it)) : play(context, it),
+                ),
+                if (it.isMovie && it.progress != null)
+                  ActionItem(label: 'Play from beginning', icon: Icons.replay, onTap: () => play(context, it, fromStart: true)),
+                if (it.isSeries)
+                  ActionItem(
+                    label: 'More episodes',
+                    icon: Icons.video_library_outlined,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => _EpisodesPage(d: d, initialSeasonId: _seasonId, missing: _missing),
+                    )),
+                  ),
+                if (hasTrailer) ActionItem(label: 'Play trailer', icon: Icons.movie_filter_outlined, onTap: _trailer),
+                ActionItem(
+                  label: it.isFavorite ? 'Remove from My List' : 'Add to My List',
+                  icon: it.isFavorite ? Icons.close : Icons.add,
+                  onTap: () async {
+                    await jf.setFavorite(it.id, !it.isFavorite);
+                    widget.onChanged();
+                  },
+                ),
+                ActionItem(
+                  label: it.played ? 'Mark as unwatched' : 'Mark as watched',
+                  icon: it.played ? Icons.visibility_off_outlined : Icons.check_circle_outline,
+                  onTap: () async {
+                    await jf.setPlayed(it.id, !it.played);
+                    widget.onChanged();
+                  },
+                ),
+                if (it.isMovie && app.seerrConfigured && !is4k && it.tmdbId != null)
+                  ActionItem(label: 'Request in 4K', icon: Icons.download_outlined, onTap: _request4k),
+              ]),
+            ),
+          ]),
+        ),
+      ]),
+    );
+
+    final extras = <Widget>[
+      for (final t in d.localTrailers)
+        _ExtraTile(
+            title: t.name.isEmpty ? 'Trailer' : t.name,
+            meta: 'Trailer · ${formatRuntime(t.runtime)}',
+            imageUrl: jf.landscapeImage(t) ?? jf.backdropImage(it),
+            onTap: () => play(context, t, fromStart: true, isTrailer: true)),
+      for (final x in d.extras)
+        _ExtraTile(
+            title: x.name,
+            meta: formatRuntime(x.runtime),
+            imageUrl: jf.landscapeImage(x) ?? jf.backdropImage(it),
+            onTap: () => play(context, x, fromStart: true, isTrailer: true)),
+    ];
+    return ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(3000), padding: EdgeInsets.zero, children: [
+      header,
+      PosterRow(
+        title: 'More Like This',
+        entries: [for (final s in d.similar) posterEntry(context, jf, s, onTap: () => openItem(context, s))],
+      ),
+      if (extras.isNotEmpty) MediaRow(title: 'Trailers & Extras', tileHeight: 191, inset: 60, children: extras),
+      if (it.people.isNotEmpty)
+        MediaRow(title: 'Cast & Crew', tileHeight: 260, inset: 60, children: [
+          for (final p in it.people.take(30)) _PersonTile(person: p, imageUrl: jf.personImage(p)),
+        ]),
+      SizedBox(height: context.px(200)),
     ]);
   }
 
@@ -689,6 +845,211 @@ class _PersonTile extends StatelessWidget {
             Text(role, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(18), color: C.faint)),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// "More episodes" on TV and desktop: the series and its seasons on the left, the season's
+/// episodes as a list on the right.
+class _EpisodesPage extends StatefulWidget {
+  final _Details d;
+  final String? initialSeasonId;
+  final List<int> missing;
+  const _EpisodesPage({required this.d, required this.missing, this.initialSeasonId});
+  @override
+  State<_EpisodesPage> createState() => _EpisodesPageState();
+}
+
+class _EpisodesPageState extends State<_EpisodesPage> {
+  String? _seasonId;
+  int? _missingSeason;
+
+  @override
+  void initState() {
+    super.initState();
+    _seasonId = widget.initialSeasonId ?? (widget.d.seasons.isEmpty ? null : widget.d.seasons.first.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final jf = app.jf!;
+    final it = widget.d.item;
+    final logo = jf.logoImage(it);
+    final total = widget.d.seasons.fold<int>(0, (n, s) => n + (s.childCount ?? 0));
+
+    Widget season(String label, String note, bool selected, VoidCallback onTap, {bool accent = false}) => Padding(
+          padding: EdgeInsets.only(bottom: context.px(8)),
+          child: Focusable(
+            onTap: onTap,
+            semanticLabel: label,
+            builder: (context, active) {
+              final fg = active ? const Color(0xFF111111) : (selected ? C.text : C.muted);
+              return Container(
+                height: context.px(58),
+                padding: EdgeInsets.symmetric(horizontal: context.px(22)),
+                decoration: BoxDecoration(
+                  color: active ? C.text : (selected ? const Color(0xFF3A3A40) : Colors.transparent),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(children: [
+                  Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(23), weight: FontWeight.w600, color: fg))),
+                  if (note.isNotEmpty)
+                    Text(note, style: body(context.px(19), color: active ? const Color(0xFF444444) : (accent ? C.accent : C.faint))),
+                ]),
+              );
+            },
+          ),
+        );
+
+    final left = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (logo != null)
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: context.px(110), maxWidth: context.px(400)),
+          child: NetImage(logo, fit: BoxFit.contain, alignment: Alignment.centerLeft, fallback: Text(it.name, style: display(context.px(52)))),
+        )
+      else
+        Text(it.name, maxLines: 2, style: display(context.px(52))),
+      SizedBox(height: context.px(14)),
+      MetaDots(parts: [if (it.year != null) '${it.year}', if (total > 0) '$total Episodes'], rating: it.officialRating, size: 20),
+      SizedBox(height: context.px(40)),
+      FocusTraversalGroup(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (final s in widget.d.seasons)
+            season(s.name, s.childCount == null ? '' : '${s.childCount} Episodes', _missingSeason == null && _seasonId == s.id,
+                () => setState(() {
+                      _seasonId = s.id;
+                      _missingSeason = null;
+                    })),
+          for (final n in widget.missing)
+            season('Season $n', 'Request', _missingSeason == n, () => setState(() => _missingSeason = n), accent: true),
+        ]),
+      ),
+    ]);
+
+    Widget right;
+    if (_missingSeason != null) {
+      final n = _missingSeason!;
+      right = Padding(
+        padding: EdgeInsets.only(top: context.px(10)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text("Season $n isn't on your server yet", style: display(context.px(44))),
+          SizedBox(height: context.px(16)),
+          Text('Request it and it will show up here once it has downloaded.', style: body(context.px(24), color: C.muted, height: 1.5)),
+          SizedBox(height: context.px(24)),
+          PillButton(
+            label: 'Request Season $n',
+            icon: Icons.download_outlined,
+            onTap: () => showRequestDialog(context, widget.d.seerr!, preselect: {n}),
+          ),
+        ]),
+      );
+    } else if (_seasonId == null) {
+      right = Text('No episodes on the server yet.', style: body(context.px(23), color: C.faint));
+    } else {
+      right = Loader<List<JfItem>>(
+        deps: _seasonId,
+        load: () => jf.episodes(it.id, seasonId: _seasonId),
+        builder: (context, eps) => FocusTraversalGroup(
+          child: ListView(
+            padding: EdgeInsets.only(bottom: context.px(300)),
+            children: [
+              for (final e in eps)
+                _EpisodeListItem(
+                  ep: e,
+                  jf: jf,
+                  autofocus: app.isTv && e.id == (widget.d.nextEpisode?.id ?? eps.first.id),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: Padding(
+        padding: EdgeInsets.fromLTRB(context.px(100), context.px(90), context.px(80), 0),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(width: context.px(560), child: left),
+          SizedBox(width: context.px(70)),
+          Expanded(child: right),
+        ]),
+      ),
+    );
+  }
+}
+
+/// An episode on the episodes page: the still on the left with "S1: E3" on it, the title,
+/// summary and length on the right.
+class _EpisodeListItem extends StatelessWidget {
+  final JfItem ep;
+  final JellyfinClient jf;
+  final bool autofocus;
+  const _EpisodeListItem({required this.ep, required this.jf, this.autofocus = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final w = context.px(400);
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.px(28)),
+      child: Focusable(
+        autofocus: autofocus,
+        onTap: () => play(context, ep),
+        semanticLabel: '${ep.episodeLabel} ${ep.name}',
+        builder: (context, active) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            width: w,
+            height: w * 9 / 16,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(context.px(12)),
+              border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(4)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(context.px(9)),
+              child: Stack(fit: StackFit.expand, children: [
+                NetImage(jf.landscapeImage(ep, maxWidth: 640), fallback: TitleCard(ep.name)),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        begin: Alignment.bottomCenter, end: Alignment(0, 0.2), colors: [Color(0xAA000000), Color(0x00000000)]),
+                  ),
+                ),
+                Positioned(
+                  left: context.px(16),
+                  bottom: context.px(14),
+                  child: Text(ep.episodeLabel.replaceAll(' : ', ': '), style: body(context.px(22), weight: FontWeight.w700)),
+                ),
+                if (ep.progress != null || ep.played)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: context.px(6),
+                    child: Container(
+                      color: Colors.white24,
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(widthFactor: ep.played ? 1 : ep.progress, child: Container(color: C.accent)),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+          SizedBox(width: context.px(30)),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(ep.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(28), weight: FontWeight.w700)),
+              SizedBox(height: context.px(8)),
+              Text(ep.overview ?? '',
+                  maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(22), color: active ? C.text : C.soft, height: 1.4)),
+              if (ep.runtime != null) ...[
+                SizedBox(height: context.px(8)),
+                Text('(${formatRuntime(ep.runtime)})', style: body(context.px(20), color: C.muted)),
+              ],
+            ]),
+          ),
+        ]),
       ),
     );
   }
