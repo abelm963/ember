@@ -134,23 +134,19 @@ class _TvPickerState extends State<_TvPicker> {
     final app = context.watch<AppState>();
     final t = widget.tiles[_focused];
     return Stack(children: [
-      Positioned(
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: MediaQuery.sizeOf(context).width * 0.62,
+      Positioned.fill(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: Container(
             key: ValueKey(t.name),
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0.2, -0.1),
-                radius: 1.1,
+                center: const Alignment(0.4, -0.1),
+                radius: 0.9,
                 colors: [t.add ? const Color(0xFF26262B) : avatarColor(t.name).withValues(alpha: 0.55), C.bg],
               ),
             ),
-            alignment: Alignment.center,
+            alignment: const Alignment(0.4, 0),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               t.add
                   ? Icon(Icons.add_circle_outline, size: context.px(200), color: C.muted)

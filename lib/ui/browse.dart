@@ -316,7 +316,7 @@ class _Poster extends StatelessWidget {
             borderRadius: r,
             child: Stack(fit: StackFit.expand, children: [
               if (wide)
-                NetImage(e.wide ?? e.poster, fallback: TitleCard(e.title))
+                NetImage(e.wide ?? e.poster, fallback: TitleCard(e.title, label: false))
               else
                 NetImage(e.poster ?? e.wide, fallback: TitleCard(e.title)),
               if (wide)
