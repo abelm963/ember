@@ -569,12 +569,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// No Seerr address yet: try the Jellyfin server's machine, so requests work with no setup.
+  /// No Seerr address yet: find it through Jellyfin, so requests work with no setup. Once one
+  /// profile finds it, every profile on this device uses it.
   Future<void> _findSeerr() async {
     final url = serverUrl;
     if (seerrUrl != null || url == null || account == null) return;
     if (!(_prefs.getBool('seerrAutoFind') ?? true) || !_seerrSearched.add(url)) return;
-    final found = await SeerrClient.findNear(url);
+    // Seerr linked in Jellyfin's plugins (readable by admins); the address it's saved with may
+    // only work inside the server, so the ones that answer from here win.
+    final known = account!.isAdmin ? await jf!.seerrUrlsFromPlugins().catchError((_) => <String>[]) : <String>[];
+    final found = await SeerrClient.findNear(url, known: known);
     if (found == null || seerrUrl != null || serverUrl != url) return;
     seerrUrl = found;
     _rebuildClients();

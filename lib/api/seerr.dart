@@ -289,12 +289,22 @@ class SeerrClient {
 
   Future<Map<String, dynamic>> status() async => ((await _send('GET', '/status')) as Map).cast<String, dynamic>();
 
-  /// Looks for Seerr on the same machine as Jellyfin (Seerr's usual port, 5055), so it works
-  /// without typing an address. Returns the address that answered, or null.
-  static Future<String?> findNear(String jellyfinUrl) async {
+  /// Looks for Seerr without anyone typing an address: first at [known], then on the same machine
+  /// as Jellyfin (Seerr's usual port, 5055). Returns the address that answered, or null.
+  /// [known] are addresses to try first, such as the ones Jellyfin's plugins are set up with.
+  static Future<String?> findNear(String jellyfinUrl, {List<String> known = const []}) async {
     final j = Uri.tryParse(normalize(jellyfinUrl));
     if (j == null || j.host.isEmpty) return null;
-    final candidates = {'${j.scheme}://${j.host}:5055', 'http://${j.host}:5055'};
+    final candidates = <String>{
+      for (final k in known) ...[
+        normalize(k),
+        // Saved as localhost or a Docker name, which only works inside the server: same port on
+        // Jellyfin's host.
+        if (Uri.tryParse(normalize(k)) case final u? when u.hasPort) '${u.scheme}://${j.host}:${u.port}${u.path}',
+      ],
+      '${j.scheme}://${j.host}:5055',
+      'http://${j.host}:5055',
+    };
     for (final c in candidates) {
       final ok = await SeerrClient(baseUrl: c).ping().timeout(const Duration(seconds: 4), onTimeout: () => false);
       if (ok) return c;

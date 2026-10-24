@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:ember/api/jellyfin.dart';
 import 'package:ember/api/seerr.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -44,7 +45,7 @@ void main() {
   test('finds Seerr next to Jellyfin and reads recommendations', () async {
     final mock = MockClient((req) async {
       final u = req.url;
-      if (u.port != 5055) throw Exception('nothing here');
+      if (u.port != 5055 || u.host != 'media.example') throw Exception('nothing here');
       if (u.path == '/api/v1/status') return http.Response(jsonEncode({'version': '3.5.0'}), 200);
       if (u.path == '/api/v1/movie/438631/recommendations') {
         return http.Response(jsonEncode({'results': [{'id': 693134, 'title': 'Dune: Part Two'}]}), 200);
@@ -52,6 +53,14 @@ void main() {
       return http.Response('{}', 404);
     });
     await http.runWithClient(() async {
+      // Linked in a Jellyfin plugin as a Docker name: the same port on Jellyfin's host answers.
+      final known = JellyfinClient.seerrUrlsIn({
+        'TmdbApiKey': 'x',
+        'Jellyseerr': {'Enabled': true, 'JellyseerrUrls': 'http://jellyseerr:5055\nhttps://outside.example'},
+        'HomepageUrl': 'https://not-this.example',
+      });
+      expect(known, ['http://jellyseerr:5055', 'https://outside.example']);
+      expect(await SeerrClient.findNear('http://media.example:8096', known: known), 'http://media.example:5055');
       final found = await SeerrClient.findNear('https://media.example:8920/web');
       expect(found, 'https://media.example:5055');
       final recs = await SeerrClient(baseUrl: found!).recommendations('movie', 438631);

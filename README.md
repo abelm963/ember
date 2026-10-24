@@ -75,8 +75,9 @@ planned with the Apple TV and Android TV players.
 
 ## Seerr
 
-No setup is needed when Seerr runs on the same machine as Jellyfin on its usual port (5055):
-Ember finds it and signs in with your Jellyfin profile (Seerr asks for a Quick Connect code and
+No setup is needed: Ember finds Seerr through Jellyfin, from the address a Seerr-linked plugin
+(Jellyfin Enhanced, a Seerr bridge, a launcher's companion plugin) is set up with, read by an admin
+profile, or on Jellyfin's machine at Seerr's usual port (5055). It then signs in with your Jellyfin profile (Seerr asks for a Quick Connect code and
 Ember approves it for you, so Quick Connect must be on in Jellyfin). Otherwise add the address in
 Settings › Seerr requests. Requests are made as you, and admins can approve or decline from the
 Requests screen, which also shows download progress from Radarr / Sonarr.
