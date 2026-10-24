@@ -46,8 +46,8 @@ dependencies:
   video_player_tvos: ^0.0.1
   shared_preferences_tvos: ^0.0.2
   url_launcher_tvos: ^0.0.1
-  # Keeps the Apple TV screensaver away during playback (wakelock_plus itself has no tvOS code).
-  wakelock_plus: ^1.8.1
+  # Keeps the Apple TV screensaver away during playback.
+  wakelock_plus: ">=1.7.0 <1.8.0" # 1.8 declares tvOS itself but flutter-tvos can't build it; the _tvos package does
   wakelock_plus_tvos: ^0.0.1
 
 dev_dependencies:
