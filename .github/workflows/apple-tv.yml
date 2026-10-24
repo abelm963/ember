@@ -1,0 +1,120 @@
+# Builds Ember for Apple TV on one of GitHub's Macs, so no Mac of our own is needed.
+#
+# Output (under the run's Artifacts):
+#   ember-appletv-ipa   Ember.ipa, unsigned. atvloadly on Hearth signs it with a free Apple ID,
+#                       installs it on the Apple TV and re-signs it every week.
+#   ember-tvos-project  the generated tvos/ Xcode project, only when the repo doesn't have one yet
+#                       (commit it so later builds reuse it).
+#   ember-screenshots   the app running in the Apple TV simulator.
+
+name: Apple TV build
+
+on:
+  push:
+    branches: [apple-tv, main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+concurrency:
+  group: apple-tv-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # flutter-tvos release that pins Flutter 3.47.8, the version Ember is built with.
+  FLUTTER_TVOS_REF: v3.47.8-tvos.1.11.4
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i appletv
+
+      - name: Install flutter-tvos
+        run: |
+          git clone --depth 1 -b "$FLUTTER_TVOS_REF" https://github.com/fluttertv/flutter-tvos.git "$RUNNER_TEMP/flutter-tvos"
+          echo "$RUNNER_TEMP/flutter-tvos/bin" >> "$GITHUB_PATH"
+
+      - name: Set up flutter-tvos
+        run: |
+          flutter-tvos config --no-analytics || true
+          flutter-tvos precache
+          flutter-tvos doctor -v || true
+
+      - name: Create the Apple TV project (first build only)
+        id: create
+        run: |
+          if [ -d tvos ]; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            had_test=0; [ -f test/widget_test.dart ] && had_test=1
+            flutter-tvos create --org app.ember .
+            [ "$had_test" = 0 ] && rm -f test/widget_test.dart
+            # Only tvos/ is wanted from create; put back anything it touched elsewhere.
+            git checkout -- . ':!tvos' 2>/dev/null || true
+            git clean -fdq -e tvos -e .dart_tool -e build
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get packages
+        run: flutter-tvos pub get
+
+      - name: Build for Apple TV (unsigned)
+        run: flutter-tvos build tvos --release --no-codesign
+
+      - name: Package Ember.ipa
+        run: |
+          app="$(find build -path '*Release-appletvos/*' -name 'Runner.app' -maxdepth 5 | head -1)"
+          [ -n "$app" ] || { echo "Runner.app not found"; find build -name '*.app'; exit 1; }
+          mkdir -p dist/Payload
+          cp -R "$app" dist/Payload/Runner.app
+          (cd dist && zip -qry Ember.ipa Payload)
+          ls -la dist/Ember.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ember-appletv-ipa
+          path: dist/Ember.ipa
+          retention-days: 30
+
+      - name: Save the generated tvos/ project
+        if: steps.create.outputs.created == 'true'
+        run: zip -qry tvos-project.zip tvos
+
+      - uses: actions/upload-artifact@v4
+        if: steps.create.outputs.created == 'true'
+        with:
+          name: ember-tvos-project
+          path: tvos-project.zip
+
+      # A quick look at the app on a simulated Apple TV, so screens can be checked without one.
+      - name: Run in the Apple TV simulator
+        continue-on-error: true
+        run: |
+          flutter-tvos build tvos --simulator --debug
+          app="$(find build -path '*appletvsimulator/*' -name 'Runner.app' -maxdepth 5 | head -1)"
+          runtime="$(xcrun simctl list runtimes tvOS -j | python3 -c 'import sys,json; r=[x for x in json.load(sys.stdin)["runtimes"] if x["isAvailable"]]; print(r[-1]["identifier"])')"
+          dev="$(xcrun simctl create EmberTV 'com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K' "$runtime")"
+          xcrun simctl boot "$dev"
+          xcrun simctl bootstatus "$dev" -b
+          xcrun simctl install "$dev" "$app"
+          bundle="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")"
+          xcrun simctl launch "$dev" "$bundle"
+          mkdir -p shots
+          sleep 25
+          xcrun simctl io "$dev" screenshot shots/01-start.png
+          xcrun simctl spawn "$dev" log show --last 2m --predicate 'process == "Runner"' > shots/runner-log.txt 2>&1 || true
+          xcrun simctl shutdown "$dev"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ember-screenshots
+          path: shots
+          if-no-files-found: ignore
