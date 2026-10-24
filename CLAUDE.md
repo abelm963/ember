@@ -81,7 +81,7 @@ https://claude.ai/artifact/GT3uTzN7739DSi7hcPsWLQ
 
 Working:
 - Library browsing, details pages, the player (tracks, quality, trickplay, Skip Intro, Up Next) and search.
-- Seerr: automatic sign-in, Requests, Trending, Preview, requesting.
+- Seerr: finds itself next to Jellyfin (port 5055), automatic sign-in, Requests with download progress, Trending, "Because you watched" rows, Preview, requesting.
 - The Coming Soon calendar, served through the plugin.
 - Skeleton loading on title pages.
 

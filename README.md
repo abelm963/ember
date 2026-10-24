@@ -75,9 +75,16 @@ planned with the Apple TV and Android TV players.
 
 ## Seerr
 
-Settings › Seerr requests: add the Seerr address, then sign in with your Jellyfin username and
-password (or sign in to Ember with a password and it happens automatically). Requests are made
-as you, and admins can approve or decline from the Requests screen.
+No setup is needed: Ember finds Seerr through Jellyfin, from the address a Seerr-linked plugin
+(Jellyfin Enhanced, a Seerr bridge, a launcher's companion plugin) is set up with, read by an admin
+profile, or on Jellyfin's machine at Seerr's usual port (5055). It then signs in with your Jellyfin profile (Seerr asks for a Quick Connect code and
+Ember approves it for you, so Quick Connect must be on in Jellyfin). Otherwise add the address in
+Settings › Seerr requests. Requests are made as you, and admins can approve or decline from the
+Requests screen, which also shows download progress from Radarr / Sonarr.
+
+Home shows "Because you watched …" rows: TMDB recommendations (through Seerr) for the last few
+movies and shows you watched, limited to titles that aren't on the server yet, so each one can be
+requested from its page.
 
 ## Trailers inside Ember (server plugin)
 

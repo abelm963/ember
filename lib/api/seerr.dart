@@ -289,6 +289,29 @@ class SeerrClient {
 
   Future<Map<String, dynamic>> status() async => ((await _send('GET', '/status')) as Map).cast<String, dynamic>();
 
+  /// Looks for Seerr without anyone typing an address: first at [known], then on the same machine
+  /// as Jellyfin (Seerr's usual port, 5055). Returns the address that answered, or null.
+  /// [known] are addresses to try first, such as the ones Jellyfin's plugins are set up with.
+  static Future<String?> findNear(String jellyfinUrl, {List<String> known = const []}) async {
+    final j = Uri.tryParse(normalize(jellyfinUrl));
+    if (j == null || j.host.isEmpty) return null;
+    final candidates = <String>{
+      for (final k in known) ...[
+        normalize(k),
+        // Saved as localhost or a Docker name, which only works inside the server: same port on
+        // Jellyfin's host.
+        if (Uri.tryParse(normalize(k)) case final u? when u.hasPort) '${u.scheme}://${j.host}:${u.port}${u.path}',
+      ],
+      '${j.scheme}://${j.host}:5055',
+      'http://${j.host}:5055',
+    };
+    for (final c in candidates) {
+      final ok = await SeerrClient(baseUrl: c).ping().timeout(const Duration(seconds: 4), onTimeout: () => false);
+      if (ok) return c;
+    }
+    return null;
+  }
+
   /// Checks the address points at a Seerr server.
   Future<bool> ping() async {
     try {
@@ -400,6 +423,15 @@ class SeerrClient {
 
   Future<List<SeerrMedia>> similar(String mediaType, int tmdbId) async {
     final json = await _send('GET', mediaType == 'tv' ? '/tv/$tmdbId/similar' : '/movie/$tmdbId/similar');
+    return _results(json).map((m) {
+      m.raw['mediaType'] ??= mediaType;
+      return m;
+    }).toList();
+  }
+
+  /// TMDB's "if you liked this" picks for a title, with Seerr's availability and request status.
+  Future<List<SeerrMedia>> recommendations(String mediaType, int tmdbId) async {
+    final json = await _send('GET', mediaType == 'tv' ? '/tv/$tmdbId/recommendations' : '/movie/$tmdbId/recommendations');
     return _results(json).map((m) {
       m.raw['mediaType'] ??= mediaType;
       return m;

@@ -612,6 +612,19 @@ class JellyfinClient {
         limit: limit,
       );
 
+  /// Movies and episodes most recently watched (finished or started), newest first.
+  Future<List<JfItem>> recentlyWatched({int limit = 40}) async => _items(await _send('GET', '/Items', query: {
+        'userId': userId,
+        'recursive': true,
+        'includeItemTypes': 'Movie,Episode',
+        'sortBy': 'DatePlayed',
+        'sortOrder': 'Descending',
+        'filters': 'IsPlayed',
+        'limit': limit,
+        'fields': 'ProviderIds',
+        'enableImages': false,
+      }));
+
   Future<List<JfItem>> favorites() => items(filters: 'IsFavorite', types: const ['Movie', 'Series'], sortBy: 'SortName');
 
   /// The movie or series in the library with this TMDB id, or null.
@@ -986,6 +999,37 @@ class JellyfinClient {
       if ('${m['Id']}'.replaceAll('-', '').toLowerCase() == trailerPluginId) return m;
     }
     return null;
+  }
+
+  /// Seerr addresses found in the settings of the server's plugins (admin only). Plugins that
+  /// link Jellyfin to Seerr (Jellyfin Enhanced, Seerr bridges, launcher companions…) keep its
+  /// address under a key mentioning Seerr / Overseerr; best match first.
+  Future<List<String>> seerrUrlsFromPlugins() async {
+    final list = await _send('GET', '/Plugins');
+    final configs = await Future.wait([
+      for (final p in (list as List? ?? const []))
+        if ((p as Map)['Id'] != null)
+          _send('GET', '/Plugins/${p['Id']}/Configuration').then<Object?>((c) => c).catchError((_) => null),
+    ]);
+    final out = <String>[];
+    for (final c in configs) {
+      out.addAll(seerrUrlsIn(c));
+    }
+    return out.toSet().toList();
+  }
+
+  /// The http(s) addresses held under Seerr-named keys anywhere in a plugin configuration.
+  static List<String> seerrUrlsIn(Object? json, {bool underSeerrKey = false}) {
+    final key = RegExp('seerr|overseerr|jellyseerr|request', caseSensitive: false);
+    final url = RegExp(r'''https?://[^\s,;"']+''');
+    if (json is Map) {
+      return [
+        for (final e in json.entries) ...seerrUrlsIn(e.value, underSeerrKey: underSeerrKey || key.hasMatch('${e.key}')),
+      ];
+    }
+    if (json is List) return [for (final v in json) ...seerrUrlsIn(v, underSeerrKey: underSeerrKey)];
+    if (json is String && underSeerrKey) return url.allMatches(json).map((m) => m.group(0)!).toList();
+    return const [];
   }
 
   /// Whether [version] is the newest Ember Trailers the server's catalog offers.
