@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -69,7 +70,11 @@ class _SearchScreenState extends State<SearchScreen> {
     _changed(next);
   }
 
-  Widget _field(BuildContext context, AppState app) => FieldFocusEscape(
+  // On Apple TV the box only shows what the on-screen keyboard typed: tvOS's own keyboard would
+  // leave the remote stuck in it.
+  Widget _field(BuildContext context, AppState app) => ExcludeFocus(
+        excluding: isAppleTv,
+        child: FieldFocusEscape(
         child: TextField(
           controller: _q,
           autofocus: !app.isTv,
@@ -84,6 +89,7 @@ class _SearchScreenState extends State<SearchScreen> {
             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: C.surface3, width: context.px(3))),
             focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: C.accent, width: context.px(3))),
           ),
+        ),
         ),
       );
 

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
+import '../ui/tv_keyboard.dart';
 import '../ui/widgets.dart';
 
 class EmberLogo extends StatelessWidget {
@@ -39,6 +41,22 @@ class EmberField extends StatelessWidget {
     this.width = 680,
   });
 
+  InputDecoration _decoration(BuildContext context, {bool focused = false}) {
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(context.px(14)),
+          borderSide: BorderSide(color: c, width: context.px(3)),
+        );
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: body(context.px(26), color: C.faint),
+      filled: true,
+      fillColor: C.surface,
+      contentPadding: EdgeInsets.symmetric(horizontal: context.px(24), vertical: context.px(22)),
+      enabledBorder: border(focused ? C.accent : const Color(0xFF2C2C31)),
+      focusedBorder: border(C.accent),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -46,7 +64,7 @@ class EmberField extends StatelessWidget {
       SizedBox(height: context.px(10)),
       SizedBox(
         width: context.app.isPhone ? double.infinity : context.px(width),
-        child: FieldFocusEscape(
+        child: isAppleTv ? _tvBox(context) : FieldFocusEscape(
           child: TextField(
           controller: controller,
           obscureText: obscure,
@@ -54,26 +72,33 @@ class EmberField extends StatelessWidget {
           keyboardType: keyboard,
           onSubmitted: onSubmitted,
           style: body(context.px(28)),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: body(context.px(26), color: C.faint),
-            filled: true,
-            fillColor: C.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: context.px(24), vertical: context.px(22)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(context.px(14)),
-              borderSide: BorderSide(color: const Color(0xFF2C2C31), width: context.px(3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(context.px(14)),
-              borderSide: BorderSide(color: C.accent, width: context.px(3)),
-            ),
-          ),
+          decoration: _decoration(context),
         ),
         ),
       ),
     ]);
   }
+
+  /// On Apple TV the box is a button: Select opens Ember's own keyboard, and the remote moves
+  /// on from the box like from any other button (tvOS's keyboard leaves it stuck in a text field).
+  Widget _tvBox(BuildContext context) => Focusable(
+        autofocus: autofocus,
+        semanticLabel: label,
+        onTap: () async {
+          final text = await showTvKeyboard(context, label: label, text: controller.text, obscure: obscure, keyboard: keyboard);
+          if (text == null) return;
+          controller.text = text;
+          onSubmitted?.call(text);
+        },
+        builder: (context, active) => ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, v, _) => InputDecorator(
+            decoration: _decoration(context, focused: active),
+            isEmpty: v.text.isEmpty,
+            child: Text(obscure ? '•' * v.text.length : v.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(28))),
+          ),
+        ),
+      );
 }
 
 class ConnectScreen extends StatefulWidget {
