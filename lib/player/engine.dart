@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../platform.dart';
 
@@ -135,6 +136,8 @@ class AvEngine implements PlaybackEngine {
     if (v.isPlaying != _wasPlaying) {
       _wasPlaying = v.isPlaying;
       _playing.add(v.isPlaying);
+      // The Apple TV screensaver doesn't know Ember is playing video: keep it away while it is.
+      WakelockPlus.toggle(enable: v.isPlaying).catchError((_) {});
     }
     if (v.isBuffering != _wasBuffering) {
       _wasBuffering = v.isBuffering;
@@ -255,6 +258,7 @@ class AvEngine implements PlaybackEngine {
     _c = null;
     c?.removeListener(_onValue);
     await c?.dispose();
+    if (_wasPlaying) WakelockPlus.disable().catchError((_) {});
     for (final s in [_playing, _position, _duration, _buffer, _buffering, _completed, _error]) {
       await s.close();
     }

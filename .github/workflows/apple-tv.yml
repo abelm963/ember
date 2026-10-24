@@ -12,7 +12,7 @@ name: Apple TV build
 on:
   push:
     branches: [apple-tv, main]
-    paths-ignore: ['**.md']
+    paths-ignore: ['**.md', 'tools/**']
   workflow_dispatch:
 
 concurrency:
