@@ -4,18 +4,20 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../screens/nav.dart' show openYouTube;
 import '../ui/widgets.dart';
+import 'engine.dart';
 
-/// Full-screen player built on mpv (via media_kit), which plays every common container,
+/// Full-screen player. Built on mpv (via media_kit), which plays every common container,
 /// codec, audio format and subtitle type itself — so files are streamed untouched and the
-/// server only transcodes when the connection is too slow.
+/// server only transcodes when the connection is too slow. On Apple TV it uses Apple's own
+/// player instead, and audio and subtitle choices go through the server (see [_serverTracks]).
 class PlayerScreen extends StatefulWidget {
   final JfItem item;
   final Duration? start;
@@ -58,10 +60,10 @@ class _MenuOption {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  late final Player _player = Player(
-    configuration: const PlayerConfiguration(title: 'Ember', bufferSize: 64 * 1024 * 1024, logLevel: MPVLogLevel.warn),
-  );
-  late final VideoController _video = VideoController(_player);
+  late final PlaybackEngine _engine = PlaybackEngine(title: 'Ember');
+
+  /// The mpv player, when that's what is playing (everywhere but Apple TV).
+  Player? get _mpv => switch (_engine) { MpvEngine e => e.player, _ => null };
   late JellyfinClient _jf;
   late AppState _app;
 
@@ -107,6 +109,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _defaultsApplied = false;
   bool _autoDowngraded = false;
   bool _introSkippedAuto = false;
+
+  // Audio and subtitles picked through the server (Apple TV, or while transcoding).
+  int? _audioIndex;
+  int? _subIndex;
+  bool _subBurnedIn = false;
+  bool _serverDefaultsDone = false;
   final List<StreamSubscription> _subs = [];
 
   @override
@@ -115,21 +123,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _app = context.read<AppState>();
     _jf = _app.jf!;
     _configureMpv();
+    final mpv = _mpv;
     _subs.addAll([
-      _player.stream.playing.listen((v) => setState(() => _playing = v)),
-      _player.stream.position.listen(_onPosition),
-      _player.stream.duration.listen((v) => setState(() => _duration = v)),
-      _player.stream.buffer.listen((v) => _buffered = v),
-      _player.stream.buffering.listen(_onBuffering),
-      _player.stream.tracks.listen((t) {
-        setState(() => _tracks = t);
-        _applyDefaultTracks();
-      }),
-      _player.stream.track.listen((t) => setState(() => _track = t)),
-      _player.stream.completed.listen((done) {
+      _engine.playing.listen((v) => setState(() => _playing = v)),
+      _engine.position.listen(_onPosition),
+      _engine.duration.listen((v) => setState(() => _duration = v)),
+      _engine.buffer.listen((v) => _buffered = v),
+      _engine.buffering.listen(_onBuffering),
+      if (mpv != null) ...[
+        mpv.stream.tracks.listen((t) {
+          setState(() => _tracks = t);
+          _applyDefaultTracks();
+        }),
+        mpv.stream.track.listen((t) => setState(() => _track = t)),
+      ],
+      _engine.completed.listen((done) {
         if (done) _onCompleted();
       }),
-      _player.stream.error.listen((e) {
+      _engine.error.listen((e) {
         if (_loading || (_isStream && _position == Duration.zero)) {
           setState(() => _error = _isStream ? _clean(e) : 'Playback failed: $e');
         }
@@ -139,7 +150,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _configureMpv() async {
-    final p = _player.platform;
+    final p = _mpv?.platform;
     if (p is NativePlayer) {
       // A large read-ahead cache rides out short network drops without stalling.
       await p.setProperty('cache', 'yes');
@@ -177,6 +188,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _open(JfItem item, Duration? start, {int? audioStreamIndex, int? subtitleStreamIndex}) async {
     await _stopReporting();
+    if (item.id != _item.id) {
+      _audioIndex = null;
+      _subIndex = null;
+      _subBurnedIn = false;
+      _serverDefaultsDone = false;
+    }
+    _audioIndex = audioStreamIndex ?? _audioIndex;
+    // -1 turns burned-in subtitles off again.
+    if (subtitleStreamIndex != null) {
+      _subIndex = subtitleStreamIndex >= 0 ? subtitleStreamIndex : null;
+      _subBurnedIn = _subIndex != null;
+    }
+    final burnIn = _subBurnedIn ? _subIndex : null;
     setState(() {
       _item = item;
       _loading = true;
@@ -197,7 +221,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (!mounted) return;
         }
         setState(() => _status = 'Starting the trailer…');
-        await _player.open(Media(url));
+        await _engine.open(url);
         setState(() => _loading = false);
         _showControls();
         // A trailer that hasn't started after 45 s isn't going to: say so instead of spinning forever.
@@ -221,7 +245,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final q = _quality;
       int? bitrate = q.bitrate;
       var src = await _jf.playbackSource(item.id,
-          maxBitrate: bitrate, audioStreamIndex: audioStreamIndex, subtitleStreamIndex: subtitleStreamIndex);
+          maxBitrate: bitrate, audioStreamIndex: _audioIndex, subtitleStreamIndex: burnIn);
 
       // Auto quality: test the connection, and if it can't carry the original file
       // comfortably, ask the server for a lower bitrate instead of buffering.
@@ -234,11 +258,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               .map((o) => o.bitrate!)
               .fold<int>(2000000, (a, b) => b > a ? b : a);
           src = await _jf.playbackSource(item.id,
-              maxBitrate: bitrate, audioStreamIndex: audioStreamIndex, subtitleStreamIndex: subtitleStreamIndex);
+              maxBitrate: bitrate, audioStreamIndex: _audioIndex, subtitleStreamIndex: burnIn);
         }
       }
       _src = src;
-      await _player.open(Media(src.url, start: start));
+      await _engine.open(src.url, start: start);
+      // Text subtitles picked before a reopen (quality change, new audio track) come back on.
+      if (_serverTracks && _subIndex != null && !_subBurnedIn) unawaited(_showServerSubtitle(_subIndex!));
+      if (isAppleTv && !_serverDefaultsDone) _applyServerDefaults(start);
       if (!widget.isTrailer) {
         unawaited(_jf.reportStart(item.id, src.mediaSourceId, src.playSessionId, start ?? Duration.zero, src.transcoding));
         _reportTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -282,8 +309,73 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return a == b || a.startsWith(b.substring(0, 2)) || b.startsWith(a.substring(0, 2));
   }
 
+  /// Audio and subtitles go through the server when it's transcoding, and always on Apple TV
+  /// (AVPlayer's own track switching isn't available there).
+  bool get _serverTracks => isAppleTv || (_src?.transcoding ?? false);
+
+  List<Map<String, dynamic>> _streamsOf(String type) => _src?.streams.where((s) => s['Type'] == type).toList() ?? [];
+
+  int? _defaultIndexOf(String type) {
+    final streams = _streamsOf(type);
+    final d = streams.where((s) => s['IsDefault'] == true).toList();
+    final s = d.isNotEmpty ? d.first : (streams.isNotEmpty ? streams.first : null);
+    return (s?['Index'] as num?)?.toInt();
+  }
+
+  Future<void> _showServerSubtitle(int index) async {
+    final src = _src;
+    if (src == null) return;
+    final s = _streamsOf('Subtitle').where((s) => (s['Index'] as num?)?.toInt() == index).toList();
+    if (s.isEmpty) return;
+    setState(() => _subIndex = index);
+    try {
+      await _engine.setTextSubtitles(_jf.subtitleUrl(_item.id, src.mediaSourceId, s.first, format: isAppleTv ? 'vtt' : null));
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
+  /// Apple TV: the person's preferred audio language and subtitle setting, picked from the
+  /// server's list of streams once the title opens.
+  void _applyServerDefaults(Duration? start) {
+    _serverDefaultsDone = true;
+    final pref = _app.preferredAudioLanguage;
+    final audio = _streamsOf('Audio');
+    if (audio.isEmpty) return;
+    var chosen = audio.firstWhere((s) => (s['Index'] as num?)?.toInt() == _defaultIndexOf('Audio'), orElse: () => audio.first);
+    if (pref != null) {
+      for (final s in audio) {
+        if (_langMatch(s['Language'] as String?, pref)) {
+          chosen = s;
+          break;
+        }
+      }
+    }
+    final subLang = pref ?? 'eng';
+    final audioLang = chosen['Language'] as String?;
+    final wantSubs = switch (_app.subtitleMode) {
+      'off' => false,
+      'always' => true,
+      _ => audioLang != null && !_langMatch(audioLang, subLang),
+    };
+    final subs = wantSubs ? _streamsOf('Subtitle').where((s) => _langMatch(s['Language'] as String?, subLang)).toList() : const [];
+    final sub = subs.isEmpty ? null : subs.first;
+
+    final chosenIndex = (chosen['Index'] as num?)?.toInt();
+    final needsAudio = chosenIndex != null && chosenIndex != _defaultIndexOf('Audio');
+    final needsBurn = sub != null && sub['IsTextSubtitleStream'] != true;
+    if (needsAudio || needsBurn) {
+      _open(_item, start,
+          audioStreamIndex: needsAudio ? chosenIndex : null,
+          subtitleStreamIndex: needsBurn ? (sub['Index'] as num).toInt() : null);
+    } else if (sub != null) {
+      _showServerSubtitle((sub['Index'] as num).toInt());
+    }
+  }
+
   void _applyDefaultTracks() {
-    if (_defaultsApplied || _src == null || _src!.transcoding) return;
+    final player = _mpv;
+    if (player == null || _defaultsApplied || _src == null || _serverTracks) return;
     final audio = _tracks.audio.where((t) => t.id != 'auto' && t.id != 'no').toList();
     if (audio.isEmpty) return;
     _defaultsApplied = true;
@@ -296,25 +388,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
           break;
         }
       }
-      if (chosenAudio != null) _player.setAudioTrack(chosenAudio);
+      if (chosenAudio != null) player.setAudioTrack(chosenAudio);
     }
     final subs = _tracks.subtitle.where((t) => t.id != 'auto' && t.id != 'no').toList();
     final audioLang = (chosenAudio ?? audio.first).language;
     final subLang = pref ?? 'eng';
     switch (_app.subtitleMode) {
       case 'off':
-        _player.setSubtitleTrack(SubtitleTrack.no());
+        player.setSubtitleTrack(SubtitleTrack.no());
         break;
       case 'always':
         final s = subs.where((t) => _langMatch(t.language, subLang)).toList();
-        if (s.isNotEmpty) _player.setSubtitleTrack(s.first);
+        if (s.isNotEmpty) player.setSubtitleTrack(s.first);
         break;
       default: // only when the audio isn't in the person's language
         if (audioLang != null && !_langMatch(audioLang, subLang)) {
           final s = subs.where((t) => _langMatch(t.language, subLang)).toList();
-          if (s.isNotEmpty) _player.setSubtitleTrack(s.first);
+          if (s.isNotEmpty) player.setSubtitleTrack(s.first);
         } else {
-          _player.setSubtitleTrack(SubtitleTrack.no());
+          player.setSubtitleTrack(SubtitleTrack.no());
         }
     }
   }
@@ -348,16 +440,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<_MenuOption> _audioOptions() {
     final src = _src;
     if (src == null) return [];
-    if (!src.transcoding) {
+    final player = _mpv;
+    if (!_serverTracks && player != null) {
       return [
         for (final t in _tracks.audio.where((t) => t.id != 'auto' && t.id != 'no'))
-          _MenuOption(_describeAudio(t), _track.audio.id == t.id, () => _player.setAudioTrack(t)),
+          _MenuOption(_describeAudio(t), _track.audio.id == t.id, () => player.setAudioTrack(t)),
       ];
     }
-    final streams = src.streams.where((s) => s['Type'] == 'Audio').toList();
+    final current = _audioIndex ?? _defaultIndexOf('Audio');
     return [
-      for (final s in streams)
-        _MenuOption(s['DisplayTitle'] as String? ?? 'Audio ${s['Index']}', s['IsDefault'] == true,
+      for (final s in _streamsOf('Audio'))
+        _MenuOption(s['DisplayTitle'] as String? ?? 'Audio ${s['Index']}', (s['Index'] as num?)?.toInt() == current,
             () => _reopenAtCurrent(audioStreamIndex: (s['Index'] as num).toInt())),
     ];
   }
@@ -365,30 +458,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<_MenuOption> _subtitleOptions() {
     final src = _src;
     if (src == null) return [];
-    final off = _MenuOption('Off', _track.subtitle.id == 'no' || _track.subtitle.id == 'auto', () => _player.setSubtitleTrack(SubtitleTrack.no()));
+    final player = _mpv;
     final external = src.streams.where((s) => s['Type'] == 'Subtitle' && s['IsExternal'] == true).toList();
-    if (!src.transcoding) {
+    if (!_serverTracks && player != null) {
+      final off = _MenuOption('Off', _track.subtitle.id == 'no' || _track.subtitle.id == 'auto', () => player.setSubtitleTrack(SubtitleTrack.no()));
       return [
         off,
         for (final t in _tracks.subtitle.where((t) => t.id != 'auto' && t.id != 'no' && !t.uri))
-          _MenuOption(_describeSub(t), _track.subtitle.id == t.id, () => _player.setSubtitleTrack(t)),
+          _MenuOption(_describeSub(t), _track.subtitle.id == t.id, () => player.setSubtitleTrack(t)),
         for (final s in external)
           _MenuOption('${s['DisplayTitle'] ?? 'Subtitle'} · external', _track.subtitle.title == s['DisplayTitle'],
-              () => _player.setSubtitleTrack(SubtitleTrack.uri(_jf.subtitleUrl(_item.id, src.mediaSourceId, s),
+              () => player.setSubtitleTrack(SubtitleTrack.uri(_jf.subtitleUrl(_item.id, src.mediaSourceId, s),
                   title: s['DisplayTitle'] as String?, language: s['Language'] as String?))),
       ];
     }
-    final subs = src.streams.where((s) => s['Type'] == 'Subtitle').toList();
     return [
-      off,
-      for (final s in subs)
+      _MenuOption('Off', _subIndex == null, () async {
+        if (_subBurnedIn) {
+          await _reopenAtCurrent(subtitleStreamIndex: -1);
+        } else {
+          setState(() => _subIndex = null);
+          await _engine.setTextSubtitles(null);
+        }
+      }),
+      for (final s in _streamsOf('Subtitle'))
         _MenuOption(
           '${s['DisplayTitle'] ?? 'Subtitle'}${s['IsTextSubtitleStream'] == true ? '' : ' · burned in'}',
-          _track.subtitle.title == s['DisplayTitle'],
+          _subIndex == (s['Index'] as num?)?.toInt(),
           () async {
             if (s['IsTextSubtitleStream'] == true) {
-              await _player.setSubtitleTrack(SubtitleTrack.uri(_jf.subtitleUrl(_item.id, src.mediaSourceId, s),
-                  title: s['DisplayTitle'] as String?, language: s['Language'] as String?));
+              if (_subBurnedIn) await _reopenAtCurrent(subtitleStreamIndex: -1);
+              await _showServerSubtitle((s['Index'] as num).toInt());
             } else {
               // Picture-based subtitles (PGS, VobSub) are drawn into the video by the server.
               await _reopenAtCurrent(subtitleStreamIndex: (s['Index'] as num).toInt());
@@ -414,7 +514,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final intro = _activeSegment('Intro');
     if (intro != null && _app.autoSkipIntro && !_introSkippedAuto) {
       _introSkippedAuto = true;
-      _player.seek(intro.end);
+      _engine.seek(intro.end);
       toast(context, 'Intro skipped');
     }
     if (_showUpNext && _countdown == null && _app.autoplayNext && !_upNextDismissed) {
@@ -517,7 +617,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     var t = _position + d;
     if (t < Duration.zero) t = Duration.zero;
     if (_duration > Duration.zero && t > _duration) t = _duration - const Duration(seconds: 1);
-    _player.seek(t);
+    _engine.seek(t);
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
@@ -536,7 +636,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return KeyEventResult.ignored; // let focused buttons handle it
     }
     if (isActivateKey(k) || k == LogicalKeyboardKey.mediaPlayPause) {
-      _player.playOrPause();
+      _engine.playOrPause();
       _showControls(focusPlay: true);
       return KeyEventResult.handled;
     }
@@ -566,7 +666,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final s in _subs) {
       s.cancel();
     }
-    _player.dispose();
+    _engine.dispose();
     _rootFocus.dispose();
     _playFocus.dispose();
     _skipFocus.dispose();
@@ -620,7 +720,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 if (app.isPhone) {
                   showUi ? _hideControls() : _showControls();
                 } else {
-                  _player.playOrPause();
+                  _engine.playOrPause();
                   _showControls();
                 }
               },
@@ -630,7 +730,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               onDoubleTap: app.isPhone ? () {} : null,
               child: Stack(fit: StackFit.expand, children: [
                 // The video surface must never take keyboard focus: it would swallow Esc / arrow keys.
-                ExcludeFocus(child: Video(controller: _video, controls: NoVideoControls, fill: Colors.black)),
+                ExcludeFocus(child: _engine.view()),
                 if (_isStream && _position == Duration.zero && _error == null) _trailerLoading(context)
                 else if (_loading || _buffering) const Center(child: CircularProgressIndicator(color: C.accent)),
                 if (_error != null) _errorView(context),
@@ -648,7 +748,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       icon: Icons.fast_forward_rounded,
                       kind: BtnKind.ghost,
                       focusNode: _skipFocus,
-                      onTap: () => _player.seek(intro.end),
+                      onTap: () => _engine.seek(intro.end),
                     ),
                   ),
                 if (_showUpNext) _upNext(context),
@@ -776,7 +876,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   position: _position,
                   duration: _duration,
                   buffered: _buffered,
-                  onSeek: _player.seek,
+                  onSeek: _engine.seek,
                   preview: _trick == null ? null : (t) => _TrickThumb(info: _trick!, jf: _jf, at: t),
                 ),
               ),
@@ -791,7 +891,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 kind: BtnKind.ghost,
                 focusNode: _playFocus,
                 onTap: () {
-                  _player.playOrPause();
+                  _engine.playOrPause();
                   _showControls();
                 },
               ),

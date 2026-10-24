@@ -15,6 +15,28 @@ press `r` in the terminal to reload code changes instantly.
 
 Build a standalone app: `flutter build windows --release` → `build\windows\x64\runner\Release\ember.exe`.
 
+## Run it on Apple TV (from a Mac)
+
+Apple TV apps can only be built on a Mac with Xcode (free from the Mac App Store). Ember uses
+[flutter-tvos](https://github.com/fluttertv/flutter-tvos), a community version of Flutter that
+builds for Apple TV.
+
+1. Put the Apple TV and the Mac on the same Wi-Fi.
+2. On the Apple TV: Settings › Remotes and Devices › Remote App and Devices (leave it open).
+3. On the Mac, in this folder: `bash setup-appletv.sh`
+
+The script installs what's missing, adds the Apple TV project (`tvos/`) the first time, asks you
+to pick your Apple ID in Xcode for signing, then builds Ember and installs it on the Apple TV.
+
+With a free Apple ID, Apple lets a self-installed app run for 7 days. After that it won't open
+until you run `bash setup-appletv.sh` again. A paid Apple Developer account ($99/year) removes the
+limit and allows TestFlight.
+
+On Apple TV, Ember plays through Apple's own player. Files it can't open directly (MKV, DTS,
+TrueHD) are repackaged by your server into a stream it can, copying the picture untouched where
+possible. Audio and subtitle choices go through the server, and picture-based subtitles (PGS)
+are burned in.
+
 ## How it is organised
 
 | Folder | What's in it |
@@ -24,7 +46,7 @@ Build a standalone app: `flutter build windows --release` → `build\windows\x64
 | `lib/state/app_state.dart` | Saved servers, profiles, settings, and which layout to use |
 | `lib/ui/` | Colours, fonts, and the shared building blocks (focusable tiles, buttons, rows) |
 | `lib/screens/` | Every screen: connect, sign in, profiles, home, shows, movies, My List, search, details, preview, requests, settings |
-| `lib/player/` | The video player, built on mpv |
+| `lib/player/` | The video player: mpv everywhere, Apple's player on Apple TV (`engine.dart`) |
 
 ## One app, three ways to navigate
 

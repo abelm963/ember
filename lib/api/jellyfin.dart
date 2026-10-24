@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../platform.dart';
+
 const String kClientName = 'Ember';
 const String kClientVersion = '0.1.0';
 
@@ -673,6 +675,9 @@ class JellyfinClient {
   /// With [maxBitrate] null the original file is streamed untouched (mpv plays every codec,
   /// container, audio track and subtitle format itself). With a bitrate the server is asked
   /// to transcode to H.264/AAC HLS at that rate, for slow connections.
+  ///
+  /// On Apple TV the request describes what Apple's player can open instead (see
+  /// [_appleTvProfile]), and the server repackages or converts anything else.
   Future<PlaybackSource> playbackSource(
     String itemId, {
     int? maxBitrate,
@@ -681,6 +686,10 @@ class JellyfinClient {
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
+    if (isAppleTv) {
+      return _appleTvSource(itemId,
+          maxBitrate: maxBitrate, audioStreamIndex: audioStreamIndex, subtitleStreamIndex: subtitleStreamIndex, start: start);
+    }
     final body = <String, dynamic>{
       'UserId': userId,
       'MaxStreamingBitrate': maxBitrate ?? 200000000,
@@ -759,17 +768,112 @@ class JellyfinClient {
     );
   }
 
-  /// URL of a subtitle stream, converted by the server to a text format mpv understands.
-  String subtitleUrl(String itemId, String mediaSourceId, Map<String, dynamic> stream) {
+  /// What Apple TV's player (AVPlayer) opens itself: MP4/MOV with H.264 or HEVC (including
+  /// HDR10 and Dolby Vision) and AAC, Dolby Digital(+) incl. Atmos, ALAC or FLAC audio.
+  /// Anything else (MKV, DTS, TrueHD…) is repackaged by the server into HLS, copying the video
+  /// and audio untouched when it can and converting only what AVPlayer can't play.
+  static Map<String, dynamic> _appleTvProfile(int maxBitrate, {required bool transcode}) => {
+        'Name': 'Ember Apple TV',
+        'MaxStreamingBitrate': maxBitrate,
+        'DirectPlayProfiles': transcode
+            ? []
+            : [
+                {'Container': 'mp4,m4v,mov', 'Type': 'Video', 'VideoCodec': 'h264,hevc', 'AudioCodec': 'aac,ac3,eac3,alac,flac,mp3'},
+                {'Container': 'mp3,aac,m4a,m4b,flac,alac', 'Type': 'Audio'},
+              ],
+        'TranscodingProfiles': [
+          {
+            'Container': 'mp4',
+            'Type': 'Video',
+            'VideoCodec': transcode ? 'h264' : 'hevc,h264',
+            'AudioCodec': 'eac3,ac3,aac,flac,alac',
+            'Protocol': 'hls',
+            'Context': 'Streaming',
+            'MaxAudioChannels': '8',
+            'MinSegments': 2,
+            'BreakOnNonKeyFrames': true,
+          },
+          {'Container': 'aac', 'Type': 'Audio', 'AudioCodec': 'aac', 'Protocol': 'hls', 'Context': 'Streaming', 'MaxAudioChannels': '6'},
+        ],
+        'ContainerProfiles': [],
+        'CodecProfiles': [],
+        // Text subtitles come as WebVTT and Ember draws them; picture subtitles are burned in.
+        'SubtitleProfiles': [
+          for (final f in ['srt', 'subrip', 'ass', 'ssa', 'vtt', 'webvtt', 'mov_text', 'ttml'])
+            {'Format': f, 'Method': 'External'},
+          for (final f in ['pgssub', 'pgs', 'dvdsub', 'dvbsub', 'vobsub'])
+            {'Format': f, 'Method': 'Encode'},
+        ],
+      };
+
+  Future<PlaybackSource> _appleTvSource(
+    String itemId, {
+    int? maxBitrate,
+    int? audioStreamIndex,
+    int? subtitleStreamIndex,
+    Duration? start,
+  }) async {
+    final transcode = maxBitrate != null;
+    final bitrate = maxBitrate ?? 200000000;
+    final body = <String, dynamic>{
+      'UserId': userId,
+      'MaxStreamingBitrate': bitrate,
+      'StartTimeTicks': start == null ? 0 : durationToTicks(start),
+      'AudioStreamIndex': audioStreamIndex,
+      'SubtitleStreamIndex': subtitleStreamIndex,
+      // A burned-in subtitle or a different audio track means the server has to build the stream.
+      'EnableDirectPlay': !transcode && subtitleStreamIndex == null && audioStreamIndex == null,
+      'EnableDirectStream': !transcode,
+      'EnableTranscoding': true,
+      'AutoOpenLiveStream': true,
+      'DeviceProfile': _appleTvProfile(bitrate, transcode: transcode),
+    }..removeWhere((k, v) => v == null);
+
+    final json = await _send('POST', '/Items/$itemId/PlaybackInfo', query: {'userId': userId}, body: body);
+    final m = (json as Map).cast<String, dynamic>();
+    final sources = (m['MediaSources'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+    if (sources.isEmpty) throw ApiException(500, 'The server has no playable version of this title.');
+    final src = sources.first;
+    final playSessionId = m['PlaySessionId'] as String? ?? '';
+    final msid = src['Id'] as String;
+    final streams = (src['MediaStreams'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+
+    final direct = src['SupportsDirectPlay'] == true && body['EnableDirectPlay'] == true;
+    final transcodingUrl = src['TranscodingUrl'] as String?;
+    if (!direct && transcodingUrl == null) {
+      throw ApiException(500, 'The server couldn\'t prepare a version of this title that Apple TV can play.');
+    }
+    final url = direct
+        ? _uri('/Videos/$itemId/stream', {
+            'static': 'true',
+            'mediaSourceId': msid,
+            'playSessionId': playSessionId,
+            'deviceId': deviceId,
+            'api_key': token,
+          }).toString()
+        : '$baseUrl$transcodingUrl';
+    return PlaybackSource(
+      url: url,
+      mediaSourceId: msid,
+      playSessionId: playSessionId,
+      transcoding: !direct,
+      streams: streams,
+      bitrate: (src['Bitrate'] as num?)?.toInt(),
+    );
+  }
+
+  /// URL of a subtitle stream, converted by the server to a text format mpv understands,
+  /// or to [format] (such as 'vtt' for Apple TV) when given.
+  String subtitleUrl(String itemId, String mediaSourceId, Map<String, dynamic> stream, {String? format}) {
     final delivery = stream['DeliveryUrl'] as String?;
-    if (delivery != null && delivery.isNotEmpty) {
+    if (delivery != null && delivery.isNotEmpty && (format == null || delivery.split('?').first.endsWith('.$format'))) {
       final sep = delivery.contains('?') ? '&' : '?';
       return delivery.contains('api_key') ? '$baseUrl$delivery' : '$baseUrl$delivery${sep}api_key=$token';
     }
     final codec = (stream['Codec'] as String? ?? 'srt').toLowerCase();
-    final format = switch (codec) { 'ass' || 'ssa' => 'ass', 'webvtt' || 'vtt' => 'vtt', _ => 'srt' };
+    final ext = format ?? switch (codec) { 'ass' || 'ssa' => 'ass', 'webvtt' || 'vtt' => 'vtt', _ => 'srt' };
     final index = stream['Index'];
-    return '$baseUrl/Videos/$itemId/$mediaSourceId/Subtitles/$index/0/Stream.$format?api_key=$token';
+    return '$baseUrl/Videos/$itemId/$mediaSourceId/Subtitles/$index/0/Stream.$ext?api_key=$token';
   }
 
   Future<void> reportStart(String itemId, String msid, String playSessionId, Duration position, bool transcoding) =>

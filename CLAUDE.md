@@ -39,7 +39,8 @@ say what to click or run to see it.
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
 | `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside New & Hot) |
-| `lib/player/` | mpv player (`player_screen.dart`) and the muted hero trailer previews (`hero_preview.dart`) |
+| `lib/player/` | The player screen (`player_screen.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
+| `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
 | `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |
 
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
@@ -101,4 +102,19 @@ Next steps:
 Smaller known issues:
 - The side menu can stay open after clicking, and swallow the next click.
 
-Later: an Apple TV build (AVPlayer for Dolby Vision/Atmos), Android TV, and phones.
+## Apple TV
+
+- Built with flutter-tvos (github.com/fluttertv/flutter-tvos, macOS only), which tracks Flutter
+  3.47. `bash setup-appletv.sh` on a Mac installs it, creates `tvos/` the first time and installs
+  on the Apple TV. The owner uses a Mac with a free Apple ID, so the app expires after 7 days.
+- mpv doesn't run on tvOS: `MediaKit.ensureInitialized()` is skipped and `AvEngine` plays instead.
+  Plugins need `_tvos` packages (`video_player_tvos`, `shared_preferences_tvos`, `url_launcher_tvos`).
+- `JellyfinClient.playbackSource` sends an Apple TV device profile: direct play only for
+  MP4/MOV with H.264/HEVC and AAC/AC3/EAC3/ALAC/FLAC; everything else comes back as fMP4 HLS.
+  Audio and subtitle changes go through the server (`_serverTracks` in the player): a new audio
+  track reopens the stream, text subtitles load as WebVTT and Ember draws them, PGS is burned in.
+- Known gap: video_player draws through a Flutter texture, so HDR/Dolby Vision show as SDR for now.
+  True HDR needs AVPlayerViewController (a native view), which is the next step.
+- Not yet tested on hardware: this was written on Linux. Check on the Apple TV first.
+
+Later: Android TV and phones.
