@@ -32,6 +32,13 @@
   -->
   <key>FLTAssetsPath</key>
   <string>flutter_assets</string>
+  <!-- Jellyfin servers at home are usually plain http (http://192.168.1.20:8096), and Apple's
+       video player refuses http unless this allows it. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+  </dict>
   <key>UIApplicationSceneManifest</key>
   <dict>
     <key>UIApplicationSupportsMultipleScenes</key>
