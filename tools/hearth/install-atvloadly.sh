@@ -34,8 +34,11 @@ services:
     # Pinned so an update can't break installs unexpectedly. Newer releases:
     # https://hub.docker.com/r/bitxeno/atvloadly/tags
     image: bitxeno/atvloadly:v0.7.4
+    # Ubuntu's AppArmor profile for Docker blocks the D-Bus calls atvloadly makes to avahi, and
+    # without them it never finds the Apple TV.
     security_opt:
       - seccomp:unconfined
+      - apparmor:unconfined
     volumes:
       - /etc/atvloadly:/data
       - /var/run/dbus:/var/run/dbus
