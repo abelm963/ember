@@ -229,7 +229,7 @@ void main() {
         for (var i = 0; i < 6; i++) {
           await tester.pump(const Duration(milliseconds: 100));
         }
-        expect(find.text('Resume', skipOffstage: false), findsWidgets);
+        expect(find.textContaining('Resume', skipOffstage: false), findsWidgets);
         navigatorKey.currentState!.push(MaterialPageRoute(builder: (_) => const DetailsScreen(itemId: 's1')));
         for (var i = 0; i < 6; i++) {
           await tester.pump(const Duration(milliseconds: 100));

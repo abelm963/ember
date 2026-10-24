@@ -110,7 +110,7 @@ class _AppShellState extends State<AppShell> {
   /// TV and desktop: a menu bar across the top (profile on the left, the sections in a pill in
   /// the middle, the Ember mark on the right), with the page underneath.
   Widget _tvLayout(BuildContext context, AppState app, Widget body) {
-    final barH = context.px(118);
+    final barH = context.px(100);
     final items = _visible(app).where((e) => e.section != Section.requests || app.seerrConfigured).toList();
     return Stack(children: [
       Positioned.fill(top: barH, child: FocusTraversalGroup(child: body)),
@@ -128,11 +128,11 @@ class _AppShellState extends State<AppShell> {
               Expanded(
                 child: Center(
                   child: Container(
-                    padding: EdgeInsets.all(context.px(6)),
+                    padding: EdgeInsets.all(context.px(5)),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1C1C20),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFF2E2E34), width: context.px(1.5)),
+                      border: Border.all(color: const Color(0xFF2E2E34), width: context.px(1)),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       for (final e in items)
@@ -141,7 +141,7 @@ class _AppShellState extends State<AppShell> {
                   ),
                 ),
               ),
-              Icon(Icons.local_fire_department, color: C.accent, size: context.px(54)),
+              Icon(Icons.local_fire_department, color: C.accent, size: context.px(46)),
             ]),
           ),
         ),
@@ -194,16 +194,16 @@ class _TopItem extends StatelessWidget {
         final fg = active ? const Color(0xFF111111) : (selected ? C.text : C.muted);
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: context.px(56),
-          padding: EdgeInsets.symmetric(horizontal: context.px(iconOnly ? 16 : 24)),
+          height: context.px(46),
+          padding: EdgeInsets.symmetric(horizontal: context.px(iconOnly ? 14 : 20)),
           decoration: BoxDecoration(
             color: active ? C.text : (selected ? const Color(0xFF3A3A40) : Colors.transparent),
             borderRadius: BorderRadius.circular(999),
           ),
           alignment: Alignment.center,
           child: iconOnly
-              ? Icon(entry.icon, color: fg, size: context.px(30))
-              : Text(entry.label, style: body(context.px(23), weight: FontWeight.w600, color: fg)),
+              ? Icon(entry.icon, color: fg, size: context.px(26))
+              : Text(entry.label, style: body(context.px(20), weight: FontWeight.w600, color: fg)),
         );
       },
     );
@@ -222,14 +222,18 @@ class _ProfileButton extends StatelessWidget {
       onTap: () => app.leaveProfile(),
       semanticLabel: 'Switch profile',
       builder: (context, active) => Container(
-        padding: EdgeInsets.all(context.px(6)),
+        padding: EdgeInsets.all(context.px(4)),
         decoration: BoxDecoration(
           color: active && expanded ? C.text : Colors.transparent,
           borderRadius: BorderRadius.circular(context.px(14)),
           border: active && !expanded ? Border.all(color: C.text, width: context.px(3)) : null,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Avatar(name: a.name, imageUrl: img, size: 48),
+          Avatar(name: a.name, imageUrl: img, size: 40),
+          if (!expanded) ...[
+            SizedBox(width: context.px(4)),
+            Icon(Icons.arrow_drop_down_rounded, color: C.muted, size: context.px(26)),
+          ],
           if (expanded) ...[
             SizedBox(width: context.px(18)),
             Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [

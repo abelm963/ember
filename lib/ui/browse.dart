@@ -14,26 +14,36 @@ class PillButton extends StatelessWidget {
   final VoidCallback onTap;
   final bool autofocus;
   final bool compact;
-  const PillButton({super.key, required this.label, required this.onTap, this.icon, this.autofocus = false, this.compact = false});
+  final bool scrollIntoView;
+  const PillButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.autofocus = false,
+    this.compact = false,
+    this.scrollIntoView = true,
+  });
 
   @override
   Widget build(BuildContext context) => Focusable(
         onTap: onTap,
         autofocus: autofocus,
         semanticLabel: label,
+        scrollIntoView: scrollIntoView,
         builder: (context, active) {
           final fg = active ? const Color(0xFF111111) : Colors.white;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            height: context.px(compact ? 52 : 64),
-            padding: EdgeInsets.symmetric(horizontal: context.px(compact ? 22 : 30)),
+            height: context.px(compact ? 48 : 56),
+            padding: EdgeInsets.symmetric(horizontal: context.px(compact ? 20 : 26)),
             decoration: BoxDecoration(
-              color: active ? C.text : const Color(0x4DFFFFFF),
+              color: active ? C.text : const Color(0x40FFFFFF),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (icon != null) ...[Icon(icon, color: fg, size: context.px(compact ? 26 : 32)), SizedBox(width: context.px(10))],
-              Text(label, style: body(context.px(compact ? 21 : 25), color: fg, weight: FontWeight.w600)),
+              if (icon != null) ...[Icon(icon, color: fg, size: context.px(compact ? 24 : 28)), SizedBox(width: context.px(8))],
+              Text(label, style: body(context.px(compact ? 19 : 22), color: fg, weight: FontWeight.w600)),
             ]),
           );
         },
@@ -57,7 +67,7 @@ class ActionItem extends StatelessWidget {
     required this.onTap,
     this.autofocus = false,
     this.progress,
-    this.width = 560,
+    this.width = 520,
   });
 
   @override
@@ -72,22 +82,22 @@ class ActionItem extends StatelessWidget {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 140),
               width: context.px(width),
-              height: context.px(62),
-              padding: EdgeInsets.symmetric(horizontal: context.px(24)),
+              height: context.px(54),
+              padding: EdgeInsets.symmetric(horizontal: context.px(22)),
               decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(999)),
               child: Row(children: [
-                Icon(icon, color: fg, size: context.px(30)),
-                SizedBox(width: context.px(18)),
+                Icon(icon, color: fg, size: context.px(26)),
+                SizedBox(width: context.px(16)),
                 Expanded(
                   child: Text(label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: body(context.px(25), color: fg, weight: active ? FontWeight.w600 : FontWeight.w500)),
+                      style: body(context.px(21), color: fg, weight: active ? FontWeight.w600 : FontWeight.w500)),
                 ),
                 if (progress != null)
                   Container(
-                    width: context.px(80),
-                    height: context.px(5),
+                    width: context.px(110),
+                    height: context.px(4),
                     decoration: BoxDecoration(color: const Color(0x55888888), borderRadius: BorderRadius.circular(9)),
                     alignment: Alignment.centerLeft,
                     child: FractionallySizedBox(
@@ -151,8 +161,8 @@ class _PosterRowState extends State<PosterRow> {
   final _ctrl = ScrollController();
   int? _focused;
 
-  static const _h = 330.0;
-  static const _gap = 18.0;
+  static const _h = 420.0;
+  static const _gap = 14.0;
   static const _pad = 60.0;
 
   double get _posterW => _h * 2 / 3;
@@ -172,6 +182,8 @@ class _PosterRowState extends State<PosterRow> {
     }
   }
 
+  bool get _hasProgress => widget.entries.any((e) => e.progress != null);
+
   @override
   void dispose() {
     _ctrl.dispose();
@@ -184,14 +196,14 @@ class _PosterRowState extends State<PosterRow> {
     final h = context.px(_h);
     final shown = _focused == null ? null : widget.entries[_focused!];
     return Padding(
-      padding: EdgeInsets.only(bottom: context.px(30)),
+      padding: EdgeInsets.only(bottom: context.px(26)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
-          padding: EdgeInsets.only(left: context.px(_pad), bottom: context.px(12)),
-          child: Text(widget.title, style: body(context.px(27), weight: FontWeight.w600)),
+          padding: EdgeInsets.only(left: context.px(_pad), bottom: context.px(10)),
+          child: Text(widget.title, style: body(context.px(23), weight: FontWeight.w700)),
         ),
         SizedBox(
-          height: h + context.px(16),
+          height: h + context.px(_hasProgress ? 16 : 4),
           child: FocusTraversalGroup(
             child: ListView.builder(
               controller: _ctrl,
@@ -220,8 +232,8 @@ class _PosterRowState extends State<PosterRow> {
           child: shown == null
               ? const SizedBox(width: double.infinity)
               : Padding(
-                  padding: EdgeInsets.fromLTRB(context.px(_pad), context.px(14), context.px(_pad), 0),
-                  child: SizedBox(width: context.px(1000), child: _Details(entry: shown)),
+                  padding: EdgeInsets.fromLTRB(context.px(_pad), context.px(10), context.px(_pad), 0),
+                  child: SizedBox(width: context.px(900), child: _Details(entry: shown)),
                 ),
         ),
       ]),
@@ -237,15 +249,15 @@ class _Details extends StatelessWidget {
     final e = entry;
     if (e.subtitle != null || e.note != null) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        if (e.subtitle != null) Text(e.subtitle!, style: body(context.px(23), color: C.soft, weight: FontWeight.w600)),
-        if (e.note != null) Text(e.note!, style: body(context.px(25), weight: FontWeight.w700)),
+        if (e.subtitle != null) Text(e.subtitle!, style: body(context.px(20), color: C.soft, weight: FontWeight.w600)),
+        if (e.note != null) Text(e.note!, style: body(context.px(21), weight: FontWeight.w700)),
       ]);
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      MetaDots(parts: e.meta, rating: e.rating),
+      MetaDots(parts: e.meta, rating: e.rating, size: 19),
       if (e.overview != null) ...[
         SizedBox(height: context.px(6)),
-        Text(e.overview!, maxLines: 2, overflow: TextOverflow.ellipsis, style: body(context.px(23), color: C.soft, height: 1.35)),
+        Text(e.overview!, maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.text, height: 1.3)),
       ],
     ]);
   }
@@ -294,7 +306,7 @@ class _Poster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final e = entry;
-    final r = BorderRadius.circular(context.px(12));
+    final r = BorderRadius.circular(context.px(10));
     return Focusable(
       onTap: e.onTap,
       autofocus: autofocus,
@@ -303,14 +315,14 @@ class _Poster extends StatelessWidget {
       semanticLabel: e.title,
       builder: (context, active) {
         final wide = active && (e.wide ?? e.poster) != null;
-        return AnimatedContainer(
+        final card = AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
           width: wide ? wideW : posterW,
           height: height,
           decoration: BoxDecoration(
             borderRadius: r,
-            border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(4)),
+            border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(3)),
           ),
           child: ClipRRect(
             borderRadius: r,
@@ -332,7 +344,7 @@ class _Poster extends StatelessWidget {
               if (wide)
                 Positioned(
                   left: context.px(22),
-                  bottom: context.px(e.progress != null ? 26 : 20),
+                  bottom: context.px(20),
                   width: wideW * 0.5,
                   height: height * 0.32,
                   child: e.logo != null
@@ -349,21 +361,27 @@ class _Poster extends StatelessWidget {
                   right: context.px(10),
                   child: Pill(e.badge!, bg: e.badgeAlt ? C.text : C.accent, fg: e.badgeAlt ? const Color(0xFF141414) : C.accentInk),
                 ),
-              if (e.progress != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: context.px(6),
-                  child: Container(
-                    color: const Color(0x66808080),
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(widthFactor: e.progress!.clamp(0.03, 1.0), child: Container(color: C.accent)),
-                  ),
-                ),
             ]),
           ),
         );
+        if (e.progress == null) return card;
+        // Progress sits as a thin line under the picture rather than on it.
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          card,
+          SizedBox(height: context.px(8)),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            width: wide ? wideW : posterW,
+            height: context.px(4),
+            decoration: BoxDecoration(color: const Color(0x55A0A0A0), borderRadius: BorderRadius.circular(4)),
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: e.progress!.clamp(0.03, 1.0),
+              child: Container(decoration: BoxDecoration(color: C.accent, borderRadius: BorderRadius.circular(4))),
+            ),
+          ),
+        ]);
       },
     );
   }

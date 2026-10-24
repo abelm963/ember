@@ -173,9 +173,9 @@ class _TvPickerState extends State<_TvPicker> {
           padding: EdgeInsets.fromLTRB(context.px(110), context.px(80), context.px(40), context.px(60)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const EmberLogo(),
-            SizedBox(height: context.px(70)),
-            Text("Who's watching?", style: display(context.px(56))),
-            SizedBox(height: context.px(36)),
+            SizedBox(height: context.px(8)),
+            Text('Choose a profile', style: body(context.px(21), color: C.soft, weight: FontWeight.w600)),
+            SizedBox(height: context.px(40)),
             Expanded(
               child: FocusTraversalGroup(
                 child: ListView(children: [
@@ -190,7 +190,11 @@ class _TvPickerState extends State<_TvPicker> {
                       builder: (context, active) => Padding(
                         padding: EdgeInsets.symmetric(vertical: context.px(10)),
                         child: Row(children: [
-                          AnimatedContainer(
+                          // A fixed-width slot keeps the small avatars centred under the big one.
+                          Container(
+                            width: context.px(136),
+                            alignment: Alignment.center,
+                            child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             padding: EdgeInsets.all(context.px(4)),
                             decoration: BoxDecoration(
@@ -199,22 +203,23 @@ class _TvPickerState extends State<_TvPicker> {
                             ),
                             child: widget.tiles[i].add
                                 ? Container(
-                                    width: context.px(active ? 110 : 84),
-                                    height: context.px(active ? 110 : 84),
+                                    width: context.px(active ? 120 : 72),
+                                    height: context.px(active ? 120 : 72),
                                     decoration: BoxDecoration(color: C.surface, borderRadius: BorderRadius.circular(context.px(20))),
                                     child: Icon(Icons.add, color: C.faint, size: context.px(48)),
                                   )
-                                : Avatar(name: widget.tiles[i].name, imageUrl: widget.tiles[i].imageUrl, size: active ? 110 : 84),
+                                : Avatar(name: widget.tiles[i].name, imageUrl: widget.tiles[i].imageUrl, size: active ? 120 : 72),
+                            ),
                           ),
                           SizedBox(width: context.px(26)),
                           Expanded(
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 150),
-                              opacity: active ? 1 : 0.55,
+                              opacity: active ? 1 : 0,
                               child: Text(widget.tiles[i].name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: body(context.px(active ? 34 : 28), weight: FontWeight.w700)),
+                                  style: body(context.px(30), weight: FontWeight.w700)),
                             ),
                           ),
                         ]),

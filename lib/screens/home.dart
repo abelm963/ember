@@ -393,11 +393,20 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final logo = jf.logoImage(item);
-    final r = BorderRadius.circular(context.px(28));
-    return Padding(
-      padding: EdgeInsets.fromLTRB(context.px(60), context.px(6), context.px(60), context.px(44)),
+    final r = BorderRadius.circular(context.px(24));
+    // Fills the screen under the menu bar, leaving the top of the first row peeking out below.
+    final h = (MediaQuery.sizeOf(context).height - context.px(100) - context.px(150)).clamp(context.px(500), context.px(900));
+    // Landing on the hero's buttons brings the whole card back into view, top edge first.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (f) {
+        if (f) Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 240), curve: Curves.easeOut);
+      },
+      child: Padding(
+      padding: EdgeInsets.fromLTRB(context.px(60), 0, context.px(60), context.px(34)),
       child: Container(
-        height: context.px(600),
+        height: h,
         decoration: BoxDecoration(borderRadius: r, border: Border.all(color: const Color(0xFF2A2A30), width: context.px(1.5))),
         child: ClipRRect(
           borderRadius: r,
@@ -422,12 +431,12 @@ class _HeroCard extends StatelessWidget {
             ),
             Positioned(
               left: context.px(56),
-              bottom: context.px(48),
-              width: context.px(780),
+              bottom: context.px(50),
+              width: context.px(700),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                 if (logo != null)
                   ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: context.px(150), maxWidth: context.px(560)),
+                    constraints: BoxConstraints(maxHeight: context.px(170), maxWidth: context.px(600)),
                     child: NetImage(logo,
                         fit: BoxFit.contain,
                         alignment: Alignment.centerLeft,
@@ -436,27 +445,29 @@ class _HeroCard extends StatelessWidget {
                   )
                 else
                   Text(item.name, maxLines: 2, style: display(context.px(84))),
-                SizedBox(height: context.px(20)),
-                MetaDots(parts: metaParts(item), rating: item.officialRating),
+                SizedBox(height: context.px(18)),
+                MetaDots(parts: metaParts(item), rating: item.officialRating, size: 19),
                 if (item.overview != null) ...[
-                  SizedBox(height: context.px(12)),
+                  SizedBox(height: context.px(10)),
                   Text(item.overview!,
-                      maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(23), color: C.soft, height: 1.4)),
+                      maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.text, height: 1.35)),
                 ],
-                SizedBox(height: context.px(26)),
-                Wrap(spacing: context.px(16), children: [
+                SizedBox(height: context.px(22)),
+                Wrap(spacing: context.px(14), children: [
                   PillButton(
                     label: item.progress != null ? 'Resume' : 'Play',
                     icon: Icons.play_arrow_rounded,
                     autofocus: app.isTv,
+                    scrollIntoView: false,
                     onTap: () => item.isSeries ? playSeries(context, jf, item) : play(context, item),
                   ),
-                  PillButton(label: 'More Info', onTap: () => openItem(context, item)),
+                  PillButton(label: 'More Info', scrollIntoView: false, onTap: () => openItem(context, item)),
                 ]),
               ]),
             ),
           ]),
         ),
+      ),
       ),
     );
   }

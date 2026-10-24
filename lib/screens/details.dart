@@ -173,8 +173,12 @@ class _DetailsBodyState extends State<_DetailsBody> {
     final cast = it.people.where((p) => p['Type'] == 'Actor').take(3).map((p) => p['Name']).join(', ');
     final is4k = FormatInfo.fromStreams(it.mediaStreams).badges.contains('4K');
     final resume = it.isSeries ? next?.progress : it.progress;
-    final epLabel = next == null ? '' : ' ${next.episodeLabel.replaceAll(' : ', ': ')}';
-    final playLabel = it.isSeries ? '${resume != null ? 'Resume' : 'Play'}$epLabel' : (resume != null ? 'Resume' : 'Play');
+    final epLabel = next == null
+        ? ''
+        : (next.parentIndexNumber != null && next.indexNumber != null)
+            ? ' Season ${next.parentIndexNumber}: Episode ${next.indexNumber}'
+            : ' ${next.episodeLabel}';
+    final playLabel = it.isSeries ? '${resume != null ? 'Resume' : 'Play'}$epLabel' : (resume != null ? 'Resume playing' : 'Play');
     final meta = [
       if (it.year != null) '${it.year}',
       if (it.genres.isNotEmpty) it.genres.first,
@@ -189,55 +193,55 @@ class _DetailsBodyState extends State<_DetailsBody> {
         Positioned(
           right: 0,
           top: 0,
-          width: size.width * 0.66,
-          height: size.height * 0.78,
+          width: size.width * 0.64,
+          height: size.height * 0.64,
           child: Stack(fit: StackFit.expand, children: [
             NetImage(jf.backdropImage(it), alignment: Alignment.topCenter),
             const DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [C.bg, Color(0x990A0A0B), Color(0x000A0A0B)], stops: [0, 0.3, 0.6]),
+                gradient: LinearGradient(colors: [C.bg, Color(0x990A0A0B), Color(0x000A0A0B)], stops: [0, 0.22, 0.5]),
               ),
             ),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                    begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [C.bg, Color(0x000A0A0B)], stops: [0, 0.4]),
+                    begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [C.bg, Color(0x000A0A0B)], stops: [0, 0.35]),
               ),
             ),
           ]),
         ),
         if (!app.isTv) Positioned(left: context.px(36), top: context.px(40), child: BackArrow(onTap: () => Navigator.pop(context))),
         Positioned(
-          left: context.px(110),
-          top: context.px(90),
-          width: context.px(820),
+          left: context.px(80),
+          top: context.px(80),
+          width: context.px(660),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (logo != null)
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: context.px(150), maxWidth: context.px(520)),
+                constraints: BoxConstraints(maxHeight: context.px(140), maxWidth: context.px(480)),
                 child: NetImage(logo,
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
-                    loading: SizedBox(height: context.px(130)),
-                    fallback: Text(it.name, style: display(context.px(80)))),
+                    loading: SizedBox(height: context.px(120)),
+                    fallback: Text(it.name, style: display(context.px(68)))),
               )
             else
-              Text(it.name, maxLines: 2, style: display(context.px(80))),
-            SizedBox(height: context.px(22)),
-            Wrap(spacing: context.px(14), runSpacing: context.px(8), crossAxisAlignment: WrapCrossAlignment.center, children: [
-              for (final m in meta) Text(m, style: body(context.px(22), weight: FontWeight.w600)),
+              Text(it.name, maxLines: 2, style: display(context.px(68))),
+            SizedBox(height: context.px(16)),
+            Wrap(spacing: context.px(12), runSpacing: context.px(8), crossAxisAlignment: WrapCrossAlignment.center, children: [
+              for (final m in meta) Text(m, style: body(context.px(19), weight: FontWeight.w600)),
               for (final b in badges) Badge2(b),
               if (it.officialRating != null) Badge2(it.officialRating!),
             ]),
             if (it.overview != null) ...[
-              SizedBox(height: context.px(18)),
-              Text(it.overview!, maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(23), height: 1.4)),
+              SizedBox(height: context.px(14)),
+              Text(it.overview!, maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(21), height: 1.35)),
             ],
             if (cast.isNotEmpty) ...[
-              SizedBox(height: context.px(10)),
-              Text('Cast: $cast', maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(19), color: C.muted)),
+              SizedBox(height: context.px(8)),
+              Text('Cast: $cast', maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(17), color: C.muted)),
             ],
-            SizedBox(height: context.px(30)),
+            SizedBox(height: context.px(26)),
             FocusTraversalGroup(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 ActionItem(
@@ -887,16 +891,16 @@ class _EpisodesPageState extends State<_EpisodesPage> {
             builder: (context, active) {
               final fg = active ? const Color(0xFF111111) : (selected ? C.text : C.muted);
               return Container(
-                height: context.px(58),
+                height: context.px(48),
                 padding: EdgeInsets.symmetric(horizontal: context.px(22)),
                 decoration: BoxDecoration(
                   color: active ? C.text : (selected ? const Color(0xFF3A3A40) : Colors.transparent),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(children: [
-                  Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(23), weight: FontWeight.w600, color: fg))),
+                  Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(19), weight: FontWeight.w600, color: fg))),
                   if (note.isNotEmpty)
-                    Text(note, style: body(context.px(19), color: active ? const Color(0xFF444444) : (accent ? C.accent : C.faint))),
+                    Text(note, style: body(context.px(16), color: active ? const Color(0xFF444444) : (accent ? C.accent : C.faint))),
                 ]),
               );
             },
@@ -969,9 +973,9 @@ class _EpisodesPageState extends State<_EpisodesPage> {
 
     return Scaffold(
       body: Padding(
-        padding: EdgeInsets.fromLTRB(context.px(100), context.px(90), context.px(80), 0),
+        padding: EdgeInsets.fromLTRB(context.px(80), context.px(80), context.px(80), 0),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(width: context.px(560), child: left),
+          SizedBox(width: context.px(500), child: left),
           SizedBox(width: context.px(70)),
           Expanded(child: right),
         ]),
@@ -1004,7 +1008,7 @@ class _EpisodeListItem extends StatelessWidget {
             height: w * 9 / 16,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(context.px(12)),
-              border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(4)),
+              border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(3)),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(context.px(9)),
@@ -1039,13 +1043,13 @@ class _EpisodeListItem extends StatelessWidget {
           SizedBox(width: context.px(30)),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(ep.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(28), weight: FontWeight.w700)),
+              Text(ep.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(25), weight: FontWeight.w700)),
               SizedBox(height: context.px(8)),
               Text(ep.overview ?? '',
-                  maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(22), color: active ? C.text : C.soft, height: 1.4)),
+                  maxLines: 4, overflow: TextOverflow.ellipsis, style: body(context.px(20), color: active ? C.text : C.soft, height: 1.35)),
               if (ep.runtime != null) ...[
                 SizedBox(height: context.px(8)),
-                Text('(${formatRuntime(ep.runtime)})', style: body(context.px(20), color: C.muted)),
+                Text('(${formatRuntime(ep.runtime)})', style: body(context.px(18), color: C.muted)),
               ],
             ]),
           ),

@@ -847,10 +847,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           top: context.px(56),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _RoundIcon(icon: Icons.arrow_back_rounded, label: 'Back', onTap: () => Navigator.of(context).pop()),
-            SizedBox(width: context.px(18)),
             _RoundIcon(icon: Icons.replay_rounded, label: 'Restart', onTap: () => _engine.seek(Duration.zero)),
             if (_next != null) ...[
-              SizedBox(width: context.px(18)),
               _RoundIcon(icon: Icons.skip_next_rounded, label: 'Next Episode', onTap: _playNext),
             ],
           ]),
@@ -861,12 +859,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: context.px(900)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
-              Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: display(context.px(40))),
+              Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(28), weight: FontWeight.w800)),
               if (_item.isEpisode)
-                Text('${_item.episodeLabel} "${_item.name}"',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(24), color: C.soft, weight: FontWeight.w600))
+                Text('${_item.episodeLabel.replaceAll(' : ', ': ')} "${_item.name}"',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(24), weight: FontWeight.w600))
               else if (_subtitle != null)
-                Text(_subtitle!, style: body(context.px(24), color: C.soft, weight: FontWeight.w600)),
+                Text(_subtitle!, style: body(context.px(22), color: C.soft, weight: FontWeight.w600)),
               if (_isStream) ...[
                 SizedBox(height: context.px(8)),
                 Text(_methodLabel, style: body(context.px(18), color: C.faint)),
@@ -888,17 +886,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   _engine.playOrPause();
                   _showControls();
                 },
-                builder: (context, active) => AnimatedContainer(
+                builder: (context, active) => AnimatedScale(
+                  scale: active ? 1.1 : 1,
                   duration: const Duration(milliseconds: 120),
-                  width: context.px(72),
-                  height: context.px(72),
-                  decoration: BoxDecoration(color: active ? C.text : const Color(0x33FFFFFF), shape: BoxShape.circle),
-                  child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: context.px(44), color: active ? const Color(0xFF111111) : C.text),
+                  child: Container(
+                    width: context.px(68),
+                    height: context.px(68),
+                    decoration: BoxDecoration(
+                      color: active ? C.text : const Color(0xE6F2EEE6),
+                      shape: BoxShape.circle,
+                      boxShadow: active ? [BoxShadow(color: const Color(0x66FFFFFF), blurRadius: context.px(14))] : null,
+                    ),
+                    child: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: context.px(42), color: const Color(0xFF111111)),
+                  ),
                 ),
               ),
-              SizedBox(width: context.px(26)),
-              Text(formatClock(_position), style: body(context.px(24), weight: FontWeight.w600)),
+              SizedBox(width: context.px(22)),
+              Text(formatClock(_position), style: body(context.px(21), weight: FontWeight.w600)),
               SizedBox(width: context.px(22)),
               Expanded(
                 child: _Scrubber(
@@ -910,11 +914,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
               SizedBox(width: context.px(22)),
-              Text(formatClock(_duration), style: body(context.px(24), color: C.muted, weight: FontWeight.w600)),
+              Text(formatClock(_duration), style: body(context.px(21), weight: FontWeight.w600)),
             ]),
             if (!_isStream) ...[
-              SizedBox(height: context.px(26)),
+              SizedBox(height: context.px(18)),
               Row(children: [
+                SizedBox(width: context.px(90)),
                 for (final o in chips) ...[
                   _Chip(
                     label: o.label == 'Off' ? 'Subtitles off' : o.label,
@@ -925,7 +930,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       _showControls();
                     },
                   ),
-                  SizedBox(width: context.px(14)),
+                  SizedBox(width: context.px(12)),
                 ],
                 _Chip(label: 'Other…', selected: false, onTap: openPanel),
               ]),
@@ -943,7 +948,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.px(20), context.px(first ? 0 : 30), 0, context.px(10)),
-              child: Text(title, style: body(context.px(28), weight: FontWeight.w700)),
+              child: Text(title, style: body(context.px(26), weight: FontWeight.w700)),
             ),
             if (opts.isEmpty)
               Padding(
@@ -961,16 +966,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 builder: (context, active) => AnimatedContainer(
                   duration: const Duration(milliseconds: 120),
                   margin: EdgeInsets.only(bottom: context.px(4)),
-                  padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(14)),
+                  padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(12)),
                   decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(999)),
                   child: Row(children: [
+                    SizedBox(
+                      width: context.px(36),
+                      child: opts[i].selected
+                          ? Icon(Icons.check_rounded, size: context.px(24), color: active ? const Color(0xFF111111) : C.text)
+                          : null,
+                    ),
                     Expanded(
                       child: Text(opts[i].label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: body(context.px(23), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.soft)),
+                          style: body(context.px(21), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.soft)),
                     ),
-                    if (opts[i].selected) Icon(Icons.check_rounded, size: context.px(28), color: active ? const Color(0xFF111111) : C.text),
                   ]),
                 ),
               ),
@@ -981,14 +991,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       top: 0,
       bottom: 0,
       right: 0,
-      width: context.px(620),
+      width: MediaQuery.sizeOf(context).width * 0.46,
       child: FocusScope(
         autofocus: true,
         child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0x00000000), Color(0xF0000000)], stops: [0, 0.18]),
-          ),
-          padding: EdgeInsets.fromLTRB(context.px(110), context.px(70), context.px(50), context.px(40)),
+          color: const Color(0xF5000000),
+          padding: EdgeInsets.fromLTRB(context.px(60), context.px(60), context.px(80), context.px(40)),
           child: ListView(children: [
             section('Subtitles', _subtitleOptions(), first: true),
             section('Audio', _audioOptions()),
@@ -1255,19 +1263,20 @@ class _RoundIcon extends StatelessWidget {
         semanticLabel: label,
         scrollIntoView: false,
         builder: (context, active) => SizedBox(
-          width: context.px(120),
+          width: context.px(100),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              width: context.px(64),
-              height: context.px(64),
-              decoration: BoxDecoration(color: active ? C.text : const Color(0x33FFFFFF), shape: BoxShape.circle),
-              child: Icon(icon, size: context.px(34), color: active ? const Color(0xFF111111) : C.text),
+              width: context.px(56),
+              height: context.px(56),
+              decoration: BoxDecoration(color: active ? C.text : Colors.transparent, shape: BoxShape.circle),
+              child: Icon(icon, size: context.px(32), color: active ? const Color(0xFF111111) : C.text),
             ),
-            SizedBox(height: context.px(10)),
+            SizedBox(height: context.px(8)),
             Opacity(
               opacity: active ? 1 : 0,
-              child: Text(label, textAlign: TextAlign.center, style: body(context.px(18), weight: FontWeight.w600)),
+              child: Text(label.toUpperCase(),
+                  textAlign: TextAlign.center, style: body(context.px(15), weight: FontWeight.w700).copyWith(letterSpacing: 1)),
             ),
           ]),
         ),
@@ -1288,14 +1297,15 @@ class _Chip extends StatelessWidget {
         scrollIntoView: false,
         builder: (context, active) => AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: EdgeInsets.symmetric(horizontal: context.px(24), vertical: context.px(12)),
-          decoration: BoxDecoration(
-            color: active ? C.text : const Color(0x26FFFFFF),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected && !active ? C.text : Colors.transparent, width: context.px(2)),
-          ),
-          child: Text(label,
-              style: body(context.px(21), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.text)),
+          padding: EdgeInsets.symmetric(horizontal: context.px(16), vertical: context.px(7)),
+          decoration: BoxDecoration(color: active ? C.text : const Color(0x4DFFFFFF), borderRadius: BorderRadius.circular(999)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (selected) ...[
+              Icon(Icons.check_rounded, size: context.px(18), color: active ? const Color(0xFF111111) : C.text),
+              SizedBox(width: context.px(6)),
+            ],
+            Text(label, style: body(context.px(17), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.text)),
+          ]),
         ),
       );
 }
