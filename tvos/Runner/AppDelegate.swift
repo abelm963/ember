@@ -22,6 +22,9 @@ import UIKit
         KeyboardEditor.present(args, result)
       }
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "EmberPlayer") {
+      NativePlayer.shared.register(messenger: registrar.messenger())
+    }
   }
 }
 

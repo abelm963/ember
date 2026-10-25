@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -68,7 +69,10 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
     }
     if (!app.trailerServiceOk || widget.item.remoteTrailers.isEmpty) return null;
     final key = await jf.trailerKeyForItem(widget.item.id);
-    return key == null ? null : jf.trailerStreamUrl(key);
+    if (key == null) return null;
+    // Apple TV's player needs the HLS version (plugin 0.5+); it can't open the other stream.
+    if (isAppleTv) return app.trailerHls ? jf.trailerHlsUrl(key) : null;
+    return jf.trailerStreamUrl(key);
   }
 
   Future<void> _start() async {

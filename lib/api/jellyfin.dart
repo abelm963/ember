@@ -814,12 +814,14 @@ class JellyfinClient {
   }
 
   /// What Apple TV's player (AVPlayer) opens itself: MP4/MOV with H.264 or HEVC (including
-  /// HDR10 and Dolby Vision) and AAC, Dolby Digital(+) incl. Atmos, ALAC or FLAC audio.
-  /// Anything else (MKV, DTS, TrueHD…) is repackaged by the server into HLS, copying the video
-  /// and audio untouched when it can and converting only what AVPlayer can't play.
+  /// HDR10, HDR10+, HLG and Dolby Vision) and AAC, Dolby Digital(+) incl. Atmos, ALAC or FLAC audio.
+  /// Anything else (MKV, DTS, TrueHD…) is repackaged by the server into HLS, copying the picture
+  /// and sound untouched when it can (so HDR, Dolby Vision and Atmos survive) and converting only
+  /// what Apple TV can't play. [transcode] (a lower quality picked in Settings) converts everything.
   static Map<String, dynamic> _appleTvProfile(int maxBitrate, {required bool transcode}) => {
         'Name': 'Ember Apple TV',
         'MaxStreamingBitrate': maxBitrate,
+        'MaxStaticBitrate': maxBitrate,
         'DirectPlayProfiles': transcode
             ? []
             : [
@@ -831,6 +833,8 @@ class JellyfinClient {
             'Container': 'mp4',
             'Type': 'Video',
             'VideoCodec': transcode ? 'h264' : 'hevc,h264',
+            // Dolby Digital Plus first: it carries Atmos, and it's what the server converts
+            // DTS and TrueHD into, keeping 5.1 / 7.1.
             'AudioCodec': 'eac3,ac3,aac,flac,alac',
             'Protocol': 'hls',
             'Context': 'Streaming',
@@ -841,11 +845,36 @@ class JellyfinClient {
           {'Container': 'aac', 'Type': 'Audio', 'AudioCodec': 'aac', 'Protocol': 'hls', 'Context': 'Streaming', 'MaxAudioChannels': '6'},
         ],
         'ContainerProfiles': [],
-        'CodecProfiles': [],
-        // Text subtitles come as WebVTT and Ember draws them; picture subtitles are burned in.
+        // Tell the server outright which kinds of picture Apple TV 4K shows, so HDR and Dolby
+        // Vision are passed through instead of being converted to SDR.
+        'CodecProfiles': [
+          {
+            'Type': 'Video',
+            'Codec': 'hevc',
+            'Conditions': [
+              {
+                'Condition': 'EqualsAny',
+                'Property': 'VideoRangeType',
+                'Value': 'SDR|HDR10|HDR10Plus|HLG|DOVI|DOVIWithHDR10|DOVIWithHDR10Plus|DOVIWithHLG|DOVIWithSDR',
+                'IsRequired': false,
+              },
+            ],
+          },
+          {
+            'Type': 'Video',
+            'Codec': 'h264',
+            'Conditions': [
+              {'Condition': 'EqualsAny', 'Property': 'VideoRangeType', 'Value': 'SDR', 'IsRequired': false},
+              {'Condition': 'LessThanEqual', 'Property': 'VideoBitDepth', 'Value': '8', 'IsRequired': false},
+            ],
+          },
+        ],
+        // Text subtitles go inside the stream as WebVTT, so Apple's player shows them; picture
+        // subtitles (PGS, DVD) have to be burned into the picture.
         'SubtitleProfiles': [
-          for (final f in ['srt', 'subrip', 'ass', 'ssa', 'vtt', 'webvtt', 'mov_text', 'ttml'])
-            {'Format': f, 'Method': 'External'},
+          {'Format': 'vtt', 'Method': 'Hls'},
+          {'Format': 'webvtt', 'Method': 'Hls'},
+          {'Format': 'mov_text', 'Method': 'Embed'},
           for (final f in ['pgssub', 'pgs', 'dvdsub', 'dvbsub', 'vobsub'])
             {'Format': f, 'Method': 'Encode'},
         ],
@@ -1136,6 +1165,9 @@ class JellyfinClient {
       ((await _send('GET', '/EmberTrailers/Videos/$key/Test', timeout: const Duration(seconds: 120))) as Map).cast<String, dynamic>();
 
   String trailerStreamUrl(String key) => _uri('/EmberTrailers/Videos/$key/Stream', {'api_key': token}).toString();
+
+  /// The same trailer as HLS (plugin 0.5+), which Apple TV's player opens natively and starts fast.
+  String trailerHlsUrl(String key) => _uri('/EmberTrailers/Videos/$key/master.m3u8', {'api_key': token}).toString();
 
   /// Speed test against the server (used to pick a streaming quality automatically). Returns bits per second.
   Future<double?> measureBitrate({int bytes = 4000000}) async {

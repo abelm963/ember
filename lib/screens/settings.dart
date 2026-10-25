@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -264,9 +265,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       ToggleRow(label: 'Autoplay next episode', value: app.autoplayNext, onChanged: (v) => app.update((s) => s.autoplayNext = v)),
       ToggleRow(label: 'Skip intros automatically', value: app.autoSkipIntro, onChanged: (v) => app.update((s) => s.autoSkipIntro = v)),
+      if (isAppleTv) ...[
+        ToggleRow(
+          label: 'Ask "Are you still watching?"',
+          value: app.stillWatching,
+          onChanged: (v) => app.update((s) => s.stillWatching = v),
+        ),
+        if (app.stillWatching)
+          SettingRow(
+            label: 'Ask after',
+            value: '${app.stillWatchingEpisodes} episodes in a row',
+            onTap: () => pickOption<int>(
+                context,
+                'Ask "Are you still watching?" after',
+                {for (final n in [1, 2, 3, 4, 5, 6, 8]) n: '$n episode${n == 1 ? '' : 's'} in a row'},
+                app.stillWatchingEpisodes,
+                (v) => app.update((s) => s.stillWatchingEpisodes = v)),
+          ),
+        Padding(
+          padding: EdgeInsets.only(top: context.px(6)),
+          child: Text(
+            'Only when the episodes played one after another with nothing pressed on the remote: '
+            'no pause or play, no skipping or scrubbing, no change of audio or subtitles. '
+            'Volume goes straight from the remote to the TV, so Ember can\'t see it.',
+            style: body(context.px(20), color: C.faint, height: 1.5),
+          ),
+        ),
+      ],
       SizedBox(height: context.px(20)),
       Text('PICTURE AND SOUND', style: body(context.px(20), color: C.faint, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
       SizedBox(height: context.px(12)),
+      if (isAppleTv)
+        Text(
+          'Ember plays with Apple TV\'s own player: HDR10, HDR10+, Dolby Vision and Dolby Atmos come through as they are. '
+          'For the TV to switch into HDR or Dolby Vision, turn on Apple TV Settings › Video and Audio › Match Content '
+          '(Match Dynamic Range and Match Frame Rate). '
+          'Enhance Dialogue (Apple TV 4K, tvOS 18 or later): while a video plays, open the player\'s audio options.',
+          style: body(context.px(20), color: C.faint, height: 1.5),
+        )
+      else ...[
       ToggleRow(
         label: 'HDR output (HDR10, HDR10+, HLG, Dolby Vision)',
         value: app.hdrOutput,
@@ -286,6 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: body(context.px(20), color: C.faint, height: 1.5),
         ),
       ),
+      ],
     ]);
   }
 

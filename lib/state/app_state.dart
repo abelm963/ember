@@ -108,9 +108,15 @@ class AppState extends ChangeNotifier {
   /// Status from the server's Ember Trailers plugin; null = not installed / unreachable.
   Map<String, dynamic>? trailerService;
   bool get trailerServiceOk => trailerService?['status'] == 'Online' || trailerService?['status'] == 'Degraded';
+  /// The plugin can hand trailers over as HLS (0.5+), which Apple TV's player plays natively.
+  bool get trailerHls => (trailerService?['features'] as List?)?.contains('hls') ?? false;
   bool audioPassthrough = false; // send Dolby / DTS bitstreams untouched to an AV receiver or soundbar
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
+  /// Ask "Are you still watching?" after this many episodes play one after another with no
+  /// remote input at all (Apple TV).
+  bool stillWatching = true;
+  int stillWatchingEpisodes = 3;
   bool showTrendingRow = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
@@ -165,6 +171,8 @@ class AppState extends ChangeNotifier {
     previewsMuted = _prefs.getBool('previewsMuted') ?? true;
     hdrOutput = _prefs.getBool('hdrOutput') ?? true;
     autoplayNext = _prefs.getBool('autoplayNext') ?? true;
+    stillWatching = _prefs.getBool('stillWatching') ?? true;
+    stillWatchingEpisodes = _prefs.getInt('stillWatchingEpisodes') ?? 3;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
@@ -253,6 +261,8 @@ class AppState extends ChangeNotifier {
     await _prefs.setBool('previewsMuted', previewsMuted);
     await _prefs.setBool('hdrOutput', hdrOutput);
     await _prefs.setBool('autoplayNext', autoplayNext);
+    await _prefs.setBool('stillWatching', stillWatching);
+    await _prefs.setInt('stillWatchingEpisodes', stillWatchingEpisodes);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);
