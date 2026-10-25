@@ -315,6 +315,39 @@ struct Avatar: View {
     }
 }
 
+/// A focusable avatar with its name underneath: the avatar grows and gets a white ring,
+/// the name brightens (profile pickers).
+struct AvatarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
+struct AvatarLabel<Art: View>: View {
+    let name: String
+    var size: CGFloat = 230
+    @ViewBuilder var art: () -> Art
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        VStack(spacing: 24) {
+            art()
+                .overlay {
+                    RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                        .strokeBorder(.white, lineWidth: focused ? 6 : 0)
+                }
+                .scaleEffect(focused ? 1.08 : 1)
+                .shadow(color: .black.opacity(focused ? 0.6 : 0), radius: 24, y: 14)
+            Text(name)
+                .font(.body(size > 160 ? 30 : 22, weight: .semibold))
+                .foregroundStyle(focused ? C.text : C.muted)
+                .lineLimit(1)
+        }
+        .frame(width: size + 20)
+        .animation(.easeOut(duration: 0.18), value: focused)
+    }
+}
+
 /// Loading, empty and error states.
 struct LoadingView: View {
     var body: some View {

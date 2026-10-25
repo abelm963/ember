@@ -3,12 +3,13 @@ import UIKit
 
 /// Loads and keeps artwork. Images are kept in memory while the app runs and on disk
 /// between launches, so rows scroll smoothly and Home opens instantly the second time.
+@MainActor
 final class ImageStore {
     static let shared = ImageStore()
     private let memory = NSCache<NSURL, UIImage>()
     private let session: URLSession
+    /// Downloads in progress, so two tiles showing the same artwork share one request.
     private var running: [URL: Task<UIImage?, Never>] = [:]
-    private let lock = NSLock()
 
     private init() {
         memory.totalCostLimit = 300 * 1024 * 1024
@@ -23,24 +24,18 @@ final class ImageStore {
 
     func image(_ url: URL) async -> UIImage? {
         if let hit = cached(url) { return hit }
-        lock.lock()
-        if let task = running[url] {
-            lock.unlock()
-            return await task.value
-        }
-        let task = Task<UIImage?, Never> { [session] in
+        if let task = running[url] { return await task.value }
+        let session = session
+        // Download and decode off the main thread, so scrolling never stutters.
+        let task = Task.detached(priority: .userInitiated) { () -> UIImage? in
             guard let (data, response) = try? await session.data(from: url),
                   (response as? HTTPURLResponse)?.statusCode ?? 200 < 400,
                   let img = UIImage(data: data) else { return nil }
-            // Decode now, off the main thread, so scrolling never stutters.
             return img.preparingForDisplay() ?? img
         }
         running[url] = task
-        lock.unlock()
         let img = await task.value
-        lock.lock()
         running[url] = nil
-        lock.unlock()
         if let img {
             memory.setObject(img, forKey: url as NSURL, cost: Int(img.size.width * img.size.height * img.scale * img.scale * 4))
         }

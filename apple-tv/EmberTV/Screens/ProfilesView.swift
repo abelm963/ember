@@ -23,16 +23,15 @@ struct ProfilesView: View {
                     Button {
                         app.phase = .signIn
                     } label: {
-                        VStack(spacing: 24) {
+                        AvatarLabel(name: "Add Profile") {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 50, style: .continuous).fill(C.surface2)
                                 Image(systemName: "plus").font(.system(size: 80, weight: .semibold)).foregroundStyle(C.muted)
                             }
                             .frame(width: 230, height: 230)
-                            Text("Add Profile").font(.body(30, weight: .semibold)).foregroundStyle(C.muted)
                         }
                     }
-                    .buttonStyle(LiftStyle(radius: 50, scale: 1.08))
+                    .buttonStyle(AvatarButtonStyle())
                     .focused($focused, equals: "add")
                 }
             }
@@ -57,19 +56,17 @@ struct ProfilesView: View {
                 app.select(acc)
             }
         } label: {
-            VStack(spacing: 24) {
-                ZStack(alignment: .topTrailing) {
-                    Avatar(name: acc.name, image: app.imageURL(for: acc), size: 230)
-                    if editing {
-                        Image(systemName: "minus.circle.fill").font(.system(size: 54)).foregroundStyle(C.bad)
-                            .background(Circle().fill(C.bg)).offset(x: 18, y: -18)
+            AvatarLabel(name: acc.name) {
+                Avatar(name: acc.name, image: app.imageURL(for: acc), size: 230)
+                    .overlay(alignment: .topTrailing) {
+                        if editing {
+                            Image(systemName: "minus.circle.fill").font(.system(size: 54)).foregroundStyle(C.bad)
+                                .background(Circle().fill(C.bg)).offset(x: 18, y: -18)
+                        }
                     }
-                }
-                Text(acc.name).font(.body(30, weight: .semibold)).foregroundStyle(C.text).lineLimit(1)
             }
-            .frame(width: 250)
         }
-        .buttonStyle(LiftStyle(radius: 50, scale: 1.08))
+        .buttonStyle(AvatarButtonStyle())
         .focused($focused, equals: acc.id)
     }
 }

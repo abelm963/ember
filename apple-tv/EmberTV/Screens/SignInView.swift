@@ -51,13 +51,11 @@ struct SignInView: View {
                                 username = u.name
                                 focus = u.hasPassword ? .password : .signIn
                             } label: {
-                                VStack(spacing: 14) {
+                                AvatarLabel(name: u.name, size: 130) {
                                     Avatar(name: u.name, image: u.imageTag.map { client.userImage(userId: u.id, tag: $0) }, size: 130)
-                                    Text(u.name).font(.body(22, weight: .semibold)).foregroundStyle(C.text).lineLimit(1)
                                 }
-                                .frame(width: 150)
                             }
-                            .buttonStyle(LiftStyle(radius: 29, scale: 1.08))
+                            .buttonStyle(AvatarButtonStyle())
                             .focused($focus, equals: .user(u.id))
                         }
                     }
