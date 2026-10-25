@@ -100,4 +100,16 @@ Next steps:
 Smaller known issues:
 - The side menu can stay open after clicking, and swallow the next click.
 
-Later: an Apple TV build (AVPlayer for Dolby Vision/Atmos), Android TV, and phones.
+## Apple TV app (`apple-tv/`)
+
+Flutter can't target tvOS, so Apple TV is a separate native SwiftUI app (tvOS 17+) in `apple-tv/`.
+See `apple-tv/README.md` (how to install it) and `apple-tv/DESIGN.md` (design study, playback rules).
+
+- `apple-tv/EmberKit`: Swift port of `lib/api` (Jellyfin + Seerr). Keep the two in step when an
+  endpoint changes. `swift test` runs on Linux too (e.g. `docker run swift:6.2-noble swift test`).
+- `apple-tv/EmberTV`: the app. Playback uses `AVPlayerViewController` with an Apple TV device
+  profile (`JellyfinClient.appleTVProfile`): direct play for MP4/MOV, remux to HLS fMP4 otherwise.
+- `apple-tv/project.yml` → `EmberTV.xcodeproj` via XcodeGen; regenerate after adding/removing files.
+- `.github/workflows/apple-tv.yml` builds it on a macOS runner on every push touching `apple-tv/`.
+
+Later: Android TV and phones.

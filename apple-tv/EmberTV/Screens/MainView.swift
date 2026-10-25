@@ -159,9 +159,9 @@ struct MainView: View {
 /// Menu entries: the current section is orange; the focused one is a white pill.
 private struct MenuItemStyle: ButtonStyle {
     let selected: Bool
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, selected: selected) }
+    func makeBody(configuration: Configuration) -> some View { MenuItemBody(configuration: configuration, selected: selected) }
 
-    struct Body: View {
+    struct MenuItemBody: View {
         let configuration: ButtonStyleConfiguration
         let selected: Bool
         @Environment(\.isFocused) private var focused

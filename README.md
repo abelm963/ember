@@ -1,7 +1,10 @@
 # Ember
 
 A Netflix-style Jellyfin client with Seerr requests, built in Flutter so one codebase runs on
-Windows now and Apple TV, Android TV, iPhone and Android phones later.
+Windows now and Android TV, iPhone and Android phones later.
+
+**Apple TV** has its own native app in [`apple-tv/`](apple-tv/README.md) (Flutter can't run on
+Apple TV); see that folder for how to install it.
 
 ## Run it on Windows
 

@@ -57,7 +57,7 @@ struct SignInView: View {
                                 }
                                 .frame(width: 150)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(LiftStyle(radius: 29, scale: 1.08))
                             .focused($focus, equals: .user(u.id))
                         }
                     }
