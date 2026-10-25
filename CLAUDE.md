@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 9 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 19 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -33,7 +33,7 @@ say what to click or run to see it.
 | Path | What |
 | --- | --- |
 | `lib/api/jellyfin.dart` | Jellyfin: sign-in (password + Quick Connect), library, playback (direct play or HLS transcode), progress, intro segments, trickplay, bitrate test, the optional plugin's release calendar |
-| `lib/api/youtube.dart` | Trailers, found on the device itself: YouTube's iPhone-app HLS playlist first, then a plain MP4 via youtube_explode_dart. Nothing on the server. `nav.dart` `findTrailer` picks the title's trailer (Jellyfin's RemoteTrailers, then Seerr) and caches it; `tool/trailer_probe.dart <ids>` checks it works |
+| `lib/api/youtube.dart` | Trailers, found on the device itself (Moonfin's approach, made sturdier): YouTube is asked as its Vision Pro app (with a visitor id) and iPhone app at once for an HLS playlist, then as its Android app (360p MP4), then youtube_explode_dart. Each answer is checked before playing; a stream that won't play makes the player ask for the next way (`nextAfter`), and that way goes last for the session. Keeps the original soundtrack, not YouTube's dubs. Tested in `test/youtube_test.dart`. Nothing on the server. `nav.dart` `findTrailer` picks the title's trailer (Jellyfin's RemoteTrailers, then Seerr) and caches it; `tool/trailer_probe.dart <ids>` checks it works |
 | `lib/api/seerr.dart` | Seerr: cookie jar with `connect.sid` and the CSRF tokens, automatic re-sign-in, Quick Connect sign-in, discover/search/details/requests, `allMedia()` for status lookups |
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic sign-in |
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |

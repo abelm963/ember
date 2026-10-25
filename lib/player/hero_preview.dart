@@ -94,7 +94,7 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       }
     }));
     try {
-      await p.open(url);
+      await p.open(url, headers: trailer.headers);
       // Picture and sound in separate files: mpv joins them (Apple TV previews show the picture).
       if (trailer.audioUrl != null && p is MpvEngine) await p.player.setAudioTrack(AudioTrack.uri(trailer.audioUrl!));
     } catch (_) {

@@ -38,6 +38,9 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   private var creditsDismissed = false
   private var closed = true
   private var joinToken: UUID?
+  /// A trailer that hasn't started within a few seconds is reported as failed, so Dart can
+  /// try the same trailer another way.
+  private var trailerWatchdog: DispatchWorkItem?
 
   // "Are you still watching?": episodes that ended and moved on with no remote input at all.
   private var interacted = false
@@ -138,25 +141,54 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
       return
     }
     spinner.startAnimating()
+    let headers = args["headers"] as? [String: String] ?? [:]
+    if args["isTrailer"] as? Bool == true { startTrailerWatchdog() }
     if let audio = (args["audioUrl"] as? String).flatMap(URL.init(string:)) {
       // Picture and sound arrive as two files (some YouTube trailers): join them first.
       let token = UUID()
       joinToken = token
       Task { @MainActor in
-        let joined = try? await NativePlayer.joined(video: url, audio: audio)
+        let joined = try? await NativePlayer.joined(video: url, audio: audio, headers: headers)
         guard self.joinToken == token, !self.closed else { return }
-        self.play(joined ?? AVPlayerItem(url: url), args)
+        guard let joined else {
+          // Picture without sound isn't worth playing: let Dart find another way.
+          self.trailerFailed()
+          return
+        }
+        self.play(joined, args)
       }
       return
     }
     joinToken = nil
-    play(AVPlayerItem(url: url), args)
+    play(AVPlayerItem(asset: NativePlayer.asset(url, headers)), args)
+  }
+
+  private static func asset(_ url: URL, _ headers: [String: String]) -> AVURLAsset {
+    headers.isEmpty ? AVURLAsset(url: url) : AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+  }
+
+  private func startTrailerWatchdog() {
+    trailerWatchdog?.cancel()
+    let work = DispatchWorkItem { [weak self] in self?.trailerFailed() }
+    trailerWatchdog = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: work)
+  }
+
+  /// The trailer won't open or start: Dart loads the next way to get it, or closes the player.
+  private func trailerFailed() {
+    trailerWatchdog?.cancel()
+    trailerWatchdog = nil
+    guard !closed else { return }
+    joinToken = nil
+    player.replaceCurrentItem(with: nil)
+    spinner.startAnimating()
+    send("failed", ["message": "trailer"])
   }
 
   /// One item from a picture-only file and a sound-only file, played together.
-  private static func joined(video: URL, audio: URL) async throws -> AVPlayerItem {
-    let v = AVURLAsset(url: video)
-    let a = AVURLAsset(url: audio)
+  private static func joined(video: URL, audio: URL, headers: [String: String]) async throws -> AVPlayerItem {
+    let v = asset(video, headers)
+    let a = asset(audio, headers)
     async let vTracks = v.loadTracks(withMediaType: .video)
     async let aTracks = a.loadTracks(withMediaType: .audio)
     async let vLength = v.load(.duration)
@@ -178,6 +210,11 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
     addArtwork(to: item)
     let start = args["start"] as? Double ?? 0
     pendingSeek = start > 1 ? start : nil
+    // A trailer plays its own soundtrack, not one of YouTube's machine dubs.
+    let language = args["isTrailer"] as? Bool == true ? args["audioLanguage"] as? String : nil
+    player.setMediaSelectionCriteria(
+      language.map { AVPlayerMediaSelectionCriteria(preferredLanguages: [$0], preferredMediaCharacteristics: nil) },
+      forMediaCharacteristic: .audible)
     statusObservation = item.observe(\.status, options: [.new]) { [weak self] it, _ in
       DispatchQueue.main.async { self?.statusChanged(it) }
     }
@@ -243,6 +280,8 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
         seek(to: s)
       }
       if opts["showSubtitles"] as? Bool == true { selectServerSubtitles(it) }
+    case .failed where opts["isTrailer"] as? Bool == true:
+      trailerFailed()
     case .failed:
       spinner.stopAnimating()
       let message = it.error?.localizedDescription ?? "This video couldn't be played."
@@ -303,6 +342,11 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   private func tick() {
     guard !closed, player.currentItem?.status == .readyToPlay else { return }
     let pos = position
+    // The trailer is really playing: no need to watch for it starting any more.
+    if pos > 0.5, let dog = trailerWatchdog {
+      dog.cancel()
+      trailerWatchdog = nil
+    }
 
     // A jump the player didn't make itself means the viewer scrubbed or skipped.
     if let last = lastTick, Date() > ownSeekUntil {
@@ -535,6 +579,8 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   private func finish(dismiss: Bool) {
     guard !closed else { return }
     closed = true
+    trailerWatchdog?.cancel()
+    trailerWatchdog = nil
     cancelCountdown()
     asking = false
     let pos = position

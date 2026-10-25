@@ -29,7 +29,7 @@ class PlayerScreen extends StatefulWidget {
 
   /// Finds the trailer's stream after the player is already on screen, so the Trailer button
   /// responds at once. Throws with a readable reason when there's nothing to play.
-  final Future<TrailerStream> Function()? resolveTrailer;
+  final TrailerResolver? resolveTrailer;
 
   /// The trailer's YouTube id, for "Open on YouTube" when the server can't play it.
   final String? youtubeKey;
@@ -118,6 +118,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _serverDefaultsDone = false;
   final List<StreamSubscription> _subs = [];
 
+  TrailerStream? _trailer;
+
+  Future<void> _openTrailer(TrailerStream t) async {
+    _trailer = t;
+    setState(() => _status = 'Starting the trailer…');
+    final p = _mpv?.platform;
+    if (p is NativePlayer) {
+      // The trailer's own soundtrack rather than one of YouTube's machine dubs.
+      await p.setProperty('alang', t.audioLanguage ?? '');
+    }
+    await _engine.open(t.url, headers: t.headers);
+    // YouTube sometimes keeps the sharpest picture and the sound in separate files; mpv joins them.
+    if (t.audioUrl != null) await _mpv?.setAudioTrack(AudioTrack.uri(t.audioUrl!));
+    if (!mounted) return;
+    setState(() => _loading = false);
+    _showControls();
+    // A trailer that hasn't started after 12 s isn't going to: try it another way.
+    _trailerWatchdog?.cancel();
+    _trailerWatchdog = Timer(const Duration(seconds: 12), () {
+      if (mounted && _position == Duration.zero && _error == null) {
+        _trailerFailed('YouTube didn\'t start sending the trailer.');
+      }
+    });
+  }
+
+  /// The trailer wouldn't open or start: find it another way, or say why it can't play.
+  Future<void> _trailerFailed(String reason) async {
+    final failed = _trailer;
+    if (failed == null) return;
+    _trailer = null;
+    _trailerWatchdog?.cancel();
+    setState(() {
+      _loading = true;
+      _status = 'Trying another way…';
+    });
+    final next = await widget.resolveTrailer!(failed).catchError((_) => null);
+    if (!mounted) return;
+    if (next == null) {
+      setState(() {
+        _loading = false;
+        _error = reason;
+      });
+      return;
+    }
+    await _openTrailer(next);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -142,7 +189,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (done) _onCompleted();
       }),
       _engine.error.listen((e) {
-        if (_loading || (_isStream && _position == Duration.zero)) {
+        // A trailer that won't open is asked for another way before showing an error.
+        if (_trailer != null && _position == Duration.zero) {
+          _trailerFailed(_clean(e));
+        } else if (_loading || (_isStream && _position == Duration.zero)) {
           setState(() => _error = _isStream ? _clean(e) : 'Playback failed: $e');
         }
       }),
@@ -215,30 +265,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     if (_isStream) {
       try {
-        var url = widget.directUrl;
-        String? audioUrl;
-        if (url == null) {
+        final url = widget.directUrl;
+        if (url != null) {
+          await _engine.open(url);
+          setState(() => _loading = false);
+          _showControls();
+        } else {
           setState(() => _status = 'Finding the official trailer…');
           final t = await widget.resolveTrailer!();
           if (!mounted) return;
-          url = t.url;
-          audioUrl = t.audioUrl;
+          if (t == null) throw ApiException(0, 'YouTube didn\'t hand this trailer over.');
+          await _openTrailer(t);
         }
-        setState(() => _status = 'Starting the trailer…');
-        await _engine.open(url);
-        // YouTube sometimes keeps the sharpest picture and the sound in separate files; mpv joins them.
-        if (audioUrl != null) await _mpv?.setAudioTrack(AudioTrack.uri(audioUrl));
-        setState(() => _loading = false);
-        _showControls();
-        // A trailer that hasn't started after 45 s isn't going to: say so instead of spinning forever.
-        _trailerWatchdog?.cancel();
-        _trailerWatchdog = Timer(const Duration(seconds: 45), () {
-          if (mounted && _position == Duration.zero && _error == null) {
-            setState(() => _error = 'YouTube didn\'t start sending the trailer.');
-          }
-        });
       } catch (e) {
         if (!mounted) return;
+        if (_trailer != null) return _trailerFailed(_clean(e));
         setState(() {
           _loading = false;
           _error = _clean(e);

@@ -43,24 +43,64 @@ class NativePlayer {
     return p._done.future;
   }
 
-  /// Plays a trailer. The player appears at once; [resolve] finds the stream meanwhile.
-  /// Returns false (with the player closed again) when there was nothing to play, so the
-  /// caller can hand the trailer to the YouTube app instead.
+  /// Plays a trailer. The player appears at once; [resolve] finds the stream meanwhile, and
+  /// finds it another way when Apple's player can't open it. Returns false (with the player
+  /// closed again) when nothing would play, so the caller can hand the trailer to the YouTube
+  /// app instead.
   static Future<bool> playTrailer(AppState app,
-      {required String title, String? artwork, required Future<TrailerStream> Function() resolve}) async {
-    final p = NativePlayer._(app, isTrailer: true);
+      {required String title, String? artwork, required TrailerResolver resolve}) async {
+    final p = NativePlayer._(app, isTrailer: true)
+      .._resolveTrailer = resolve
+      .._trailerTitle = title
+      .._trailerArtwork = artwork;
     _bind(p);
     await p._invoke('open', {'title': title, 'artwork': artwork, 'isTrailer': true});
-    try {
-      final t = await resolve();
-      await p._invoke('load', {'url': t.url, 'audioUrl': t.audioUrl, 'title': title, 'artwork': artwork, 'isTrailer': true});
-    } catch (_) {
-      await p._invoke('close', {});
-      await p._done.future.timeout(const Duration(seconds: 3), onTimeout: () {});
+    final first = await resolve().catchError((_) => null);
+    // Closed while it was being found: nothing more to do.
+    if (p._done.isCompleted) return true;
+    if (first == null) {
+      await p._giveUp();
       return false;
     }
+    await p._loadTrailer(first);
     await p._done.future;
-    return true;
+    return !p._gaveUp;
+  }
+
+  TrailerResolver? _resolveTrailer;
+  TrailerStream? _trailer;
+  String? _trailerTitle;
+  String? _trailerArtwork;
+  bool _gaveUp = false;
+
+  Future<void> _loadTrailer(TrailerStream t) async {
+    _trailer = t;
+    await _invoke('load', {
+      'url': t.url,
+      'audioUrl': t.audioUrl,
+      'audioLanguage': t.audioLanguage,
+      'headers': t.headers,
+      'title': _trailerTitle,
+      'artwork': _trailerArtwork,
+      'isTrailer': true,
+    });
+  }
+
+  /// The trailer wouldn't open or start: try the next way, or close so the YouTube app takes over.
+  Future<void> _trailerFailed() async {
+    final failed = _trailer, resolve = _resolveTrailer;
+    if (failed == null || resolve == null || _gaveUp) return;
+    _trailer = null;
+    final next = await resolve(failed).catchError((_) => null);
+    if (_done.isCompleted) return;
+    if (next == null) return _giveUp();
+    await _loadTrailer(next);
+  }
+
+  Future<void> _giveUp() async {
+    _gaveUp = true;
+    await _invoke('close', {});
+    await _done.future.timeout(const Duration(seconds: 3), onTimeout: () {});
   }
 
   static void _bind(NativePlayer p) {
@@ -322,6 +362,8 @@ class NativePlayer {
         final item = _item;
         await _stopped();
         if (item != null) await _load(item, _position);
+      case 'failed':
+        if (isTrailer) await _trailerFailed();
       case 'closed':
         await _stopped();
         if (_current == this) _current = null;

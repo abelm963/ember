@@ -26,7 +26,8 @@ abstract class PlaybackEngine {
   Stream<bool> get completed;
   Stream<String> get error;
 
-  Future<void> open(String url, {Duration? start});
+  /// [headers] go with every request for the video (YouTube trailers need some).
+  Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}});
   Future<void> play();
   Future<void> pause();
   Future<void> playOrPause();
@@ -68,7 +69,8 @@ class MpvEngine implements PlaybackEngine {
   Stream<String> get error => player.stream.error;
 
   @override
-  Future<void> open(String url, {Duration? start}) => player.open(Media(url, start: start));
+  Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}}) =>
+      player.open(Media(url, start: start, httpHeaders: headers));
   @override
   Future<void> play() => player.play();
   @override
@@ -154,9 +156,9 @@ class AvEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> open(String url, {Duration? start}) async {
+  Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}}) async {
     final old = _c;
-    final c = VideoPlayerController.networkUrl(Uri.parse(url));
+    final c = VideoPlayerController.networkUrl(Uri.parse(url), httpHeaders: headers);
     _c = c;
     _wasPlaying = _wasBuffering = _wasCompleted = false;
     _lastDuration = Duration.zero;

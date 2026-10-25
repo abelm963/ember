@@ -138,9 +138,11 @@ Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, req
 
   if (!app.trailersInApp) return fallback();
 
-  Future<TrailerStream> resolve() async {
+  // When a stream won't play, the same trailer is asked for another way (see YouTubeTrailers).
+  final tried = <TrailerSource>{};
+  Future<TrailerStream?> resolve([TrailerStream? failed]) async {
+    if (failed != null) return YouTubeTrailers.nextAfter(failed, tried);
     final (_, stream) = await findTrailer(app, item: item, key: ytKey);
-    if (stream == null) throw ApiException(0, 'YouTube didn\'t hand this trailer over.');
     return stream;
   }
 
