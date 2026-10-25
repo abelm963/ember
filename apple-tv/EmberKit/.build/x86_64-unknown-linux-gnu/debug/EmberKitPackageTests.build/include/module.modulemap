@@ -1,0 +1,3 @@
+module EmberKitPackageTests {
+    header "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/include/EmberKitPackageTests-Swift.h"
+}

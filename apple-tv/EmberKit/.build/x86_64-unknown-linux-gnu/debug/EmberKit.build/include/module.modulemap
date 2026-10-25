@@ -1,0 +1,3 @@
+module EmberKit {
+    header "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/include/EmberKit-Swift.h"
+}

@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/master.swiftdeps"
+  },
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/EmberKitTests.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.dia"
+  },
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/all-discovered-tests.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.dia"
+  }
+}

@@ -14,7 +14,8 @@ name: Apple TV build
 
 on:
   push:
-    branches: [apple-tv, main]
+    # claude/** branches are built to check them, but only apple-tv and main publish releases.
+    branches: [apple-tv, main, 'claude/**']
     paths-ignore: ['**.md', 'tools/**']
   workflow_dispatch:
 
@@ -92,7 +93,7 @@ jobs:
       # atvloadly on Hearth follows this repo's releases (Source › GitHub, "Install updates
       # automatically") and installs each new Ember.ipa on the Apple TV.
       - name: Publish a release for atvloadly
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref_name == 'apple-tv' || github.ref_name == 'main')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -136,7 +137,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish screenshots to the ci-screenshots branch
-        if: always() && github.event_name == 'push'
+        if: always() && github.event_name == 'push' && (github.ref_name == 'apple-tv' || github.ref_name == 'main')
         continue-on-error: true
         run: |
           [ -d shots ] || exit 0

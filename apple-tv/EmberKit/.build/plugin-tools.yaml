@@ -1,0 +1,164 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "EmberKit-x86_64-unknown-linux-gnu-debug.module": ["<EmberKit-x86_64-unknown-linux-gnu-debug.module>"]
+  "EmberKitPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module": ["<EmberKitPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.module": ["<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test": ["<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test>"]
+  "EmberKitTests-x86_64-unknown-linux-gnu-debug.module": ["<EmberKitTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<EmberKit-x86_64-unknown-linux-gnu-debug.module>"]
+  "test": ["<EmberKit-x86_64-unknown-linux-gnu-debug.module>","<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test>","<EmberKitTests-x86_64-unknown-linux-gnu-debug.module>"]
+default: "main"
+nodes:
+  "/pkg/Sources/EmberKit/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/pkg/Tests/EmberKitTests/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/EmberKit.swiftmodule.o":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/EmberKit.swiftmodule.o"]
+    description: "Wrapping AST for EmberKit for debugging"
+    args: ["/usr/bin/swiftc","-modulewrap","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule","-o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/EmberKit.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/pkg/Sources/EmberKit/Formats.swift","/pkg/Sources/EmberKit/HTTP.swift","/pkg/Sources/EmberKit/JSON.swift","/pkg/Sources/EmberKit/JellyfinClient.swift","/pkg/Sources/EmberKit/JellyfinModels.swift","/pkg/Sources/EmberKit/Seerr.swift"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/sources"]
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/sources"
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitPackageDiscoveredTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitPackageDiscoveredTests.swiftmodule.o"]
+    description: "Wrapping AST for EmberKitPackageDiscoveredTests for debugging"
+    args: ["/usr/bin/swiftc","-modulewrap","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule","-o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitPackageDiscoveredTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/EmberKitTests.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/all-discovered-tests.swift"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/sources"]
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/sources"
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/all-discovered-tests.swift":
+    tool: test-discovery-tool
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swift.o"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/EmberKitTests.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/all-discovered-tests.swift"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/EmberKitPackageTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageTests.swiftmodule"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/EmberKitPackageTests.swiftmodule.o"]
+    description: "Wrapping AST for EmberKitPackageTests for debugging"
+    args: ["/usr/bin/swiftc","-modulewrap","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageTests.swiftmodule","-o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/EmberKitPackageTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.derived/runner.swift"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/sources"]
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/sources"
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.derived/runner.swift":
+    tool: test-entry-point-tool
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.derived/runner.swift"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/EmberKit.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitPackageDiscoveredTests.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/EmberKitPackageTests.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/runner.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swiftmodule.o"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.product/Objects.LinkFileList"
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swiftmodule.o"]
+    description: "Wrapping AST for EmberKitTests for debugging"
+    args: ["/usr/bin/swiftc","-modulewrap","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule","-o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/pkg/Tests/EmberKitTests/EmberKitTests.swift"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/sources"]
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/sources"
+
+  "/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/usr/bin/swiftc"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt"
+
+  "<EmberKit-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule"]
+    outputs: ["<EmberKit-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<EmberKitPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule"]
+    outputs: ["<EmberKitPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/runner.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageTests.swiftmodule"]
+    outputs: ["<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test>":
+    tool: phony
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.xctest"]
+    outputs: ["<EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test>"]
+
+  "<EmberKitTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule"]
+    outputs: ["<EmberKitTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "C.EmberKit-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/pkg/Sources/EmberKit/Formats.swift","/pkg/Sources/EmberKit/HTTP.swift","/pkg/Sources/EmberKit/JSON.swift","/pkg/Sources/EmberKit/JellyfinClient.swift","/pkg/Sources/EmberKit/JellyfinModels.swift","/pkg/Sources/EmberKit/Seerr.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/sources"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule"]
+    description: "Compiling Swift Module 'EmberKit' (6 sources)"
+    args: ["/usr/bin/swiftc","-module-name","EmberKit","-emit-dependencies","-emit-module","-emit-module-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule","-output-file-map","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/output-file-map.json","-parse-as-library","-incremental","-c","@/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/sources","-I","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/include/EmberKit-Swift.h","-swift-version","5","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","pkg","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.EmberKitPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/EmberKitTests.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.derived/all-discovered-tests.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/sources"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule"]
+    description: "Compiling Swift Module 'EmberKitPackageDiscoveredTests' (2 sources)"
+    args: ["/usr/bin/swiftc","-module-name","EmberKitPackageDiscoveredTests","-emit-dependencies","-emit-module","-emit-module-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule","-output-file-map","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/sources","-I","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/include/EmberKitPackageDiscoveredTests-Swift.h","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","pkg","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.derived/runner.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageDiscoveredTests.swiftmodule","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/sources"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/runner.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageTests.swiftmodule"]
+    description: "Compiling Swift Module 'EmberKitPackageTests' (1 sources)"
+    args: ["/usr/bin/swiftc","-module-name","EmberKitPackageTests","-emit-dependencies","-emit-module","-emit-module-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitPackageTests.swiftmodule","-output-file-map","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/sources","-I","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/include/EmberKitPackageTests-Swift.h","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","pkg","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.EmberKitPackageTests-x86_64-unknown-linux-gnu-debug.test":
+    tool: shell
+    inputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/EmberKit.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitPackageDiscoveredTests.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageDiscoveredTests.build/all-discovered-tests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/EmberKitPackageTests.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.build/runner.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swiftmodule.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.product/Objects.LinkFileList"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.xctest"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.xctest"
+    args: ["/usr/bin/swiftc","-L","/pkg/.build/x86_64-unknown-linux-gnu/debug","-o","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.xctest","-module-name","EmberKitPackageTests","-emit-executable","-Xlinker","-rpath=$ORIGIN","@/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitPackageTests.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "C.EmberKitTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/pkg/Tests/EmberKitTests/EmberKitTests.swift","/pkg/.build/x86_64-unknown-linux-gnu/debug/swift-version-24593BA9C3E375BF.txt","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKit.swiftmodule","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/sources"]
+    outputs: ["/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/EmberKitTests.swift.o","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule"]
+    description: "Compiling Swift Module 'EmberKitTests' (1 sources)"
+    args: ["/usr/bin/swiftc","-module-name","EmberKitTests","-emit-dependencies","-emit-module","-emit-module-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules/EmberKitTests.swiftmodule","-output-file-map","/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKitTests.build/sources","-I","/pkg/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/pkg/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-swift-version","5","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","pkg","-Xcc","-fno-omit-frame-pointer"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/pkg/Sources/EmberKit/","/pkg/Tests/EmberKitTests/","/pkg/Package.swift","/pkg/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

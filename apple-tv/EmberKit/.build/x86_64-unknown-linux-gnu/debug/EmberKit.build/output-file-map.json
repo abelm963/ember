@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/master.swiftdeps"
+  },
+  "/pkg/Sources/EmberKit/Formats.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Formats.dia"
+  },
+  "/pkg/Sources/EmberKit/HTTP.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/HTTP.dia"
+  },
+  "/pkg/Sources/EmberKit/JSON.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JSON.dia"
+  },
+  "/pkg/Sources/EmberKit/JellyfinClient.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinClient.dia"
+  },
+  "/pkg/Sources/EmberKit/JellyfinModels.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/JellyfinModels.dia"
+  },
+  "/pkg/Sources/EmberKit/Seerr.swift": {
+    "dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.d",
+    "object": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swift.o",
+    "swiftmodule": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr~partial.swiftmodule",
+    "swift-dependencies": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.swiftdeps",
+    "diagnostics": "/pkg/.build/x86_64-unknown-linux-gnu/debug/EmberKit.build/Seerr.dia"
+  }
+}

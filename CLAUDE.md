@@ -108,12 +108,25 @@ Smaller known issues:
   on the Apple TV. The owner uses a Mac with a free Apple ID, so the app expires after 7 days.
 - mpv doesn't run on tvOS: `MediaKit.ensureInitialized()` is skipped and `AvEngine` plays instead.
   Plugins need `_tvos` packages (`video_player_tvos`, `shared_preferences_tvos`, `url_launcher_tvos`).
-- `JellyfinClient.playbackSource` sends an Apple TV device profile: direct play only for
-  MP4/MOV with H.264/HEVC and AAC/AC3/EAC3/ALAC/FLAC; everything else comes back as fMP4 HLS.
-  Audio and subtitle changes go through the server (`_serverTracks` in the player): a new audio
-  track reopens the stream, text subtitles load as WebVTT and Ember draws them, PGS is burned in.
-- Known gap: video_player draws through a Flutter texture, so HDR/Dolby Vision show as SDR for now.
-  True HDR needs AVPlayerViewController (a native view), which is the next step.
+- Full-screen playback on Apple TV uses Apple's own player, not Flutter: `lib/player/native_player.dart`
+  (Dart: asks Jellyfin, picks audio/subtitles, reports progress) talks over the `ember/player` channel
+  to `tvos/Runner/NativePlayer.swift` (AVPlayerViewController: true HDR10/Dolby Vision/Atmos, Match
+  Content, Skip Intro, Next Episode countdown, audio/subtitle menus, "Are you still watching?").
+  `nav.dart` `play()`/`playTrailer()` route there when `isAppleTv`; `PlayerScreen` is for the other platforms.
+- `JellyfinClient.playbackSource` sends an Apple TV device profile: direct play for MP4/MOV with
+  H.264/HEVC and AAC/AC3/EAC3/ALAC/FLAC; everything else comes back as fMP4 HLS with the picture and
+  sound copied when possible. CodecProfiles declare HDR10/HDR10+/HLG/Dolby Vision so they pass through.
+  Text subtitles go inside the HLS stream (Method `Hls`); PGS/DVD are burned in.
+- Audio defaults (`NativePlayer.chooseTracks`, tested in `test/native_player_test.dart`): preferred
+  language, then the best track Apple TV plays as-is (E-AC-3 Atmos first, never commentary). TrueHD/DTS
+  are converted by the server to E-AC-3 5.1/7.1, so TrueHD Atmos loses Atmos (Apple TV can't output TrueHD).
+- "Are you still watching?" (Settings, Apple TV only): asked after N episodes auto-advance with no
+  remote input. Presses, swipes, pause/play, scrubbing, skip buttons and track changes count; volume
+  can't be seen (it goes from the remote straight to the TV).
+- Trailers on Apple TV need Ember Trailers 0.5+ (`features` contains `hls`): `trailerHlsUrl` →
+  `/EmberTrailers/Videos/{key}/master.m3u8`, YouTube's HLS passed through the server.
+- `.github/workflows/apple-tv.yml` builds `claude/**` branches too, but only `apple-tv` and `main`
+  publish the release that atvloadly installs.
 - Not yet tested on hardware: this was written on Linux. Check on the Apple TV first.
 
 Later: Android TV and phones.
