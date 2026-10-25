@@ -1,0 +1,55 @@
+# Builds Ember for Apple TV on a Mac in the cloud, so problems show up before you open Xcode.
+name: Apple TV
+
+on:
+  push:
+    paths: ["apple-tv/**", ".github/workflows/apple-tv.yml"]
+  pull_request:
+    paths: ["apple-tv/**", ".github/workflows/apple-tv.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version && xcodebuild -showsdks
+
+      - name: Test EmberKit (Jellyfin and Seerr clients)
+        working-directory: apple-tv/EmberKit
+        run: swift test
+
+      - name: Check the Xcode project matches project.yml
+        working-directory: apple-tv
+        run: |
+          brew install xcodegen
+          xcodegen generate --quiet
+          git diff --stat --exit-code -- EmberTV.xcodeproj || {
+            echo "::warning::EmberTV.xcodeproj is out of date with project.yml; run 'xcodegen generate' in apple-tv/";
+          }
+
+      - name: Make sure the tvOS platform is installed
+        run: |
+          xcodebuild -showsdks | grep -q appletvsimulator || xcodebuild -downloadPlatform tvOS
+
+      - name: Build for Apple TV
+        working-directory: apple-tv
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project EmberTV.xcodeproj -scheme EmberTV \
+            -destination 'generic/platform=tvOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build.log | grep -E "(error|warning): |BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: apple-tv/build.log
+          if-no-files-found: ignore

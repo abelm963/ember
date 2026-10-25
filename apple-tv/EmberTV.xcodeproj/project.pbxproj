@@ -1,0 +1,511 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		06C1248202EC068F5E948DE5 /* Figtree-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DCABE69A5A6DA60105F3BC38 /* Figtree-Regular.ttf */; };
+		1DD6A58FAE0B53A81C263AE7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D14623BBEDE85F9A1627600A /* Assets.xcassets */; };
+		2DE953ACA628CC5FEE673139 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10B8B4A122B8A72D58FEBA2 /* LibraryView.swift */; };
+		2EF7CD81FD578BD77EAD1928 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EEEB4206D954E9A552CD3D /* SignInView.swift */; };
+		37663F3E990E42A2874363CF /* ProfilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7618F24FAB0BDB4CAF53FCAA /* ProfilesView.swift */; };
+		4840D4BC29D89C89EE79D056 /* Figtree-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 64C51AF8A1EE3376CF5B12A2 /* Figtree-OFL.txt */; };
+		5D7B8DC814FB1E198CFAADB3 /* Figtree-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 62465C41A2F13EA3CD18FD7C /* Figtree-SemiBold.ttf */; };
+		5EDAA11287340CF02CFA6223 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44C47137F8843167580C650 /* MainView.swift */; };
+		6051597D5E1B2FA452C36502 /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA3BEF4A2FDBA53FDB0D4A7 /* Storage.swift */; };
+		61A5CC95FEAC42C8EF2AB8C5 /* BricolageGrotesque-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 58AEE6B3D5369264F2B0A4FC /* BricolageGrotesque-SemiBold.ttf */; };
+		6C68FA464E7E7F3EDBD95ECA /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FE0813F9FF2EC0883482ED7 /* RemoteImage.swift */; };
+		6E8763CB047CC1B195267404 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = D185CA7C14EA2CAB9E80571F /* Components.swift */; };
+		75A2248ABEC244B99801E54D /* Figtree-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4C296A14F8F4520214C6C73C /* Figtree-ExtraBold.ttf */; };
+		78B8339AD914A758DE6695BA /* SeerrDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D1B6E3912F0B229E869C663 /* SeerrDetailsView.swift */; };
+		81AE5E23B65CD0F4C2EACF44 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BDC01644AC8D1F884340133 /* Theme.swift */; };
+		862DCB9869B60598CD294CD0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2116B239B5E24D4F86A86AC /* AppModel.swift */; };
+		8CAD59B8414E8B3CB31665B2 /* BricolageGrotesque-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E25576D133B758028B7D52AE /* BricolageGrotesque-ExtraBold.ttf */; };
+		A05758CD339E653567BEF939 /* DetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 885067866F743DFCB01CDD2C /* DetailsView.swift */; };
+		A06E1E34A150F0B182772748 /* HeroPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D647A7C51DAC1B9846B9E13 /* HeroPreview.swift */; };
+		A6A625AF2EF4CBAF45ACFBAD /* RequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20ED48F30A3F9576B0F68437 /* RequestsView.swift */; };
+		A7515CBABFEEDCC2FDEB704E /* Figtree-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 58ACA9B931DC992E0C1CD89D /* Figtree-Medium.ttf */; };
+		AB0611C07C68963DBADC1977 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5A276317971EC3556D00CB /* HomeView.swift */; };
+		BA4DAF7AA56617EF51A8E0F1 /* PlayerPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B98B257492DD61B24DA65A8 /* PlayerPresenter.swift */; };
+		BAE80F33423C5657DE1D13B3 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B250134D9B0E619D3F3B83D0 /* SearchView.swift */; };
+		C98E502D43E340922A58BC02 /* EmberApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94D3E8A62240F304FB27FF2 /* EmberApp.swift */; };
+		CCBED45376E3E8C3A98C7E84 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709E68265E718681C23357D1 /* ConnectView.swift */; };
+		D1AC2427DE95B21C7662932E /* EmberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7E401E43E8A395BB567F5137 /* EmberKit */; };
+		F71B3C2DB9C0025CE6C8BEE9 /* Figtree-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4C23C6E76A4E9B8EBECD1A12 /* Figtree-Bold.ttf */; };
+		FAEDFA8FBB8F3391C919D09A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BA7F9DB98626754EF6C642 /* SettingsView.swift */; };
+		FAFD9A8CA1A95787BA5C697C /* BricolageGrotesque-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 258A9BBBDABA540560F50F78 /* BricolageGrotesque-OFL.txt */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0B98B257492DD61B24DA65A8 /* PlayerPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPresenter.swift; sourceTree = "<group>"; };
+		0BDC01644AC8D1F884340133 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		0D647A7C51DAC1B9846B9E13 /* HeroPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroPreview.swift; sourceTree = "<group>"; };
+		18BA7F9DB98626754EF6C642 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		20ED48F30A3F9576B0F68437 /* RequestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestsView.swift; sourceTree = "<group>"; };
+		258A9BBBDABA540560F50F78 /* BricolageGrotesque-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "BricolageGrotesque-OFL.txt"; sourceTree = "<group>"; };
+		2B31AA4D422BBE4545CB55D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4C23C6E76A4E9B8EBECD1A12 /* Figtree-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Figtree-Bold.ttf"; sourceTree = "<group>"; };
+		4C296A14F8F4520214C6C73C /* Figtree-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Figtree-ExtraBold.ttf"; sourceTree = "<group>"; };
+		4FE0813F9FF2EC0883482ED7 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
+		58ACA9B931DC992E0C1CD89D /* Figtree-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Figtree-Medium.ttf"; sourceTree = "<group>"; };
+		58AEE6B3D5369264F2B0A4FC /* BricolageGrotesque-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BricolageGrotesque-SemiBold.ttf"; sourceTree = "<group>"; };
+		62465C41A2F13EA3CD18FD7C /* Figtree-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Figtree-SemiBold.ttf"; sourceTree = "<group>"; };
+		64C51AF8A1EE3376CF5B12A2 /* Figtree-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Figtree-OFL.txt"; sourceTree = "<group>"; };
+		6D1B6E3912F0B229E869C663 /* SeerrDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeerrDetailsView.swift; sourceTree = "<group>"; };
+		709E68265E718681C23357D1 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		7618F24FAB0BDB4CAF53FCAA /* ProfilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesView.swift; sourceTree = "<group>"; };
+		885067866F743DFCB01CDD2C /* DetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsView.swift; sourceTree = "<group>"; };
+		8A5A276317971EC3556D00CB /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		8EA3BEF4A2FDBA53FDB0D4A7 /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
+		97EEEB4206D954E9A552CD3D /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		A44C47137F8843167580C650 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		B250134D9B0E619D3F3B83D0 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+		C24F6FA32601D31F545FFA17 /* EmberTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = EmberTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D10B8B4A122B8A72D58FEBA2 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		D14623BBEDE85F9A1627600A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D185CA7C14EA2CAB9E80571F /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		D94D3E8A62240F304FB27FF2 /* EmberApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmberApp.swift; sourceTree = "<group>"; };
+		D9EFF78F4E9DEBCD58B1D75C /* EmberKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = EmberKit; path = EmberKit; sourceTree = SOURCE_ROOT; };
+		DCABE69A5A6DA60105F3BC38 /* Figtree-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Figtree-Regular.ttf"; sourceTree = "<group>"; };
+		E2116B239B5E24D4F86A86AC /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		E25576D133B758028B7D52AE /* BricolageGrotesque-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BricolageGrotesque-ExtraBold.ttf"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F85B348768F123FD37D218E7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1AC2427DE95B21C7662932E /* EmberKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		05E70ACCA65263475A1147D0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C24F6FA32601D31F545FFA17 /* EmberTV.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0DDF33BB6BD33B21E53F8410 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				709E68265E718681C23357D1 /* ConnectView.swift */,
+				885067866F743DFCB01CDD2C /* DetailsView.swift */,
+				8A5A276317971EC3556D00CB /* HomeView.swift */,
+				D10B8B4A122B8A72D58FEBA2 /* LibraryView.swift */,
+				A44C47137F8843167580C650 /* MainView.swift */,
+				7618F24FAB0BDB4CAF53FCAA /* ProfilesView.swift */,
+				20ED48F30A3F9576B0F68437 /* RequestsView.swift */,
+				B250134D9B0E619D3F3B83D0 /* SearchView.swift */,
+				6D1B6E3912F0B229E869C663 /* SeerrDetailsView.swift */,
+				18BA7F9DB98626754EF6C642 /* SettingsView.swift */,
+				97EEEB4206D954E9A552CD3D /* SignInView.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		1029DC3338A262D7C9EC3D79 = {
+			isa = PBXGroup;
+			children = (
+				F2821727A9F619F684B544F0 /* EmberTV */,
+				A6CD2F8A11025CB486B9C5F7 /* Packages */,
+				05E70ACCA65263475A1147D0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		17D90D503EEFB3C825C9BF6F /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				D185CA7C14EA2CAB9E80571F /* Components.swift */,
+				4FE0813F9FF2EC0883482ED7 /* RemoteImage.swift */,
+				0BDC01644AC8D1F884340133 /* Theme.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		318B83CE9D6A6B6433195777 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D14623BBEDE85F9A1627600A /* Assets.xcassets */,
+				E081BC4B111508FD4804A7E3 /* Fonts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A6CD2F8A11025CB486B9C5F7 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				D9EFF78F4E9DEBCD58B1D75C /* EmberKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		A8BBB3CF64FAD73AF7AE4257 /* Player */ = {
+			isa = PBXGroup;
+			children = (
+				0D647A7C51DAC1B9846B9E13 /* HeroPreview.swift */,
+				0B98B257492DD61B24DA65A8 /* PlayerPresenter.swift */,
+			);
+			path = Player;
+			sourceTree = "<group>";
+		};
+		D53625CE96FABC66481C729D /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E2116B239B5E24D4F86A86AC /* AppModel.swift */,
+				D94D3E8A62240F304FB27FF2 /* EmberApp.swift */,
+				8EA3BEF4A2FDBA53FDB0D4A7 /* Storage.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E081BC4B111508FD4804A7E3 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				E25576D133B758028B7D52AE /* BricolageGrotesque-ExtraBold.ttf */,
+				258A9BBBDABA540560F50F78 /* BricolageGrotesque-OFL.txt */,
+				58AEE6B3D5369264F2B0A4FC /* BricolageGrotesque-SemiBold.ttf */,
+				4C23C6E76A4E9B8EBECD1A12 /* Figtree-Bold.ttf */,
+				4C296A14F8F4520214C6C73C /* Figtree-ExtraBold.ttf */,
+				58ACA9B931DC992E0C1CD89D /* Figtree-Medium.ttf */,
+				64C51AF8A1EE3376CF5B12A2 /* Figtree-OFL.txt */,
+				DCABE69A5A6DA60105F3BC38 /* Figtree-Regular.ttf */,
+				62465C41A2F13EA3CD18FD7C /* Figtree-SemiBold.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		F2821727A9F619F684B544F0 /* EmberTV */ = {
+			isa = PBXGroup;
+			children = (
+				2B31AA4D422BBE4545CB55D4 /* Info.plist */,
+				D53625CE96FABC66481C729D /* App */,
+				A8BBB3CF64FAD73AF7AE4257 /* Player */,
+				318B83CE9D6A6B6433195777 /* Resources */,
+				0DDF33BB6BD33B21E53F8410 /* Screens */,
+				17D90D503EEFB3C825C9BF6F /* UI */,
+			);
+			path = EmberTV;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		948D847D72FA5E184256C424 /* EmberTV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B550C15379422CFF24B98F88 /* Build configuration list for PBXNativeTarget "EmberTV" */;
+			buildPhases = (
+				FEB736C6042278AE5CB3D6B1 /* Sources */,
+				614B189779AD8D3645FFC83A /* Resources */,
+				F85B348768F123FD37D218E7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = EmberTV;
+			packageProductDependencies = (
+				7E401E43E8A395BB567F5137 /* EmberKit */,
+			);
+			productName = EmberTV;
+			productReference = C24F6FA32601D31F545FFA17 /* EmberTV.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2C2DA1839006F2AA83CEE573 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					948D847D72FA5E184256C424 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 55326AFCA000DEC254F9462E /* Build configuration list for PBXProject "EmberTV" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 1029DC3338A262D7C9EC3D79;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				97A181B9C69B97F7311A5559 /* XCLocalSwiftPackageReference "EmberKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				948D847D72FA5E184256C424 /* EmberTV */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		614B189779AD8D3645FFC83A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1DD6A58FAE0B53A81C263AE7 /* Assets.xcassets in Resources */,
+				8CAD59B8414E8B3CB31665B2 /* BricolageGrotesque-ExtraBold.ttf in Resources */,
+				FAFD9A8CA1A95787BA5C697C /* BricolageGrotesque-OFL.txt in Resources */,
+				61A5CC95FEAC42C8EF2AB8C5 /* BricolageGrotesque-SemiBold.ttf in Resources */,
+				F71B3C2DB9C0025CE6C8BEE9 /* Figtree-Bold.ttf in Resources */,
+				75A2248ABEC244B99801E54D /* Figtree-ExtraBold.ttf in Resources */,
+				A7515CBABFEEDCC2FDEB704E /* Figtree-Medium.ttf in Resources */,
+				4840D4BC29D89C89EE79D056 /* Figtree-OFL.txt in Resources */,
+				06C1248202EC068F5E948DE5 /* Figtree-Regular.ttf in Resources */,
+				5D7B8DC814FB1E198CFAADB3 /* Figtree-SemiBold.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FEB736C6042278AE5CB3D6B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				862DCB9869B60598CD294CD0 /* AppModel.swift in Sources */,
+				6E8763CB047CC1B195267404 /* Components.swift in Sources */,
+				CCBED45376E3E8C3A98C7E84 /* ConnectView.swift in Sources */,
+				A05758CD339E653567BEF939 /* DetailsView.swift in Sources */,
+				C98E502D43E340922A58BC02 /* EmberApp.swift in Sources */,
+				A06E1E34A150F0B182772748 /* HeroPreview.swift in Sources */,
+				AB0611C07C68963DBADC1977 /* HomeView.swift in Sources */,
+				2DE953ACA628CC5FEE673139 /* LibraryView.swift in Sources */,
+				5EDAA11287340CF02CFA6223 /* MainView.swift in Sources */,
+				BA4DAF7AA56617EF51A8E0F1 /* PlayerPresenter.swift in Sources */,
+				37663F3E990E42A2874363CF /* ProfilesView.swift in Sources */,
+				6C68FA464E7E7F3EDBD95ECA /* RemoteImage.swift in Sources */,
+				A6A625AF2EF4CBAF45ACFBAD /* RequestsView.swift in Sources */,
+				BAE80F33423C5657DE1D13B3 /* SearchView.swift in Sources */,
+				78B8339AD914A758DE6695BA /* SeerrDetailsView.swift in Sources */,
+				FAEDFA8FBB8F3391C919D09A /* SettingsView.swift in Sources */,
+				2EF7CD81FD578BD77EAD1928 /* SignInView.swift in Sources */,
+				6051597D5E1B2FA452C36502 /* Storage.swift in Sources */,
+				81AE5E23B65CD0F4C2EACF44 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		55439F50392E65357291A009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				INFOPLIST_FILE = EmberTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.ember.tv;
+				PRODUCT_NAME = Ember;
+				SDKROOT = appletvos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
+		};
+		6994BA59A0789B16B5244A56 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+			};
+			name = Debug;
+		};
+		8FCAE5AA288A002EAD5BBB0A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+			};
+			name = Release;
+		};
+		D64949DD4B5771C9459D4CBD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				INFOPLIST_FILE = EmberTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.ember.tv;
+				PRODUCT_NAME = Ember;
+				SDKROOT = appletvos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		55326AFCA000DEC254F9462E /* Build configuration list for PBXProject "EmberTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6994BA59A0789B16B5244A56 /* Debug */,
+				8FCAE5AA288A002EAD5BBB0A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B550C15379422CFF24B98F88 /* Build configuration list for PBXNativeTarget "EmberTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55439F50392E65357291A009 /* Debug */,
+				D64949DD4B5771C9459D4CBD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		97A181B9C69B97F7311A5559 /* XCLocalSwiftPackageReference "EmberKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = EmberKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7E401E43E8A395BB567F5137 /* EmberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EmberKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 2C2DA1839006F2AA83CEE573 /* Project object */;
+}
