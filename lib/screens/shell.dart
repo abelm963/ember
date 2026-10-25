@@ -48,15 +48,6 @@ class _AppShellState extends State<AppShell> {
 
   void _go(Section s) => setState(() => _section = s);
 
-  @override
-  void initState() {
-    super.initState();
-    // Offer admins the one-time trailer setup shortly after they arrive.
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) offerTrailerSetup(context);
-    });
-  }
-
   Widget _page() {
     switch (_section) {
       case Section.home:

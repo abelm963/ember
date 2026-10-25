@@ -37,6 +37,7 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   private var countdownTimer: Timer?
   private var creditsDismissed = false
   private var closed = true
+  private var joinToken: UUID?
 
   // "Are you still watching?": episodes that ended and moved on with no remote input at all.
   private var interacted = false
@@ -137,7 +138,42 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
       return
     }
     spinner.startAnimating()
-    let item = AVPlayerItem(url: url)
+    if let audio = (args["audioUrl"] as? String).flatMap(URL.init(string:)) {
+      // Picture and sound arrive as two files (some YouTube trailers): join them first.
+      let token = UUID()
+      joinToken = token
+      Task { @MainActor in
+        let joined = try? await NativePlayer.joined(video: url, audio: audio)
+        guard self.joinToken == token, !self.closed else { return }
+        self.play(joined ?? AVPlayerItem(url: url), args)
+      }
+      return
+    }
+    joinToken = nil
+    play(AVPlayerItem(url: url), args)
+  }
+
+  /// One item from a picture-only file and a sound-only file, played together.
+  private static func joined(video: URL, audio: URL) async throws -> AVPlayerItem {
+    let v = AVURLAsset(url: video)
+    let a = AVURLAsset(url: audio)
+    async let vTracks = v.loadTracks(withMediaType: .video)
+    async let aTracks = a.loadTracks(withMediaType: .audio)
+    async let vLength = v.load(.duration)
+    async let aLength = a.load(.duration)
+    let (pictures, sounds, vd, ad) = try await (vTracks, aTracks, vLength, aLength)
+    guard let picture = pictures.first, let sound = sounds.first else { throw URLError(.cannotDecodeContentData) }
+    let length = CMTimeMinimum(vd, ad)
+    let range = CMTimeRange(start: .zero, duration: length)
+    let mix = AVMutableComposition()
+    try mix.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)?
+      .insertTimeRange(range, of: picture, at: .zero)
+    try mix.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)?
+      .insertTimeRange(range, of: sound, at: .zero)
+    return AVPlayerItem(asset: mix)
+  }
+
+  private func play(_ item: AVPlayerItem, _ args: [String: Any]) {
     item.externalMetadata = metadata()
     addArtwork(to: item)
     let start = args["start"] as? Double ?? 0

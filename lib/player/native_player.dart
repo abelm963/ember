@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import '../api/jellyfin.dart';
+import '../api/youtube.dart';
 import '../state/app_state.dart';
 
 /// Apple TV: full-screen playback with Apple's own player (`tvos/Runner/NativePlayer.swift`).
@@ -42,23 +43,24 @@ class NativePlayer {
     return p._done.future;
   }
 
-  /// Plays a trailer. The player appears at once; [resolve] finds the address meanwhile.
-  static Future<void> playTrailer(
-    AppState app, {
-    required String title,
-    String? artwork,
-    required Future<String> Function() resolve,
-  }) async {
+  /// Plays a trailer. The player appears at once; [resolve] finds the stream meanwhile.
+  /// Returns false (with the player closed again) when there was nothing to play, so the
+  /// caller can hand the trailer to the YouTube app instead.
+  static Future<bool> playTrailer(AppState app,
+      {required String title, String? artwork, required Future<TrailerStream> Function() resolve}) async {
     final p = NativePlayer._(app, isTrailer: true);
-    await p._invoke('open', {'title': title, 'artwork': artwork, 'isTrailer': true});
     _bind(p);
+    await p._invoke('open', {'title': title, 'artwork': artwork, 'isTrailer': true});
     try {
-      final url = await resolve();
-      await p._invoke('load', {'url': url, 'title': title, 'artwork': artwork, 'isTrailer': true});
-    } catch (e) {
-      await p._invoke('failed', {'message': '$e'.replaceAll(RegExp(r'(api_key|ApiKey)=[^&\s]+'), r'$1=…')});
+      final t = await resolve();
+      await p._invoke('load', {'url': t.url, 'audioUrl': t.audioUrl, 'title': title, 'artwork': artwork, 'isTrailer': true});
+    } catch (_) {
+      await p._invoke('close', {});
+      await p._done.future.timeout(const Duration(seconds: 3), onTimeout: () {});
+      return false;
     }
-    return p._done.future;
+    await p._done.future;
+    return true;
   }
 
   static void _bind(NativePlayer p) {
