@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart' show AudioTrack;
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
-import '../platform.dart';
+import '../api/youtube.dart';
+import '../screens/nav.dart' show findTrailer;
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
@@ -57,28 +59,26 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
     if (route != null) routeObserver.subscribe(this, route);
   }
 
-  Future<String?> _url(AppState app) async {
+  /// A trailer file stored with the title, otherwise the official YouTube trailer, found on
+  /// this device (the same lookup the Trailer button uses, so it's shared and kept).
+  Future<TrailerStream?> _trailer(AppState app) async {
     final jf = app.jf!;
     if (widget.item.localTrailerCount > 0) {
       final local = await jf.localTrailers(widget.item.id);
       if (local.isNotEmpty) {
         try {
-          return (await jf.playbackSource(local.first.id)).url;
+          return TrailerStream((await jf.playbackSource(local.first.id)).url);
         } catch (_) {}
       }
     }
-    if (!app.trailerServiceOk || widget.item.remoteTrailers.isEmpty) return null;
-    final key = await jf.trailerKeyForItem(widget.item.id);
-    if (key == null) return null;
-    // Apple TV's player needs the HLS version (plugin 0.5+); it can't open the other stream.
-    if (isAppleTv) return app.trailerHls ? jf.trailerHlsUrl(key) : null;
-    return jf.trailerStreamUrl(key);
+    return (await findTrailer(app, item: widget.item)).$2;
   }
 
   Future<void> _start() async {
     final app = context.read<AppState>();
-    final url = await _url(app);
-    if (url == null || !mounted) return;
+    final trailer = await _trailer(app);
+    if (trailer == null || !mounted) return;
+    final url = trailer.url;
     final p = PlaybackEngine(title: 'Ember preview', bufferSize: 16 * 1024 * 1024);
     _player = p;
     await p.setVolume(_muted ? 0 : 100);
@@ -94,7 +94,9 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       }
     }));
     try {
-      await p.open(url);
+      await p.open(url, headers: trailer.headers);
+      // Picture and sound in separate files: mpv joins them (Apple TV previews show the picture).
+      if (trailer.audioUrl != null && p is MpvEngine) await p.player.setAudioTrack(AudioTrack.uri(trailer.audioUrl!));
     } catch (_) {
       return; // no preview; the still backdrop stays
     }

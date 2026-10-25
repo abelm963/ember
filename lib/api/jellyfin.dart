@@ -998,81 +998,11 @@ class JellyfinClient {
     }
   }
 
-  // ---------------------------------------------------------------- Ember Trailers plugin
+  // ---------------------------------------------------------------- Ember Trailers plugin (optional)
+  // Ember needs nothing on the server. If the plugin happens to be installed, its release
+  // calendar is used for Coming Soon; trailers are found on the device (lib/api/youtube.dart).
 
-  /// Trailer service status, or null when the Ember Trailers plugin isn't installed.
-  // ------------------------------------------------- trailer service setup (admin only)
-
-  static const trailerRepoName = 'Ember';
-  static const trailerRepoUrl = 'https://raw.githubusercontent.com/abelm963/ember-trailers/main/manifest.json';
-  static const trailerPluginId = '6f1c8f2e6a434c4e9d555e2a7b3c9e11';
-
-  /// The Ember Trailers plugin as Jellyfin lists it (Status: Active, Restart, Disabled…), or null.
-  Future<Map<String, dynamic>?> trailerPlugin() async {
-    final list = await _send('GET', '/Plugins');
-    for (final p in (list as List? ?? const [])) {
-      final m = (p as Map).cast<String, dynamic>();
-      if ('${m['Id']}'.replaceAll('-', '').toLowerCase() == trailerPluginId) return m;
-    }
-    return null;
-  }
-
-  /// Whether [version] is the newest Ember Trailers the server's catalog offers.
-  Future<bool> trailerPluginIsNewest(String? version) async {
-    if (version == null) return false;
-    try {
-      final p = (await _send('GET', '/Packages/Ember%20Trailers', query: {'assemblyGuid': trailerPluginId})) as Map;
-      final versions = ((p['versions'] as List?) ?? const []).map((v) => '${(v as Map)['version']}').toList();
-      return versions.isNotEmpty && versions.first == version;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Adds Ember's plugin source to the server (keeps any sources already there).
-  Future<void> addTrailerRepository() async {
-    final repos = ((await _send('GET', '/Repositories')) as List? ?? const [])
-        .map((e) => (e as Map).cast<String, dynamic>())
-        .toList();
-    if (repos.any((r) => '${r['Url']}'.toLowerCase() == trailerRepoUrl.toLowerCase())) return;
-    repos.add({'Name': trailerRepoName, 'Url': trailerRepoUrl, 'Enabled': true});
-    await _send('POST', '/Repositories', body: repos);
-  }
-
-  /// Downloads and installs the plugin. Takes effect after a server restart.
-  Future<void> installTrailerPlugin() async {
-    try {
-      await _send('POST', '/Packages/Installed/Ember%20Trailers',
-          query: {'assemblyGuid': trailerPluginId, 'repositoryUrl': trailerRepoUrl}, timeout: const Duration(minutes: 2));
-    } on ApiException catch (e) {
-      if (e.status == 404) {
-        throw ApiException(404, 'Your server couldn\'t find a version of Ember Trailers for its Jellyfin version.');
-      }
-      if (e.status == 403) throw ApiException(403, 'Only a server administrator can install the trailer service.');
-      rethrow;
-    }
-  }
-
-  Future<void> restartServer() => _send('POST', '/System/Restart');
-
-  /// Waits for the server to go down and come back after a restart.
-  Future<bool> waitForRestart({Duration limit = const Duration(minutes: 3)}) async {
-    final end = DateTime.now().add(limit);
-    var wentDown = false;
-    final started = DateTime.now();
-    while (DateTime.now().isBefore(end)) {
-      await Future.delayed(const Duration(seconds: 2));
-      try {
-        await _send('GET', '/System/Info/Public', timeout: const Duration(seconds: 4));
-        // Some servers restart faster than we poll; after 20 s assume it went round.
-        if (wentDown || DateTime.now().difference(started) > const Duration(seconds: 20)) return true;
-      } catch (_) {
-        wentDown = true;
-      }
-    }
-    return false;
-  }
-
+  /// The plugin's status, or null when it isn't installed.
   Future<Map<String, dynamic>?> trailerHealth() async {
     try {
       final json = await _send('GET', '/EmberTrailers/Health', timeout: const Duration(seconds: 15));
@@ -1115,59 +1045,6 @@ class JellyfinClient {
         if (it.tmdbId != null) '${it.isSeries ? 'tv' : 'movie'}:${it.tmdbId}': it,
     };
   }
-
-  /// The official trailer the server picked for a library item, or null.
-  Future<String?> trailerKeyForItem(String itemId) async => (await trailerCheckForItem(itemId)).$1;
-
-  final Map<String, (DateTime, Future<(String?, String?)>)> _trailerChecks = {};
-
-  /// The trailer key the server can stream for a library item, or null plus the server's reason.
-  /// Results are shared and kept for a while, so a check started when a page opens makes the
-  /// Trailer button instant.
-  Future<(String?, String?)> trailerCheckForItem(String itemId) {
-    final hit = _trailerChecks[itemId];
-    if (hit != null && DateTime.now().difference(hit.$1) < const Duration(minutes: 20)) return hit.$2;
-    final f = _trailerCheck(itemId);
-    _trailerChecks[itemId] = (DateTime.now(), f);
-    f.then((r) {
-      // Don't hold on to failures for long; the next tap tries again.
-      if (r.$1 == null) _trailerChecks[itemId] = (DateTime.now().subtract(const Duration(minutes: 18)), f);
-    });
-    return f;
-  }
-
-  Future<(String?, String?)> _trailerCheck(String itemId) async {
-    try {
-      final json = await _send('GET', '/EmberTrailers/Items/$itemId/Info', timeout: const Duration(seconds: 90));
-      final m = (json as Map).cast<String, dynamic>();
-      if (m['available'] == true) return (m['key'] as String?, null);
-      return (null, m['reason'] as String? ?? 'The server couldn\'t play this trailer.');
-    } on TimeoutException {
-      return (null, 'The server took too long to fetch the trailer.');
-    } catch (e) {
-      return (null, '$e');
-    }
-  }
-
-  /// Checks a YouTube trailer (for titles not on the server). Returns the key if it may be played.
-  Future<String?> trailerKeyChecked(String key) async {
-    try {
-      final json = await _send('GET', '/EmberTrailers/Videos/$key/Info', timeout: const Duration(seconds: 60));
-      return (json as Map)['available'] == true ? key : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// URL the player opens to stream a trailer through the server.
-  /// Admin diagnostics: Hearth runs the real trailer stream for up to 40 s and reports what happened.
-  Future<Map<String, dynamic>> testTrailerStream(String key) async =>
-      ((await _send('GET', '/EmberTrailers/Videos/$key/Test', timeout: const Duration(seconds: 120))) as Map).cast<String, dynamic>();
-
-  String trailerStreamUrl(String key) => _uri('/EmberTrailers/Videos/$key/Stream', {'api_key': token}).toString();
-
-  /// The same trailer as HLS (plugin 0.5+), which Apple TV's player opens natively and starts fast.
-  String trailerHlsUrl(String key) => _uri('/EmberTrailers/Videos/$key/master.m3u8', {'api_key': token}).toString();
 
   /// Speed test against the server (used to pick a streaming quality automatically). Returns bits per second.
   Future<double?> measureBitrate({int bytes = 4000000}) async {

@@ -329,46 +329,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _trailers(BuildContext context, AppState app) {
     final t = app.trailerService;
-    final status = t?['status'] as String?;
-    final color = switch (status) { 'Online' => C.good, 'Degraded' => C.warn, _ => C.faint };
-    final title = switch (status) {
-      'Online' => 'Server trailer service is online',
-      'Degraded' => 'Server trailer service is having trouble',
-      'Offline' => 'Server trailer service is installed but not working',
-      _ => 'Server trailer service is not installed',
-    };
     final admin = app.account?.isAdmin ?? false;
-    final detail = t == null
-        ? (admin
-            ? 'Ember can set this up on your server for you. It takes about a minute and restarts the server once. '
-                'Until then, trailers open in the YouTube app.'
-            : 'Ask your server admin to set it up from Ember › Settings › Trailers & calendar on an admin profile. '
-                'Until then, trailers open in the YouTube app.')
-        : 'Official trailers streamed by your server · nothing stored'
-            '${app.trailerPluginVersion != null ? ' · plugin ${app.trailerPluginVersion}' : ''}'
-            ' · yt-dlp ${t['ytDlpVersion'] ?? 'not downloaded yet'}'
-            '${t['jsRuntime'] != null ? ' · Deno' : ''}'
-            '${status == 'Degraded' ? ' · falling back to YouTube for now' : ''}'
-            '${t['lastError'] != null ? '\nLast problem: ${t['lastError']}' : ''}';
-    final outdated = t != null && !((t['features'] as List?)?.contains('streamtest') ?? false);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _Card(children: [
-        Container(width: context.px(16), height: context.px(16), decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(width: context.px(16), height: context.px(16), decoration: const BoxDecoration(color: C.good, shape: BoxShape.circle)),
         SizedBox(width: context.px(18)),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: body(context.px(28), weight: FontWeight.w700)),
-            Text(detail, style: body(context.px(21), color: C.faint, height: 1.4)),
+            Text('Trailers play right here', style: body(context.px(28), weight: FontWeight.w700)),
+            Text(
+                'Ember finds each title\'s official trailer from your library (or Seerr) and plays it in its own player. '
+                'Nothing to install on the server. If YouTube won\'t hand a trailer over, it opens in the YouTube app instead.',
+                style: body(context.px(21), color: C.faint, height: 1.4)),
           ]),
         ),
       ]),
-      if (t == null && admin)
-        SettingRow(label: 'Set up trailer service', value: 'Install on server', onTap: () => runTrailerSetup(context)),
-      if (outdated && admin)
-        SettingRow(label: 'Update trailer service', value: 'New version available', onTap: () => runTrailerSetup(context)),
-      if (admin && t != null && ((t['features'] as List?)?.contains('streamtest') ?? false))
-        SettingRow(label: 'Test trailer playback', value: 'Run test', onTap: () => _trailerTest(context, app)),
-      SettingRow(label: 'Check again', value: '', onTap: () => app.refreshTrailerService()),
       ToggleRow(label: 'Play trailers in the app', value: app.trailersInApp, onChanged: (v) => app.update((s) => s.trailersInApp = v)),
       ToggleRow(
         label: 'Autoplay previews while browsing',
@@ -382,14 +357,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SettingRow(
         label: 'Release dates',
         value: switch (t?['calendarKey']) {
-          'jellyfin-builtin' || 'jellyfin-custom' => 'TMDB, using Jellyfin\'s key',
-          'ember' => 'TMDB',
-          null => t == null ? 'Needs the trailer service' : 'Update the trailer service',
-          _ => 'No TMDB key found',
+          'jellyfin-builtin' || 'jellyfin-custom' || 'ember' => 'TMDB, through the Ember Trailers plugin',
+          _ => app.seerrConfigured ? 'From Seerr' : 'Connect Seerr to see upcoming films and shows',
         },
-        onTap: admin && t != null && t['calendarKey'] == null
-            ? () => runTrailerSetup(context)
-            : () => app.refreshTrailerService(),
+        onTap: () => app.refreshTrailerService(),
       ),
       if (admin && t != null)
         SettingRow(
@@ -405,70 +376,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     ]);
-  }
-
-  Future<void> _trailerTest(BuildContext context, AppState app) async {
-    Map<String, dynamic>? result;
-    String? failure;
-    void Function(void Function())? refresh;
-    () async {
-      try {
-        // Moana's official trailer: a known-good, verified upload.
-        result = await app.jf!.testTrailerStream('LKFuXETZUsI');
-      } catch (e) {
-        failure = '$e';
-      }
-      refresh?.call(() {});
-    }();
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-        refresh = (f) {
-          if (ctx.mounted) setD(f);
-        };
-        final r = result;
-        String line(String label, Object? v) => '$label: ${v ?? '—'}';
-        return _EmberDialog(title: 'Trailer playback test', children: [
-          if (r == null && failure == null) ...[
-            Row(children: [
-              SizedBox(width: ctx.px(34), height: ctx.px(34), child: const CircularProgressIndicator(strokeWidth: 3)),
-              SizedBox(width: ctx.px(20)),
-              Expanded(
-                child: Text('${app.serverName ?? 'Your server'} is fetching a trailer from YouTube (up to 40 seconds)…',
-                    style: body(ctx.px(23), color: C.muted)),
-              ),
-            ]),
-          ] else if (failure != null)
-            Text(failure!, style: body(ctx.px(22), color: C.bad, height: 1.4))
-          else ...[
-            Row(children: [
-              Icon(r!['ok'] == true ? Icons.check : Icons.close, color: r['ok'] == true ? C.good : C.bad, size: ctx.px(32)),
-              SizedBox(width: ctx.px(14)),
-              Expanded(
-                child: Text(r['ok'] == true ? 'Trailers stream from your server' : 'Streaming failed',
-                    style: body(ctx.px(26), weight: FontWeight.w700)),
-              ),
-            ]),
-            SizedBox(height: ctx.px(16)),
-            SelectableText(
-              [
-                line('Stage', r['stage']),
-                line('Looking up the video', r['infoMs'] == null ? null : '${r['infoMs']} ms'),
-                line('First video data after', r['firstByteMs'] == null ? 'never' : '${r['firstByteMs']} ms'),
-                line('Received', r['bytes'] == null ? null : '${((r['bytes'] as num) / 1e6).toStringAsFixed(1)} MB at ${r['mbps']} Mbps'),
-                line('Format', r['container']),
-                line('Deno', r['deno'] == true ? 'yes' : 'no'),
-                if (r['error'] != null) line('Error', r['error']),
-              ].join('\n'),
-              style: body(ctx.px(21), color: C.muted, height: 1.6),
-            ),
-          ],
-          SizedBox(height: ctx.px(26)),
-          EmberButton(label: 'Close', kind: BtnKind.ghost, autofocus: true, onTap: () => Navigator.pop(ctx)),
-        ]);
-      }),
-    );
-    refresh = null;
   }
 
   Future<void> _traktKey(BuildContext context, AppState app) async {
@@ -794,104 +701,6 @@ Future<void> pickOption<T>(BuildContext context, String title, Map<T, String> op
         ),
     ]),
   );
-}
-
-/// Asks an admin once (per server) whether to set up in-app trailers. Called after sign-in.
-Future<void> offerTrailerSetup(BuildContext context) async {
-  final app = context.read<AppState>();
-  if (!await app.shouldOfferTrailerSetup() || !context.mounted) return;
-  final go = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => _EmberDialog(title: 'Play trailers inside Ember?', children: [
-      Text(
-        'Ember can add its trailer service to ${app.serverName ?? 'your server'}. Your server then streams official '
-        'trailers straight to Ember, with nothing stored. Without it, trailers open in the YouTube app.',
-        style: body(ctx.px(23), color: C.muted, height: 1.45),
-      ),
-      SizedBox(height: ctx.px(14)),
-      Text('Takes about a minute. The server restarts once, so anyone watching right now will be interrupted.',
-          style: body(ctx.px(21), color: C.faint, height: 1.4)),
-      SizedBox(height: ctx.px(28)),
-      Wrap(spacing: ctx.px(14), runSpacing: ctx.px(14), children: [
-        EmberButton(label: 'Set up now', kind: BtnKind.accent, autofocus: true, onTap: () => Navigator.pop(ctx, true)),
-        EmberButton(label: 'Later', kind: BtnKind.ghost, onTap: () => Navigator.pop(ctx, false)),
-      ]),
-      SizedBox(height: ctx.px(16)),
-      Text('You can always do this in Settings › Trailers & calendar.', style: body(ctx.px(19), color: C.faint)),
-    ]),
-  );
-  if (go == true && context.mounted) {
-    await runTrailerSetup(context, confirmed: true);
-  } else {
-    await app.dismissTrailerPrompt();
-  }
-}
-
-/// Installs the trailer service on the server, showing each step.
-Future<void> runTrailerSetup(BuildContext context, {bool confirmed = false}) async {
-  final app = context.read<AppState>();
-  if (!confirmed) {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _EmberDialog(title: 'Set up trailer service', children: [
-        Text('Ember will install its trailer plugin on ${app.serverName ?? 'your server'} and restart the server once '
-            '(about a minute). Anyone watching right now will be interrupted.',
-            style: body(ctx.px(23), color: C.muted, height: 1.45)),
-        SizedBox(height: ctx.px(28)),
-        Wrap(spacing: ctx.px(14), children: [
-          EmberButton(label: 'Install', kind: BtnKind.accent, autofocus: true, onTap: () => Navigator.pop(ctx, true)),
-          EmberButton(label: 'Cancel', kind: BtnKind.ghost, onTap: () => Navigator.pop(ctx, false)),
-        ]),
-      ]),
-    );
-    if (ok != true || !context.mounted) return;
-  }
-  String? error;
-  var done = false;
-  void Function(void Function())? refresh;
-  () async {
-    try {
-      await app.installTrailerService();
-    } catch (e) {
-      error = '$e';
-    }
-    done = true;
-    refresh?.call(() {});
-  }();
-  await showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => StatefulBuilder(builder: (ctx, setD) {
-      refresh = (f) {
-        if (ctx.mounted) setD(f);
-      };
-      return Consumer<AppState>(
-        builder: (ctx, a, _) => _EmberDialog(title: 'Trailer service', children: [
-          if (!done) ...[
-            Row(children: [
-              SizedBox(width: ctx.px(34), height: ctx.px(34), child: const CircularProgressIndicator(strokeWidth: 3)),
-              SizedBox(width: ctx.px(20)),
-              Expanded(child: Text(a.trailerSetupStep ?? 'Starting…', style: body(ctx.px(24), color: C.muted))),
-            ]),
-          ] else if (error == null) ...[
-            Row(children: [
-              Icon(Icons.check, color: C.good, size: ctx.px(34)),
-              SizedBox(width: ctx.px(16)),
-              Expanded(
-                child: Text('Trailers now play inside Ember.', style: body(ctx.px(25), weight: FontWeight.w700)),
-              ),
-            ]),
-          ] else
-            Text(error!, style: body(ctx.px(22), color: C.bad, height: 1.4)),
-          if (done) ...[
-            SizedBox(height: ctx.px(28)),
-            EmberButton(label: 'Done', kind: BtnKind.accent, autofocus: true, onTap: () => Navigator.pop(ctx)),
-          ],
-        ]),
-      );
-    }),
-  );
-  refresh = null;
 }
 
 class _EmberDialog extends StatelessWidget {

@@ -108,8 +108,6 @@ class AppState extends ChangeNotifier {
   /// Status from the server's Ember Trailers plugin; null = not installed / unreachable.
   Map<String, dynamic>? trailerService;
   bool get trailerServiceOk => trailerService?['status'] == 'Online' || trailerService?['status'] == 'Degraded';
-  /// The plugin can hand trailers over as HLS (0.5+), which Apple TV's player plays natively.
-  bool get trailerHls => (trailerService?['features'] as List?)?.contains('hls') ?? false;
   bool audioPassthrough = false; // send Dolby / DTS bitstreams untouched to an AV receiver or soundbar
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
@@ -406,124 +404,8 @@ class AppState extends ChangeNotifier {
     }();
   }
 
-  /// Progress text while Ember sets up the trailer service, or null.
-  String? trailerSetupStep;
-
-  /// Whether this admin has said "Later" to the trailer setup prompt on this server.
-  bool get trailerPromptDismissed => _prefs.getBool('trailerPromptDismissed:$serverUrl') ?? false;
-  Future<void> dismissTrailerPrompt() async {
-    await _prefs.setBool('trailerPromptDismissed:$serverUrl', true);
-    notifyListeners();
-  }
-
-  /// 'missing', 'restart' (installed, waiting for a restart), 'disabled', 'active', or 'unknown'.
-  Future<String> trailerPluginState() async {
-    final c = jf;
-    if (c == null || !(account?.isAdmin ?? false)) return 'unknown';
-    try {
-      final p = await c.trailerPlugin();
-      if (p == null) return 'missing';
-      final st = '${p['Status']}'.toLowerCase();
-      if (st == 'restart') return 'restart';
-      if (st == 'disabled' || st == 'superceded' || st == 'malfunctioned' || st == 'notsupported') return 'disabled';
-      return 'active';
-    } catch (_) {
-      return 'unknown';
-    }
-  }
-
-  /// True when Ember should offer to set up trailers (admin, not installed, not dismissed).
-  Future<bool> shouldOfferTrailerSetup() async {
-    if (!(account?.isAdmin ?? false) || trailerPromptDismissed) return false;
-    await refreshTrailerService();
-    if (trailerService != null) return false;
-    return await trailerPluginState() == 'missing';
-  }
-
-  /// Installs the Ember Trailers plugin on the server, restarts it and waits for trailers to work.
-  /// Whether the running trailer plugin has everything this Ember needs.
-  bool get trailerServiceCurrent => ((trailerService?['features'] as List?)?.contains('streamtest') ?? false);
-
-  static const needsFullRestart =
-      'The new version is installed, but Jellyfin keeps the old one loaded until it is fully restarted. '
-      'Restart the Jellyfin container (or service) on your server, then tap "Check again".';
-
-  /// The installed trailer plugin's version and status, e.g. "0.3.1.0 · Active" (admins only).
-  String? trailerPluginVersion;
-
-  Future<void> refreshTrailerPluginVersion() async {
-    if (!(account?.isAdmin ?? false) || jf == null) return;
-    try {
-      final p = await jf!.trailerPlugin();
-      trailerPluginVersion = p == null ? null : '${p['Version']}${p['Status'] != 'Active' ? ' · ${p['Status']}' : ''}';
-      notifyListeners();
-    } catch (_) {}
-  }
-
-  /// Installs (or updates) the Ember Trailers plugin, restarts the server, and only reports success
-  /// once the server is really running the new version.
-  Future<void> installTrailerService() async {
-    final c = jf;
-    if (c == null) return;
-    void step(String? s) {
-      trailerSetupStep = s;
-      notifyListeners();
-    }
-
-    try {
-      final before = await c.trailerPlugin().catchError((_) => null);
-      final beforeVersion = before?['Version'] as String?;
-      final outdated = trailerService != null && !trailerServiceCurrent;
-      // Installed already, just not loaded yet: only a full restart helps.
-      if (outdated && before != null && before['Status'] == 'Active' && await c.trailerPluginIsNewest(before['Version'] as String?)) {
-        throw ApiException(0, needsFullRestart);
-      }
-      if (before == null || outdated || before['Status'] == 'Restart') {
-        if (before?['Status'] != 'Restart') {
-          step('Adding Ember\'s plugin source to your server…');
-          await c.addTrailerRepository();
-          step('Downloading the newest trailer plugin…');
-          await c.installTrailerPlugin();
-        }
-        step('Restarting your server to switch it on…');
-        await c.restartServer();
-        // Wait until the server has really restarted with the new version (up to 4 minutes).
-        final end = DateTime.now().add(const Duration(minutes: 4));
-        var running = false;
-        await Future.delayed(const Duration(seconds: 5));
-        while (DateTime.now().isBefore(end)) {
-          try {
-            final now = await c.trailerPlugin();
-            if (now != null && now['Status'] == 'Active' && now['Version'] != beforeVersion) {
-              running = true;
-              break;
-            }
-          } catch (_) {
-            step('Waiting for your server to come back…');
-          }
-          await Future.delayed(const Duration(seconds: 3));
-        }
-        if (!running) {
-          throw ApiException(0, 'The new version is installed but your server hasn\'t restarted to load it. '
-              'Restart it from Jellyfin › Dashboard (or restart the container), then tap "Check again".');
-        }
-      }
-      step('Getting the trailer player ready…');
-      trailerService = null;
-      for (var i = 0; i < 20 && !trailerServiceOk; i++) {
-        await refreshTrailerService();
-        if (!trailerServiceOk) await Future.delayed(const Duration(seconds: 3));
-      }
-      if (trailerService == null) {
-        throw ApiException(0, 'The plugin is installed but didn\'t start. Open Dashboard › Plugins on your server to check it.');
-      }
-      if (!trailerServiceCurrent) throw ApiException(0, needsFullRestart);
-    } finally {
-      await refreshTrailerPluginVersion();
-      step(null);
-    }
-  }
-
+  /// The optional Ember Trailers plugin, if the server happens to have it: only its release
+  /// calendar is used (more complete dates than Seerr's). Nothing needs it.
   Future<void> refreshTrailerService() async {
     final c = jf;
     if (c == null || c.token == null) {
@@ -532,7 +414,6 @@ class AppState extends ChangeNotifier {
     }
     trailerService = await c.trailerHealth();
     notifyListeners();
-    refreshTrailerPluginVersion();
   }
 
   Future<void> _refreshSeerrUser() async {
