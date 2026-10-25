@@ -16,4 +16,4 @@ jobs:
         with:
           flutter-version: 3.47.8
       - run: flutter pub get
-      - run: dart run tool/trailer_probe.dart giXco2jaZ_4 d9MyW72ELq0 Way9Dexny3w 8g18jFHCLXk dQw4w9WgXcQ
+      - run: dart run tool/trailer_probe.dart TcMBFSGVi1c zSWdZVtXT7E YoHD9XEInc0 EXeTwQWrcwY JfVOs4VSpmA giXco2jaZ_4
