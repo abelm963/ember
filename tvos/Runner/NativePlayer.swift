@@ -54,7 +54,7 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   /// offer Enhance Dialogue where the Apple TV and speakers support it.
   static func configureAudio() {
     let session = AVAudioSession.sharedInstance()
-    try? session.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo, options: [])
+    try? session.setCategory(.playback, mode: .moviePlayback, options: [])
     if #available(tvOS 15.0, *) { try? session.setSupportsMultichannelContent(true) }
     try? session.setActive(true)
   }
