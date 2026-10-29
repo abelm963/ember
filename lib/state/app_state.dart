@@ -40,26 +40,26 @@ class Account {
   });
 
   Map<String, dynamic> toJson() => {
-        'serverUrl': serverUrl,
-        'serverName': serverName,
-        'userId': userId,
-        'name': name,
-        'token': token,
-        'isAdmin': isAdmin,
-        'imageTag': imageTag,
-        'seerrCookie': seerrCookie,
-      };
+    'serverUrl': serverUrl,
+    'serverName': serverName,
+    'userId': userId,
+    'name': name,
+    'token': token,
+    'isAdmin': isAdmin,
+    'imageTag': imageTag,
+    'seerrCookie': seerrCookie,
+  };
 
   factory Account.fromJson(Map<String, dynamic> j) => Account(
-        serverUrl: j['serverUrl'] as String,
-        serverName: j['serverName'] as String? ?? 'Jellyfin',
-        userId: j['userId'] as String,
-        name: j['name'] as String? ?? '',
-        token: j['token'] as String,
-        isAdmin: j['isAdmin'] == true,
-        imageTag: j['imageTag'] as String?,
-        seerrCookie: j['seerrCookie'] as String?,
-      );
+    serverUrl: j['serverUrl'] as String,
+    serverName: j['serverName'] as String? ?? 'Jellyfin',
+    userId: j['userId'] as String,
+    name: j['name'] as String? ?? '',
+    token: j['token'] as String,
+    isAdmin: j['isAdmin'] == true,
+    imageTag: j['imageTag'] as String?,
+    seerrCookie: j['seerrCookie'] as String?,
+  );
 }
 
 /// Streaming quality choices. null bitrate = original file (direct play).
@@ -99,6 +99,7 @@ class AppState extends ChangeNotifier {
 
   /// Seerr's public settings, read at sign-in (null until then, or if Seerr wouldn't say).
   Map<String, dynamic>? seerrSettings;
+
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
@@ -108,16 +109,19 @@ class AppState extends ChangeNotifier {
   bool trailersInApp = true;
   bool autoplayPreviews = true;
   bool previewsMuted = true;
+
   /// Status from the server's Ember Trailers plugin; null = not installed / unreachable.
   Map<String, dynamic>? trailerService;
   bool get trailerServiceOk => trailerService?['status'] == 'Online' || trailerService?['status'] == 'Degraded';
   bool audioPassthrough = false; // send Dolby / DTS bitstreams untouched to an AV receiver or soundbar
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
+
   /// Ask "Are you still watching?" after this many episodes play one after another with no
   /// remote input at all (Apple TV).
   bool stillWatching = true;
   int stillWatchingEpisodes = 3;
+
   /// Apple TV: play films and episodes in Apple's own player (true HDR / Dolby Vision) instead
   /// of Ember's player.
   bool useApplePlayer = false;
@@ -154,11 +158,11 @@ class AppState extends ChangeNotifier {
   }
 
   FormFactor get formFactor => switch (interfaceMode) {
-        InterfaceMode.tv => FormFactor.tv,
-        InterfaceMode.desktop => FormFactor.desktop,
-        InterfaceMode.phone => FormFactor.phone,
-        InterfaceMode.auto => detectedFormFactor,
-      };
+    InterfaceMode.tv => FormFactor.tv,
+    InterfaceMode.desktop => FormFactor.desktop,
+    InterfaceMode.phone => FormFactor.phone,
+    InterfaceMode.auto => detectedFormFactor,
+  };
   bool get isTv => formFactor == FormFactor.tv;
   bool get isDesktop => formFactor == FormFactor.desktop;
   bool get isPhone => formFactor == FormFactor.phone;
@@ -172,7 +176,8 @@ class AppState extends ChangeNotifier {
 
   List<Account> get serverAccounts => accounts.where((a) => a.serverUrl == serverUrl).toList();
   bool get seerrConfigured => seerr != null && seerr!.isSignedIn;
-  bool get canManageRequests => seerrUser != null ? SeerrClient.canManageRequests(seerrUser!) : (account?.isAdmin ?? false);
+  bool get canManageRequests =>
+      seerrUser != null ? SeerrClient.canManageRequests(seerrUser!) : (account?.isAdmin ?? false);
 
   /// Whether to offer 4K: Seerr has a 4K Radarr / Sonarr and this person may ask for 4K.
   bool canRequest4k({required bool tv}) {
@@ -189,8 +194,10 @@ class AppState extends ChangeNotifier {
     deviceName = _deviceName();
     detectedFormFactor = await _detectFormFactor();
 
-    interfaceMode = InterfaceMode.values.firstWhere((m) => m.name == _prefs.getString('interfaceMode'),
-        orElse: () => InterfaceMode.auto);
+    interfaceMode = InterfaceMode.values.firstWhere(
+      (m) => m.name == _prefs.getString('interfaceMode'),
+      orElse: () => InterfaceMode.auto,
+    );
     serverUrl = _prefs.getString('serverUrl');
     serverName = _prefs.getString('serverName');
     currentUserId = _prefs.getString('currentUserId');

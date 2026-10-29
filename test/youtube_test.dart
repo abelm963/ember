@@ -6,9 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 /// A stand-in for YouTube: [answers] says what each app is told, by client name.
-Future<T> withYouTube<T>(Map<String, Map<String, dynamic> Function(Map body, http.Request r)> answers,
-    Future<T> Function() body,
-    {Set<String> refusedFiles = const {}, List<String>? asked}) {
+Future<T> withYouTube<T>(
+  Map<String, Map<String, dynamic> Function(Map body, http.Request r)> answers,
+  Future<T> Function() body, {
+  Set<String> refusedFiles = const {},
+  List<String>? asked,
+}) {
   final client = MockClient((r) async {
     if (r.url.path == '/youtubei/v1/player') {
       final b = jsonDecode(r.body) as Map;
@@ -29,22 +32,26 @@ Future<T> withYouTube<T>(Map<String, Map<String, dynamic> Function(Map body, htt
 }
 
 Map<String, dynamic> ok({String? hls, List<Map>? formats, String? original}) => {
-      'playabilityStatus': {'status': 'OK'},
-      'streamingData': {
-        'hlsManifestUrl': ?hls,
-        'formats': ?formats,
-        if (original != null)
-          'adaptiveFormats': [
-            {'audioTrack': {'id': 'de.3', 'audioIsDefault': false}},
-            {'audioTrack': {'id': '$original.4', 'audioIsDefault': true}},
-          ],
-      },
-    };
+  'playabilityStatus': {'status': 'OK'},
+  'streamingData': {
+    'hlsManifestUrl': ?hls,
+    'formats': ?formats,
+    if (original != null)
+      'adaptiveFormats': [
+        {
+          'audioTrack': {'id': 'de.3', 'audioIsDefault': false},
+        },
+        {
+          'audioTrack': {'id': '$original.4', 'audioIsDefault': true},
+        },
+      ],
+  },
+};
 
 Map<String, dynamic> refused({String? visitor}) => {
-      'playabilityStatus': {'status': 'LOGIN_REQUIRED', 'reason': 'Sign in to confirm you\'re not a bot'},
-      'responseContext': {'visitorData': ?visitor},
-    };
+  'playabilityStatus': {'status': 'LOGIN_REQUIRED', 'reason': 'Sign in to confirm you\'re not a bot'},
+  'responseContext': {'visitorData': ?visitor},
+};
 
 const androidFormats = [
   {'url': 'https://video.test/144.mp4', 'mimeType': 'video/mp4; codecs="avc1.42001E, mp4a.40.2"', 'height': 144},
@@ -78,11 +85,15 @@ void main() {
   });
 
   test('a playlist that will not open moves on to the Android file', () async {
-    final s = await withYouTube({
-      'VISIONOS': (b, r) => refused(),
-      'IOS': (b, r) => ok(hls: 'https://manifest.test/ios.m3u8'),
-      'ANDROID': (b, r) => ok(formats: androidFormats),
-    }, () => YouTubeTrailers.resolve('abc'), refusedFiles: {'https://manifest.test/ios.m3u8'});
+    final s = await withYouTube(
+      {
+        'VISIONOS': (b, r) => refused(),
+        'IOS': (b, r) => ok(hls: 'https://manifest.test/ios.m3u8'),
+        'ANDROID': (b, r) => ok(formats: androidFormats),
+      },
+      () => YouTubeTrailers.resolve('abc'),
+      refusedFiles: {'https://manifest.test/ios.m3u8'},
+    );
     expect(s?.source, TrailerSource.android);
     expect(s?.url, 'https://video.test/360.mp4');
   });

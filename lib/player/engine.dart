@@ -51,7 +51,9 @@ class MpvEngine implements PlaybackEngine {
   late final VideoController _video = VideoController(player);
 
   MpvEngine({required String title, required int bufferSize})
-      : player = Player(configuration: PlayerConfiguration(title: title, bufferSize: bufferSize, logLevel: MPVLogLevel.warn));
+    : player = Player(
+        configuration: PlayerConfiguration(title: title, bufferSize: bufferSize, logLevel: MPVLogLevel.warn),
+      );
 
   @override
   Stream<bool> get playing => player.stream.playing;
@@ -214,45 +216,56 @@ class AvEngine implements PlaybackEngine {
 
   @override
   Widget view({BoxFit fit = BoxFit.contain, Color fill = Colors.black}) => ValueListenableBuilder<int>(
-        valueListenable: _changed,
-        builder: (context, _, _) {
-          final c = _c;
-          if (c == null || !c.value.isInitialized) return ColoredBox(color: fill);
-          return ColoredBox(
-            color: fill,
-            child: Stack(fit: StackFit.expand, children: [
-              FittedBox(
-                fit: fit,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(width: c.value.size.width, height: c.value.size.height, child: VideoPlayer(c)),
-              ),
-              ValueListenableBuilder<VideoPlayerValue>(
-                valueListenable: c,
-                builder: (context, v, _) {
-                  if (v.caption.text.isEmpty) return const SizedBox.shrink();
-                  final h = MediaQuery.sizeOf(context).height;
-                  return Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: h * 0.07,
-                    child: Center(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: h * 0.012, vertical: h * 0.004),
-                        decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(h * 0.006)),
-                        child: Text(
-                          v.caption.text.replaceAll(RegExp(r'<[^>]+>'), ''),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontSize: h * 0.042, fontWeight: FontWeight.w600, height: 1.25),
+    valueListenable: _changed,
+    builder: (context, _, _) {
+      final c = _c;
+      if (c == null || !c.value.isInitialized) return ColoredBox(color: fill);
+      return ColoredBox(
+        color: fill,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FittedBox(
+              fit: fit,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(width: c.value.size.width, height: c.value.size.height, child: VideoPlayer(c)),
+            ),
+            ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: c,
+              builder: (context, v, _) {
+                if (v.caption.text.isEmpty) return const SizedBox.shrink();
+                final h = MediaQuery.sizeOf(context).height;
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: h * 0.07,
+                  child: Center(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: h * 0.012, vertical: h * 0.004),
+                      decoration: BoxDecoration(
+                        color: const Color(0x99000000),
+                        borderRadius: BorderRadius.circular(h * 0.006),
+                      ),
+                      child: Text(
+                        v.caption.text.replaceAll(RegExp(r'<[^>]+>'), ''),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: h * 0.042,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ]),
-          );
-        },
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       );
+    },
+  );
 
   @override
   Future<void> dispose() async {

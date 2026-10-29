@@ -91,11 +91,13 @@ class _FocusableState extends State<Focusable> {
     setState(() => _focused = f);
     widget.onFocusChange?.call(f);
     if (f && widget.scrollIntoView) {
-      Scrollable.ensureVisible(context,
-          alignment: 0.5,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit);
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
     }
   }
 
@@ -205,7 +207,10 @@ class EmberButton extends StatelessWidget {
                 if (icon != null) Icon(icon, color: fg, size: context.px(30)),
                 if (icon != null && label.isNotEmpty) SizedBox(width: context.px(12)),
                 if (label.isNotEmpty)
-                  Text(label, style: body(context.px(compact ? 22 : 25), color: fg, weight: FontWeight.w700)),
+                  Text(
+                    label,
+                    style: body(context.px(compact ? 22 : 25), color: fg, weight: FontWeight.w700),
+                  ),
               ],
             ),
           ),
@@ -234,11 +239,19 @@ class Chip2 extends StatelessWidget {
           color: active ? C.text : (selected ? C.accentDark : C.surface),
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(label,
-            style: body(context.px(22),
-                weight: FontWeight.w600, color: active ? const Color(0xFF111111) : (selected ? C.accent : C.muted))),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: body(
+                context.px(22),
+                weight: FontWeight.w600,
+                color: active ? const Color(0xFF111111) : (selected ? C.accent : C.muted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -251,10 +264,13 @@ class Pill extends StatelessWidget {
   const Pill(this.text, {super.key, this.bg = C.accent, this.fg = C.accentInk});
   @override
   Widget build(BuildContext context) => Container(
-        padding: EdgeInsets.symmetric(horizontal: context.px(12), vertical: context.px(5)),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-        child: Text(text, style: body(context.px(15), color: fg, weight: FontWeight.w700)),
-      );
+    padding: EdgeInsets.symmetric(horizontal: context.px(12), vertical: context.px(5)),
+    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+    child: Text(
+      text,
+      style: body(context.px(15), color: fg, weight: FontWeight.w700),
+    ),
+  );
 }
 
 class Badge2 extends StatelessWidget {
@@ -262,11 +278,16 @@ class Badge2 extends StatelessWidget {
   const Badge2(this.text, {super.key});
   @override
   Widget build(BuildContext context) => Container(
-        padding: EdgeInsets.symmetric(horizontal: context.px(8), vertical: context.px(1)),
-        decoration: BoxDecoration(
-            border: Border.all(color: C.faint, width: context.px(2)), borderRadius: BorderRadius.circular(context.px(4))),
-        child: Text(text, style: body(context.px(18), color: C.muted, weight: FontWeight.w700)),
-      );
+    padding: EdgeInsets.symmetric(horizontal: context.px(8), vertical: context.px(1)),
+    decoration: BoxDecoration(
+      border: Border.all(color: C.faint, width: context.px(2)),
+      borderRadius: BorderRadius.circular(context.px(4)),
+    ),
+    child: Text(
+      text,
+      style: body(context.px(18), color: C.muted, weight: FontWeight.w700),
+    ),
+  );
 }
 
 // ======================================================================
@@ -276,14 +297,23 @@ class Badge2 extends StatelessWidget {
 class NetImage extends StatelessWidget {
   final String? url;
   final BoxFit fit;
+
   /// Shown when there is no image or it fails to load.
   final Widget? fallback;
+
   /// Shown while the image is still downloading (defaults to [fallback]).
   final Widget? loading;
   final Alignment alignment;
   final Map<String, String>? headers;
-  const NetImage(this.url,
-      {super.key, this.fit = BoxFit.cover, this.fallback, this.loading, this.alignment = Alignment.center, this.headers});
+  const NetImage(
+    this.url, {
+    super.key,
+    this.fit = BoxFit.cover,
+    this.fallback,
+    this.loading,
+    this.alignment = Alignment.center,
+    this.headers,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +340,11 @@ class NetImage extends StatelessWidget {
 
 /// Downloads images ahead of time so a page appears complete, not piece by piece.
 /// Gives up after [timeout] so a slow image never blocks the page.
-Future<void> warmImages(BuildContext context, Iterable<String?> urls, {Duration timeout = const Duration(seconds: 4)}) async {
+Future<void> warmImages(
+  BuildContext context,
+  Iterable<String?> urls, {
+  Duration timeout = const Duration(seconds: 4),
+}) async {
   final jobs = [
     for (final u in urls)
       if (u != null && context.mounted) precacheImage(NetworkImage(u), context, onError: (_, _) {}),
@@ -329,9 +363,12 @@ class SkeletonPulse extends StatefulWidget {
 }
 
 class _SkeletonPulseState extends State<SkeletonPulse> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100), lowerBound: 0.45, upperBound: 1)
-        ..repeat(reverse: true);
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+    lowerBound: 0.45,
+    upperBound: 1,
+  )..repeat(reverse: true);
   @override
   void dispose() {
     _c.dispose();
@@ -349,10 +386,10 @@ class Bone extends StatelessWidget {
   const Bone(this.width, this.height, {super.key, this.radius = 10});
   @override
   Widget build(BuildContext context) => Container(
-        width: context.px(width),
-        height: context.px(height),
-        decoration: BoxDecoration(color: C.surface2, borderRadius: BorderRadius.circular(context.px(radius))),
-      );
+    width: context.px(width),
+    height: context.px(height),
+    decoration: BoxDecoration(color: C.surface2, borderRadius: BorderRadius.circular(context.px(radius))),
+  );
 }
 
 /// The shape of a movie / series / preview page, shown while it loads.
@@ -367,38 +404,58 @@ class TitlePageSkeleton extends StatelessWidget {
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(pad, context.px(phone ? 100 : 110), pad, 0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Bone(560, 140, radius: 14),
-          gap,
-          Row(children: [
-            for (final w in const [70.0, 70.0, 64.0, 110.0, 220.0]) ...[Bone(w, 30, radius: 8), SizedBox(width: context.px(14))],
-          ]),
-          SizedBox(height: context.px(30)),
-          const Bone(900, 24),
-          SizedBox(height: context.px(14)),
-          const Bone(860, 24),
-          SizedBox(height: context.px(14)),
-          const Bone(620, 24),
-          SizedBox(height: context.px(34)),
-          Wrap(spacing: context.px(16), runSpacing: context.px(14), children: const [
-            Bone(230, 72, radius: 14),
-            Bone(190, 72, radius: 14),
-            Bone(72, 72, radius: 14),
-            Bone(72, 72, radius: 14),
-          ]),
-          SizedBox(height: context.px(70)),
-          Row(children: [const Bone(200, 34), SizedBox(width: context.px(30)), const Bone(170, 34)]),
-          SizedBox(height: context.px(30)),
-          ClipRect(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              child: Row(children: [
-                for (var i = 0; i < 6; i++) ...[const Bone(340, 192, radius: 12), SizedBox(width: context.px(18))],
-              ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Bone(560, 140, radius: 14),
+            gap,
+            Row(
+              children: [
+                for (final w in const [70.0, 70.0, 64.0, 110.0, 220.0]) ...[
+                  Bone(w, 30, radius: 8),
+                  SizedBox(width: context.px(14)),
+                ],
+              ],
             ),
-          ),
-        ]),
+            SizedBox(height: context.px(30)),
+            const Bone(900, 24),
+            SizedBox(height: context.px(14)),
+            const Bone(860, 24),
+            SizedBox(height: context.px(14)),
+            const Bone(620, 24),
+            SizedBox(height: context.px(34)),
+            Wrap(
+              spacing: context.px(16),
+              runSpacing: context.px(14),
+              children: const [
+                Bone(230, 72, radius: 14),
+                Bone(190, 72, radius: 14),
+                Bone(72, 72, radius: 14),
+                Bone(72, 72, radius: 14),
+              ],
+            ),
+            SizedBox(height: context.px(70)),
+            Row(
+              children: [
+                const Bone(200, 34),
+                SizedBox(width: context.px(30)),
+                const Bone(170, 34),
+              ],
+            ),
+            SizedBox(height: context.px(30)),
+            ClipRect(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < 6; i++) ...[const Bone(340, 192, radius: 12), SizedBox(width: context.px(18))],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -416,7 +473,9 @@ class TitleCard extends StatelessWidget {
       color: HSLColor.fromAHSL(1, hue, 0.35, 0.22).toColor(),
       alignment: Alignment.bottomLeft,
       padding: EdgeInsets.all(context.px(18)),
-      child: label ? Text(title, maxLines: 3, overflow: TextOverflow.ellipsis, style: display(context.px(26), height: 1.0)) : null,
+      child: label
+          ? Text(title, maxLines: 3, overflow: TextOverflow.ellipsis, style: display(context.px(26), height: 1.0))
+          : null,
     );
   }
 }
@@ -478,68 +537,82 @@ class MediaTile extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: r,
-            child: Stack(fit: StackFit.expand, children: [
-              NetImage(imageUrl, fallback: TitleCard(title)),
-              if (showTitle && imageUrl != null)
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment(0, 0.1),
-                      colors: [Color(0xCC000000), Color(0x00000000)],
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                NetImage(imageUrl, fallback: TitleCard(title)),
+                if (showTitle && imageUrl != null)
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment(0, 0.1),
+                        colors: [Color(0xCC000000), Color(0x00000000)],
+                      ),
                     ),
                   ),
-                ),
-              // Episode / time-left label in the top-left corner, as in the design.
-              if (showTitle && subtitle != null)
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment(0, -0.3),
-                      colors: [Color(0x99000000), Color(0x00000000)],
+                // Episode / time-left label in the top-left corner, as in the design.
+                if (showTitle && subtitle != null)
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment(0, -0.3),
+                        colors: [Color(0x99000000), Color(0x00000000)],
+                      ),
                     ),
                   ),
-                ),
-              if (showTitle && subtitle != null)
-                Positioned(
-                  left: context.px(18),
-                  top: context.px(14),
-                  right: context.px(badge != null ? 140 : 18),
-                  child: Text(subtitle!,
+                if (showTitle && subtitle != null)
+                  Positioned(
+                    left: context.px(18),
+                    top: context.px(14),
+                    right: context.px(badge != null ? 140 : 18),
+                    child: Text(
+                      subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: body(context.px(18), color: Colors.white, weight: FontWeight.w600)),
-                ),
-              if (showTitle && imageUrl != null)
-                Positioned(
-                  left: context.px(18),
-                  right: context.px(18),
-                  bottom: context.px(progress != null ? 22 : 16),
-                  child: Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: body(context.px(25), weight: FontWeight.w700)),
-                ),
-              if (badge != null)
-                Positioned(
-                  top: context.px(12),
-                  right: context.px(12),
-                  child: Pill(badge!, bg: badgeAlt ? C.text : C.accent, fg: badgeAlt ? const Color(0xFF141414) : C.accentInk),
-                ),
-              if (progress != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: context.px(6),
-                  child: Container(
-                    color: Colors.white24,
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(widthFactor: progress!.clamp(0.02, 1.0), child: Container(color: C.accent)),
+                      style: body(context.px(18), color: Colors.white, weight: FontWeight.w600),
+                    ),
                   ),
-                ),
-            ]),
+                if (showTitle && imageUrl != null)
+                  Positioned(
+                    left: context.px(18),
+                    right: context.px(18),
+                    bottom: context.px(progress != null ? 22 : 16),
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: body(context.px(25), weight: FontWeight.w700),
+                    ),
+                  ),
+                if (badge != null)
+                  Positioned(
+                    top: context.px(12),
+                    right: context.px(12),
+                    child: Pill(
+                      badge!,
+                      bg: badgeAlt ? C.text : C.accent,
+                      fg: badgeAlt ? const Color(0xFF141414) : C.accentInk,
+                    ),
+                  ),
+                if (progress != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: context.px(6),
+                    child: Container(
+                      color: Colors.white24,
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: progress!.clamp(0.02, 1.0),
+                        child: Container(color: C.accent),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -558,7 +631,14 @@ class MediaRow extends StatefulWidget {
   /// Left/right margin in design units; defaults to the page gutter.
   final double? inset;
 
-  const MediaRow({super.key, required this.title, required this.children, required this.tileHeight, this.note, this.inset});
+  const MediaRow({
+    super.key,
+    required this.title,
+    required this.children,
+    required this.tileHeight,
+    this.note,
+    this.inset,
+  });
 
   @override
   State<MediaRow> createState() => _MediaRowState();
@@ -570,8 +650,11 @@ class _MediaRowState extends State<MediaRow> {
 
   void _page(int dir) {
     final w = MediaQuery.sizeOf(context).width * 0.8;
-    _ctrl.animateTo((_ctrl.offset + dir * w).clamp(0, _ctrl.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+    _ctrl.animateTo(
+      (_ctrl.offset + dir * w).clamp(0, _ctrl.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -591,65 +674,78 @@ class _MediaRowState extends State<MediaRow> {
       onExit: (_) => setState(() => _hover = false),
       child: Padding(
         padding: EdgeInsets.only(bottom: context.px(28)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (widget.title.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.only(left: pad, right: pad, bottom: context.px(6)),
-            child: Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(16), children: [
-              Text(widget.title, style: body(context.px(30), weight: FontWeight.w700)),
-              if (widget.note != null) Text(widget.note!, style: body(context.px(21), color: C.faint)),
-            ]),
-          ),
-          SizedBox(
-            height: h,
-            child: Stack(children: [
-              FocusTraversalGroup(
-                child: ListView.separated(
-                  controller: _ctrl,
-                  scrollDirection: Axis.horizontal,
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
-                  clipBehavior: Clip.none,
-                  padding: EdgeInsets.symmetric(horizontal: pad, vertical: context.px(20)),
-                  itemCount: widget.children.length,
-                  separatorBuilder: (_, _) => SizedBox(width: context.px(24)),
-                  itemBuilder: (_, i) => widget.children[i],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.title.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(left: pad, right: pad, bottom: context.px(6)),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: context.px(16),
+                  children: [
+                    Text(widget.title, style: body(context.px(30), weight: FontWeight.w700)),
+                    if (widget.note != null) Text(widget.note!, style: body(context.px(21), color: C.faint)),
+                  ],
                 ),
               ),
-              if (app.isDesktop && _hover) ...[
-                _arrow(context, Alignment.centerLeft, Icons.chevron_left, () => _page(-1)),
-                _arrow(context, Alignment.centerRight, Icons.chevron_right, () => _page(1)),
-              ],
-            ]),
-          ),
-        ]),
+            SizedBox(
+              height: h,
+              child: Stack(
+                children: [
+                  FocusTraversalGroup(
+                    child: ListView.separated(
+                      controller: _ctrl,
+                      scrollDirection: Axis.horizontal,
+                      scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
+                      clipBehavior: Clip.none,
+                      padding: EdgeInsets.symmetric(horizontal: pad, vertical: context.px(20)),
+                      itemCount: widget.children.length,
+                      separatorBuilder: (_, _) => SizedBox(width: context.px(24)),
+                      itemBuilder: (_, i) => widget.children[i],
+                    ),
+                  ),
+                  if (app.isDesktop && _hover) ...[
+                    _arrow(context, Alignment.centerLeft, Icons.chevron_left, () => _page(-1)),
+                    _arrow(context, Alignment.centerRight, Icons.chevron_right, () => _page(1)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _arrow(BuildContext context, Alignment a, IconData icon, VoidCallback onTap) => Align(
-        alignment: a,
-        child: ExcludeFocus(
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: onTap,
-              child: Container(
-                width: context.px(64),
-                height: double.infinity,
-                color: const Color(0x99000000),
-                child: Icon(icon, color: C.text, size: context.px(48)),
-              ),
-            ),
+    alignment: a,
+    child: ExcludeFocus(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: context.px(64),
+            height: double.infinity,
+            color: const Color(0x99000000),
+            child: Icon(icon, color: C.text, size: context.px(48)),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Left/right page margin in design units, per form factor.
 double gutter(BuildContext context) {
   final app = context.read<AppState>();
   // TV and desktop line up with the menu bar and the billboard pages.
-  return switch (app.formFactor) { FormFactor.tv => 60, FormFactor.desktop => 60, FormFactor.phone => 40 };
+  return switch (app.formFactor) {
+    FormFactor.tv => 60,
+    FormFactor.desktop => 60,
+    FormFactor.phone => 40,
+  };
 }
 
 // ======================================================================
@@ -668,19 +764,26 @@ class ErrorView extends StatelessWidget {
   const ErrorView(this.error, {super.key, this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.cloud_off, color: C.faint, size: context.px(64)),
-          SizedBox(height: context.px(16)),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: context.px(900)),
-            child: Text('$error', textAlign: TextAlign.center, style: body(context.px(24), color: C.muted)),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.cloud_off, color: C.faint, size: context.px(64)),
+        SizedBox(height: context.px(16)),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.px(900)),
+          child: Text(
+            '$error',
+            textAlign: TextAlign.center,
+            style: body(context.px(24), color: C.muted),
           ),
-          if (onRetry != null) ...[
-            SizedBox(height: context.px(24)),
-            EmberButton(label: 'Try again', icon: Icons.refresh, onTap: onRetry, autofocus: true, kind: BtnKind.ghost),
-          ],
-        ]),
-      );
+        ),
+        if (onRetry != null) ...[
+          SizedBox(height: context.px(24)),
+          EmberButton(label: 'Try again', icon: Icons.refresh, onTap: onRetry, autofocus: true, kind: BtnKind.ghost),
+        ],
+      ],
+    ),
+  );
 }
 
 /// Loads a future once (and again when [deps] change) and shows loading / error states.
@@ -688,6 +791,7 @@ class Loader<T> extends StatefulWidget {
   final Future<T> Function() load;
   final Widget Function(BuildContext, T) builder;
   final Object? deps;
+
   /// Shown while loading (a spinner if not given).
   final Widget? placeholder;
   const Loader({super.key, required this.load, required this.builder, this.deps, this.placeholder});
@@ -711,26 +815,28 @@ class _LoaderState<T> extends State<Loader<T>> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<T>(
-        future: _f,
-        builder: (context, snap) {
-          if (snap.hasError) return ErrorView(snap.error!, onRetry: () => setState(() => _f = widget.load()));
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: !snap.hasData
-                ? KeyedSubtree(key: const ValueKey('loading'), child: widget.placeholder ?? const Loading())
-                : KeyedSubtree(key: const ValueKey('ready'), child: widget.builder(context, snap.data as T)),
-          );
-        },
+    future: _f,
+    builder: (context, snap) {
+      if (snap.hasError) return ErrorView(snap.error!, onRetry: () => setState(() => _f = widget.load()));
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: !snap.hasData
+            ? KeyedSubtree(key: const ValueKey('loading'), child: widget.placeholder ?? const Loading())
+            : KeyedSubtree(key: const ValueKey('ready'), child: widget.builder(context, snap.data as T)),
       );
+    },
+  );
 }
 
 void toast(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(message, style: body(context.px(22))),
-    backgroundColor: C.surface3,
-    behavior: SnackBarBehavior.floating,
-    duration: const Duration(seconds: 3),
-  ));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message, style: body(context.px(22))),
+      backgroundColor: C.surface3,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 3),
+    ),
+  );
 }
 
 String formatRuntime(Duration? d) {
@@ -743,7 +849,9 @@ String formatClock(Duration d) {
   final neg = d.isNegative;
   d = d.abs();
   final h = d.inHours, m = d.inMinutes % 60, s = d.inSeconds % 60;
-  final body = h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}' : '$m:${s.toString().padLeft(2, '0')}';
+  final body = h > 0
+      ? '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}'
+      : '$m:${s.toString().padLeft(2, '0')}';
   return neg ? '-$body' : body;
 }
 
@@ -767,14 +875,13 @@ class FieldFocusEscape extends StatelessWidget {
   const FieldFocusEscape({super.key, required this.child});
   @override
   Widget build(BuildContext context) => Shortcuts(
-        shortcuts: const {
-          SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(TraversalDirection.down),
-          SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(TraversalDirection.up),
-        },
-        child: child,
-      );
+    shortcuts: const {
+      SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(TraversalDirection.down),
+      SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(TraversalDirection.up),
+    },
+    child: child,
+  );
 }
-
 
 /// The small round back arrow in the top-left corner of detail pages (mouse and touch only;
 /// a remote uses its Back button).
@@ -783,17 +890,17 @@ class BackArrow extends StatelessWidget {
   const BackArrow({super.key, required this.onTap});
   @override
   Widget build(BuildContext context) => Focusable(
-        onTap: onTap,
-        semanticLabel: 'Back',
-        scrollIntoView: false,
-        builder: (context, active) => Container(
-          width: context.px(64),
-          height: context.px(64),
-          decoration: BoxDecoration(
-            color: active ? C.text : const Color(0xB32A2A2F),
-            borderRadius: BorderRadius.circular(context.px(14)),
-          ),
-          child: Icon(Icons.arrow_back, color: active ? const Color(0xFF111111) : C.text, size: context.px(32)),
-        ),
-      );
+    onTap: onTap,
+    semanticLabel: 'Back',
+    scrollIntoView: false,
+    builder: (context, active) => Container(
+      width: context.px(64),
+      height: context.px(64),
+      decoration: BoxDecoration(
+        color: active ? C.text : const Color(0xB32A2A2F),
+        borderRadius: BorderRadius.circular(context.px(14)),
+      ),
+      child: Icon(Icons.arrow_back, color: active ? const Color(0xFF111111) : C.text, size: context.px(32)),
+    ),
+  );
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+
 import 'screens_test.dart' as s;
 
 String focused() {
@@ -34,6 +35,7 @@ void main() {
           }
           trail.add('${k.keyLabel}:${focused()}');
         }
+
         for (var i = 0; i < 5; i++) {
           await press(LogicalKeyboardKey.arrowDown);
         }

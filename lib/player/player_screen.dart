@@ -131,8 +131,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<Chapter> _chapters = const [];
 
   /// The intro, recap and credits times, checked against the episode's length (`segments.dart`).
-  List<MediaSegment> get _segments =>
-      tidySegments(_rawSegments, _duration > Duration.zero ? _duration : (_item.runtime ?? Duration.zero), chapters: _chapters);
+  List<MediaSegment> get _segments => tidySegments(
+    _rawSegments,
+    _duration > Duration.zero ? _duration : (_item.runtime ?? Duration.zero),
+    chapters: _chapters,
+  );
   TrickplayInfo? _trick;
   JfItem? _next;
   bool _upNextDismissed = false;
@@ -344,7 +347,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       } else {
         // Auto quality: the original file unless the connection (tested once and remembered)
         // can't carry it comfortably.
-        final sizeOf = item.mediaSources.where((s) => s['Id'] == _mediaSourceId).firstOrNull ?? item.mediaSources.firstOrNull;
+        final sizeOf =
+            item.mediaSources.where((s) => s['Id'] == _mediaSourceId).firstOrNull ?? item.mediaSources.firstOrNull;
         final size = (sizeOf?['Bitrate'] as num?)?.toInt();
         sized = size != null;
         bitrate = await _app.maxBitrateFor(size, qualityKey: _quality.key);
@@ -367,13 +371,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // Text subtitles (picked now, or before a reopen for another quality or soundtrack) come on.
       if (_serverTracks && _subIndex != null && !_subBurnedIn) unawaited(_showServerSubtitle(_subIndex!));
       if (!widget.isTrailer) {
-        unawaited(_jf.reportStart(item.id, src.mediaSourceId, src.playSessionId, start ?? Duration.zero, src.transcoding));
+        unawaited(
+          _jf.reportStart(item.id, src.mediaSourceId, src.playSessionId, start ?? Duration.zero, src.transcoding),
+        );
         _reportTimer = Timer.periodic(const Duration(seconds: 10), (_) {
           final s = _src;
-          if (s != null) _jf.reportProgress(_item.id, s.mediaSourceId, s.playSessionId, _position, !_playing, s.transcoding);
+          if (s != null) {
+            _jf.reportProgress(_item.id, s.mediaSourceId, s.playSessionId, _position, !_playing, s.transcoding);
+          }
         });
         // Answers for an episode that is no longer playing (Next Episode was quick) are dropped.
-        _jf.mediaSegments(item.id).then((s) => mounted && _item.id == item.id ? setState(() => _rawSegments = s) : null);
+        _jf
+            .mediaSegments(item.id)
+            .then((s) => mounted && _item.id == item.id ? setState(() => _rawSegments = s) : null);
         _jf
             .item(item.id)
             .then((full) {
@@ -386,7 +396,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
             })
             .catchError((_) {});
         if (item.isEpisode) {
-          _jf.nextEpisode(item).then((n) => mounted && _item.id == item.id ? setState(() => _next = n) : null).catchError((_) => null);
+          _jf
+              .nextEpisode(item)
+              .then((n) => mounted && _item.id == item.id ? setState(() => _next = n) : null)
+              .catchError((_) => null);
         }
       }
       setState(() => _loading = false);
@@ -433,7 +446,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (s.isEmpty) return;
     setState(() => _subIndex = index);
     try {
-      await _engine.setTextSubtitles(_jf.subtitleUrl(_item.id, src.mediaSourceId, s.first, format: isAppleTv ? 'vtt' : null));
+      await _engine.setTextSubtitles(
+        _jf.subtitleUrl(_item.id, src.mediaSourceId, s.first, format: isAppleTv ? 'vtt' : null),
+      );
     } catch (e) {
       if (mounted) toast(context, '$e');
     }
@@ -575,7 +590,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           () => player.setSubtitleTrack(SubtitleTrack.no()),
         ),
         for (var i = 0; i < tracks.length; i++)
-          remembered(labels[i], _track.subtitle.id == tracks[i].id, tracks[i].language, true, () => player.setSubtitleTrack(tracks[i])),
+          remembered(
+            labels[i],
+            _track.subtitle.id == tracks[i].id,
+            tracks[i].language,
+            true,
+            () => player.setSubtitleTrack(tracks[i]),
+          ),
         for (var i = 0; i < external.length; i++)
           remembered(
             labels[tracks.length + i],
@@ -604,16 +625,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
       }),
       for (var i = 0; i < streams.length; i++)
-        remembered(labels[i], _subIndex == (streams[i]['Index'] as num?)?.toInt(), trackLanguage(streams[i]), true, () async {
-          final s = streams[i];
-          if (s['IsTextSubtitleStream'] == true) {
-            if (_subBurnedIn) await _reopenAtCurrent(subtitleStreamIndex: -1);
-            await _showServerSubtitle((s['Index'] as num).toInt());
-          } else {
-            // Picture-based subtitles (PGS, VobSub) are drawn into the video by the server.
-            await _reopenAtCurrent(subtitleStreamIndex: (s['Index'] as num).toInt());
-          }
-        }),
+        remembered(
+          labels[i],
+          _subIndex == (streams[i]['Index'] as num?)?.toInt(),
+          trackLanguage(streams[i]),
+          true,
+          () async {
+            final s = streams[i];
+            if (s['IsTextSubtitleStream'] == true) {
+              if (_subBurnedIn) await _reopenAtCurrent(subtitleStreamIndex: -1);
+              await _showServerSubtitle((s['Index'] as num).toInt());
+            } else {
+              // Picture-based subtitles (PGS, VobSub) are drawn into the video by the server.
+              await _reopenAtCurrent(subtitleStreamIndex: (s['Index'] as num).toInt());
+            }
+          },
+        ),
     ];
   }
 
@@ -814,7 +841,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         : const Duration(seconds: 10);
     var t = (_scrubTarget ?? _position) + step * direction;
     if (t < Duration.zero) t = Duration.zero;
-    if (_duration > Duration.zero && t > _duration - const Duration(seconds: 2)) t = _duration - const Duration(seconds: 2);
+    if (_duration > Duration.zero && t > _duration - const Duration(seconds: 2)) {
+      t = _duration - const Duration(seconds: 2);
+    }
     setState(() => _scrubTarget = t);
     _showControls(focus: !_scrubFocus.hasFocus && !_app.isPhone);
     _scrubTimer?.cancel();
@@ -1026,7 +1055,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 }
               },
               onDoubleTapDown: app.isPhone
-                  ? (d) => _seekBy(Duration(seconds: d.localPosition.dx < MediaQuery.sizeOf(context).width / 2 ? -10 : 10))
+                  ? (d) =>
+                        _seekBy(Duration(seconds: d.localPosition.dx < MediaQuery.sizeOf(context).width / 2 ? -10 : 10))
                   : null,
               onDoubleTap: app.isPhone ? () {} : null,
               child: Stack(
@@ -1055,9 +1085,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     Positioned(
                       right: context.px(80),
                       bottom: context.px(showUi && !app.isPhone ? 290 : 110),
-                      child: _SkipButton(label: _skipLabels[skip.type]!, focusNode: _skipFocus, onTap: () => _skip(skip)),
+                      child: _SkipButton(
+                        label: _skipLabels[skip.type]!,
+                        focusNode: _skipFocus,
+                        onTap: () => _skip(skip),
+                      ),
                     ),
-                  if (_showUpNext && !_askStillWatching && (_panel == _Panel.none || _panel == _Panel.controls)) _upNext(context),
+                  if (_showUpNext && !_askStillWatching && (_panel == _Panel.none || _panel == _Panel.controls))
+                    _upNext(context),
                   if (_panel == _Panel.tracks) app.isPhone ? _tracksPanel(context) : _languagePanel(context),
                   if (_panel == _Panel.quality) _qualityPanel(context),
                   if (_panel == _Panel.episodes) _episodesPanel(context),
@@ -1131,7 +1166,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           children: [
             const DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Color(0xE6000000), Color(0x99000000), Color(0x66000000)], stops: [0, 0.5, 1]),
+                gradient: LinearGradient(
+                  colors: [Color(0xE6000000), Color(0x99000000), Color(0x66000000)],
+                  stops: [0, 0.5, 1],
+                ),
               ),
             ),
             Positioned(
@@ -1166,7 +1204,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     Text(_episodeLine, style: body(context.px(28), weight: FontWeight.w700))
                   else
                     MetaDots(
-                      parts: [if (_item.year != null) '${_item.year}', if (_item.runtime != null) formatRuntime(_item.runtime)],
+                      parts: [
+                        if (_item.year != null) '${_item.year}',
+                        if (_item.runtime != null) formatRuntime(_item.runtime),
+                      ],
                       rating: _item.officialRating,
                       size: 24,
                     ),
@@ -1288,7 +1329,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             children: [
               EmberButton(label: 'Try again', kind: BtnKind.accent, autofocus: true, onTap: () => _reopenAtCurrent()),
               if (_isStream && (widget.youtubeKey ?? '').isNotEmpty)
-                EmberButton(label: 'Open on YouTube', kind: BtnKind.ghost, onTap: () => openYouTube(context, widget.youtubeKey!)),
+                EmberButton(
+                  label: 'Open on YouTube',
+                  kind: BtnKind.ghost,
+                  onTap: () => openYouTube(context, widget.youtubeKey!),
+                ),
               if (!_isStream)
                 EmberButton(
                   label: 'Try at 720p',
@@ -1334,7 +1379,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _playNext();
           },
         ),
-      if (!_isStream) _BarButton(icon: Icons.subtitles_outlined, label: 'Audio & Subtitles', onTap: () => _openPanel(_Panel.tracks)),
+      if (!_isStream)
+        _BarButton(icon: Icons.subtitles_outlined, label: 'Audio & Subtitles', onTap: () => _openPanel(_Panel.tracks)),
       _BarButton(icon: Icons.replay_rounded, label: 'Restart', onTap: () => _engine.seek(Duration.zero)),
       if (!_isStream) _BarButton(icon: Icons.tune_rounded, label: 'Quality', onTap: () => _openPanel(_Panel.quality)),
     ];
@@ -1357,7 +1403,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Positioned(
               left: context.px(50),
               top: context.px(46),
-              child: _RoundIcon(icon: Icons.arrow_back_rounded, label: 'Back', onTap: () => Navigator.of(context).pop()),
+              child: _RoundIcon(
+                icon: Icons.arrow_back_rounded,
+                label: 'Back',
+                onTap: () => Navigator.of(context).pop(),
+              ),
             ),
           Positioned(
             left: pad,
@@ -1567,7 +1617,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               child: ListView(
                                 children: [
                                   for (final se in seasons)
-                                    _SeasonRow(label: se.name, selected: se.id == _panelSeasonId, onFocus: () => _loadSeason(se.id)),
+                                    _SeasonRow(
+                                      label: se.name,
+                                      selected: se.id == _panelSeasonId,
+                                      onFocus: () => _loadSeason(se.id),
+                                    ),
                                 ],
                               ),
                             ),
@@ -1629,7 +1683,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
             child: Row(
               children: [
                 if (!app.isTv) ...[
-                  EmberButton(label: '', icon: Icons.arrow_back, kind: BtnKind.ghost, onTap: () => Navigator.of(context).pop()),
+                  EmberButton(
+                    label: '',
+                    icon: Icons.arrow_back,
+                    kind: BtnKind.ghost,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
                   SizedBox(width: context.px(22)),
                 ],
                 Expanded(
@@ -1652,7 +1711,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         Container(
                           width: context.px(12),
                           height: context.px(12),
-                          decoration: BoxDecoration(color: _src?.transcoding == true ? C.warn : C.good, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: _src?.transcoding == true ? C.warn : C.good,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         SizedBox(width: context.px(10)),
                         Text(
@@ -1846,13 +1908,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           SizedBox(
                             width: context.px(40),
                             child: opts[i].selected
-                                ? Icon(Icons.check, color: active ? const Color(0xFF111111) : C.accent, size: context.px(28))
+                                ? Icon(
+                                    Icons.check,
+                                    color: active ? const Color(0xFF111111) : C.accent,
+                                    size: context.px(28),
+                                  )
                                 : null,
                           ),
                           Expanded(
                             child: Text(
                               opts[i].label,
-                              style: body(context.px(23), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.soft),
+                              style: body(
+                                context.px(23),
+                                weight: FontWeight.w600,
+                                color: active ? const Color(0xFF111111) : C.soft,
+                              ),
                             ),
                           ),
                         ],
@@ -1862,7 +1932,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
             ),
           ),
-          if (note != null) ...[SizedBox(height: context.px(10)), Text(note, style: body(context.px(19), color: C.faint))],
+          if (note != null) ...[
+            SizedBox(height: context.px(10)),
+            Text(note, style: body(context.px(19), color: C.faint)),
+          ],
         ],
       ),
     );
@@ -1884,16 +1957,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
         autofocus: true,
         child: Container(
           padding: EdgeInsets.all(context.px(44)),
-          decoration: BoxDecoration(color: const Color(0xF5121214), borderRadius: BorderRadius.circular(context.px(24))),
+          decoration: BoxDecoration(
+            color: const Color(0xF5121214),
+            borderRadius: BorderRadius.circular(context.px(24)),
+          ),
           child: Column(
             children: [
               Expanded(
-                child: app.isPhone ? Column(children: cols) : Row(crossAxisAlignment: CrossAxisAlignment.start, children: cols),
+                child: app.isPhone
+                    ? Column(children: cols)
+                    : Row(crossAxisAlignment: CrossAxisAlignment.start, children: cols),
               ),
               SizedBox(height: context.px(20)),
               Align(
                 alignment: Alignment.centerLeft,
-                child: EmberButton(label: 'Back to video', icon: Icons.arrow_back, kind: BtnKind.ghost, onTap: () => _hideControls()),
+                child: EmberButton(
+                  label: 'Back to video',
+                  icon: Icons.arrow_back,
+                  kind: BtnKind.ghost,
+                  onTap: () => _hideControls(),
+                ),
               ),
             ],
           ),
@@ -1962,7 +2045,10 @@ class _BarButton extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         height: context.px(52),
         padding: EdgeInsets.symmetric(horizontal: context.px(18)),
-        decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(context.px(8))),
+        decoration: BoxDecoration(
+          color: active ? C.text : Colors.transparent,
+          borderRadius: BorderRadius.circular(context.px(8)),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2088,7 +2174,10 @@ class _MenuRow extends StatelessWidget {
       duration: const Duration(milliseconds: 120),
       margin: EdgeInsets.only(bottom: context.px(4)),
       padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(11)),
-      decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(context.px(8))),
+      decoration: BoxDecoration(
+        color: active ? C.text : Colors.transparent,
+        borderRadius: BorderRadius.circular(context.px(8)),
+      ),
       child: Row(
         children: [
           SizedBox(
@@ -2133,7 +2222,10 @@ class _SeasonRow extends StatelessWidget {
       duration: const Duration(milliseconds: 120),
       margin: EdgeInsets.only(bottom: context.px(4)),
       padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(12)),
-      decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(context.px(8))),
+      decoration: BoxDecoration(
+        color: active ? C.text : Colors.transparent,
+        borderRadius: BorderRadius.circular(context.px(8)),
+      ),
       child: Text(
         label,
         style: body(
@@ -2153,7 +2245,13 @@ class _EpisodeRow extends StatelessWidget {
   final bool current;
   final bool autofocus;
   final VoidCallback onTap;
-  const _EpisodeRow({required this.episode, required this.image, required this.current, required this.autofocus, required this.onTap});
+  const _EpisodeRow({
+    required this.episode,
+    required this.image,
+    required this.current,
+    required this.autofocus,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2282,9 +2380,11 @@ class _ScrubberState extends State<_Scrubber> {
   double? _hover;
   bool _focused = false;
 
-  double _frac(Duration d) => widget.duration.inMilliseconds == 0 ? 0 : (d.inMilliseconds / widget.duration.inMilliseconds).clamp(0.0, 1.0);
+  double _frac(Duration d) =>
+      widget.duration.inMilliseconds == 0 ? 0 : (d.inMilliseconds / widget.duration.inMilliseconds).clamp(0.0, 1.0);
 
-  void _seekFrac(double f) => widget.onSeek(Duration(milliseconds: (widget.duration.inMilliseconds * f.clamp(0.0, 1.0)).round()));
+  void _seekFrac(double f) =>
+      widget.onSeek(Duration(milliseconds: (widget.duration.inMilliseconds * f.clamp(0.0, 1.0)).round()));
 
   @override
   Widget build(BuildContext context) {
@@ -2377,13 +2477,17 @@ class _ScrubberState extends State<_Scrubber> {
                                   borderRadius: BorderRadius.circular(context.px(8)),
                                   child: AspectRatio(
                                     aspectRatio: 16 / 9,
-                                    child: widget.preview!(Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round())),
+                                    child: widget.preview!(
+                                      Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round()),
+                                    ),
                                   ),
                                 ),
                               ),
                               SizedBox(height: context.px(6)),
                               Text(
-                                formatClock(Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round())),
+                                formatClock(
+                                  Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round()),
+                                ),
                                 style: body(context.px(22), weight: FontWeight.w700),
                               ),
                             ],

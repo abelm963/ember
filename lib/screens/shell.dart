@@ -105,53 +105,72 @@ class _AppShellState extends State<AppShell> {
     final items = _visible(app).where((e) => e.section != Section.requests || app.seerrConfigured).toList();
     // Home, Shows, Movies and Discover run under the menu bar, with the picture showing through it.
     final billboard = const [Section.home, Section.shows, Section.movies, Section.discover].contains(_section);
-    return Stack(children: [
-      Positioned.fill(top: billboard ? 0 : barH, child: FocusTraversalGroup(child: body)),
-      Positioned(
-        left: 0,
-        right: 0,
-        top: 0,
-        height: barH,
-        child: Container(
-          decoration: BoxDecoration(
-            color: billboard ? null : C.bg,
-            gradient: billboard
-                ? const LinearGradient(
-                    begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xE60A0A0B), Color(0x000A0A0B)])
-                : null,
-          ),
-          padding: EdgeInsets.symmetric(horizontal: context.px(60)),
-          child: FocusTraversalGroup(
-            child: Row(children: [
-              const _ProfileButton(expanded: false),
-              Expanded(
-                child: Center(
-                  child: Container(
-                    padding: EdgeInsets.all(context.px(5)),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C20),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFF2E2E34), width: context.px(1)),
+    return Stack(
+      children: [
+        Positioned.fill(
+          top: billboard ? 0 : barH,
+          child: FocusTraversalGroup(child: body),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: barH,
+          child: Container(
+            decoration: BoxDecoration(
+              color: billboard ? null : C.bg,
+              gradient: billboard
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xE60A0A0B), Color(0x000A0A0B)],
+                    )
+                  : null,
+            ),
+            padding: EdgeInsets.symmetric(horizontal: context.px(60)),
+            child: FocusTraversalGroup(
+              child: Row(
+                children: [
+                  const _ProfileButton(expanded: false),
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        padding: EdgeInsets.all(context.px(5)),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1C1C20),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFF2E2E34), width: context.px(1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final e in items)
+                              _TopItem(entry: e, selected: e.section == _section, onTap: () => _go(e.section)),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      for (final e in items)
-                        _TopItem(entry: e, selected: e.section == _section, onTap: () => _go(e.section)),
-                    ]),
                   ),
-                ),
+                  Icon(Icons.local_fire_department, color: C.accent, size: context.px(46)),
+                ],
               ),
-              Icon(Icons.local_fire_department, color: C.accent, size: context.px(46)),
-            ]),
+            ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 
   // ------------------------------------------------------------------ Phone
 
   Widget _phoneLayout(BuildContext context, AppState app, Widget body) {
-    final tabs = [Section.home, Section.search, Section.myList, if (app.seerrConfigured) Section.requests, Section.settings];
+    final tabs = [
+      Section.home,
+      Section.search,
+      Section.myList,
+      if (app.seerrConfigured) Section.requests,
+      Section.settings,
+    ];
     final idx = tabs.contains(_section) ? tabs.indexOf(_section) : 0;
     return Scaffold(
       body: SafeArea(bottom: false, child: body),
@@ -202,7 +221,10 @@ class _TopItem extends StatelessWidget {
           alignment: Alignment.center,
           child: iconOnly
               ? Icon(entry.icon, color: fg, size: context.px(26))
-              : Text(entry.label, style: body(context.px(20), weight: FontWeight.w600, color: fg)),
+              : Text(
+                  entry.label,
+                  style: body(context.px(20), weight: FontWeight.w600, color: fg),
+                ),
         );
       },
     );
@@ -227,20 +249,37 @@ class _ProfileButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(context.px(14)),
           border: active && !expanded ? Border.all(color: C.text, width: context.px(3)) : null,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Avatar(name: a.name, imageUrl: img, size: 40),
-          if (!expanded) ...[
-            SizedBox(width: context.px(4)),
-            Icon(Icons.arrow_drop_down_rounded, color: C.muted, size: context.px(26)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Avatar(name: a.name, imageUrl: img, size: 40),
+            if (!expanded) ...[
+              SizedBox(width: context.px(4)),
+              Icon(Icons.arrow_drop_down_rounded, color: C.muted, size: context.px(26)),
+            ],
+            if (expanded) ...[
+              SizedBox(width: context.px(18)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    a.name,
+                    style: body(
+                      context.px(26),
+                      weight: FontWeight.w700,
+                      color: active ? const Color(0xFF111111) : C.text,
+                    ),
+                  ),
+                  Text(
+                    'Switch profile',
+                    style: body(context.px(17), color: active ? const Color(0xFF444444) : C.faint),
+                  ),
+                ],
+              ),
+            ],
           ],
-          if (expanded) ...[
-            SizedBox(width: context.px(18)),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(a.name, style: body(context.px(26), weight: FontWeight.w700, color: active ? const Color(0xFF111111) : C.text)),
-              Text('Switch profile', style: body(context.px(17), color: active ? const Color(0xFF444444) : C.faint)),
-            ]),
-          ],
-        ]),
+        ),
       ),
     );
   }

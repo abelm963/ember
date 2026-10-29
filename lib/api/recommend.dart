@@ -32,10 +32,29 @@ const _window = Duration(days: 730);
 
 /// TMDB's genre numbers, named as Jellyfin names them (for variety across server and Seerr titles).
 const _tmdbGenres = {
-  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama',
-  10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
-  878: 'Science Fiction', 53: 'Thriller', 10752: 'War', 37: 'Western', 10759: 'Action & Adventure', 10762: 'Kids',
-  10764: 'Reality', 10765: 'Sci-Fi & Fantasy', 10768: 'War & Politics',
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Science Fiction',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+  10759: 'Action & Adventure',
+  10762: 'Kids',
+  10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy',
+  10768: 'War & Politics',
 };
 
 String _itemKey(JfItem it) {
@@ -60,12 +79,30 @@ class _DayCache {
   _DayCache(this.now);
 
   static const _keep = {
-    'id', 'mediaType', 'title', 'name', 'overview', 'posterPath', 'backdropPath', 'releaseDate', 'firstAirDate',
-    'voteAverage', 'voteCount', 'genreIds', 'mediaInfo', 'collection', 'createdBy', 'seasons', 'numberOfSeasons',
+    'id',
+    'mediaType',
+    'title',
+    'name',
+    'overview',
+    'posterPath',
+    'backdropPath',
+    'releaseDate',
+    'firstAirDate',
+    'voteAverage',
+    'voteCount',
+    'genreIds',
+    'mediaInfo',
+    'collection',
+    'createdBy',
+    'seasons',
+    'numberOfSeasons',
   };
 
   static Map<String, dynamic> _trim(Map<String, dynamic> raw) {
-    final out = {for (final e in raw.entries) if (_keep.contains(e.key)) e.key: e.value};
+    final out = {
+      for (final e in raw.entries)
+        if (_keep.contains(e.key)) e.key: e.value,
+    };
     final info = out['mediaInfo'];
     if (info is Map) out['mediaInfo'] = {'status': info['status'], 'status4k': info['status4k']};
     final seasons = out['seasons'];
@@ -115,7 +152,12 @@ class _DayCache {
 }
 
 /// Recommended's rows for this person.
-Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {String server = 'your server', DateTime? now}) async {
+Future<List<RecommendedRow>> recommend(
+  JellyfinClient jf,
+  SeerrClient? seerr, {
+  String server = 'your server',
+  DateTime? now,
+}) async {
   now ??= DateTime.now();
   final since = now.subtract(_window);
   final cache = _DayCache(now);
@@ -125,10 +167,25 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
     jf.items(types: const ['Movie', 'Series'], sortBy: null).catchError((_) => <JfItem>[]),
     jf
         .items(
-            types: const ['Episode'], filters: 'IsPlayed', sortBy: 'DatePlayed', sortOrder: 'Descending', limit: 5000, fields: 'ParentId', images: false)
+          types: const ['Episode'],
+          filters: 'IsPlayed',
+          sortBy: 'DatePlayed',
+          sortOrder: 'Descending',
+          limit: 5000,
+          fields: 'ParentId',
+          images: false,
+        )
         .catchError((_) => <JfItem>[]),
     jf
-        .items(types: const ['Episode'], filters: 'IsResumable', sortBy: 'DatePlayed', sortOrder: 'Descending', limit: 300, fields: 'ParentId', images: false)
+        .items(
+          types: const ['Episode'],
+          filters: 'IsResumable',
+          sortBy: 'DatePlayed',
+          sortOrder: 'Descending',
+          limit: 300,
+          fields: 'ParentId',
+          images: false,
+        )
         .catchError((_) => <JfItem>[]),
     seerr?.watchlist(pages: 3).catchError((_) => <WatchlistEntry>[]) ?? Future.value(<WatchlistEntry>[]),
     seerr?.requests(take: 100).catchError((_) => <SeerrRequest>[]) ?? Future.value(<SeerrRequest>[]),
@@ -171,8 +228,7 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
     ((eps[sid] ??= {})[e.parentIndexNumber ?? 1] ??= []).add(last);
   }
   final seasonsOf = <String, List<JfItem>>{};
-  final busiest = eps.keys.toList()
-    ..sort((a, b) => _count(eps[b]!).compareTo(_count(eps[a]!)));
+  final busiest = eps.keys.toList()..sort((a, b) => _count(eps[b]!).compareTo(_count(eps[a]!)));
   await _inBatches(busiest.take(60), 8, (sid) async => seasonsOf[sid] = await jf.seasons(sid));
   for (final MapEntry(key: sid, value: bySeason) in eps.entries) {
     final show = byId[sid];
@@ -240,56 +296,68 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
   // ---- 2. What each is linked to.
   final cands = <String, Candidate>{};
   Candidate fromItem(JfItem it) => cands.putIfAbsent(
-      _itemKey(it),
-      () => Candidate(
-            key: _itemKey(it),
-            title: it.name,
-            mediaType: it.isSeries ? 'tv' : 'movie',
-            item: byId[it.id] ?? it,
-            rating: it.communityRating,
-            released: it.premiereDate,
-            genre: it.genres.firstOrNull,
-          ));
+    _itemKey(it),
+    () => Candidate(
+      key: _itemKey(it),
+      title: it.name,
+      mediaType: it.isSeries ? 'tv' : 'movie',
+      item: byId[it.id] ?? it,
+      rating: it.communityRating,
+      released: it.premiereDate,
+      genre: it.genres.firstOrNull,
+    ),
+  );
   Candidate fromMedia(SeerrMedia m, {String? key}) {
     final k = key ?? _mediaKey(m);
     final local = key == null ? byKey[k] : null;
     if (local != null) return fromItem(local);
-    final g = (m.raw['genreIds'] as List?)?.whereType<num>().map((n) => _tmdbGenres[n.toInt()]).nonNulls.firstOrNull ??
+    final g =
+        (m.raw['genreIds'] as List?)?.whereType<num>().map((n) => _tmdbGenres[n.toInt()]).nonNulls.firstOrNull ??
         m.genres.firstOrNull;
     return cands.putIfAbsent(
-        k,
-        () => Candidate(
-              key: k,
-              title: m.title,
-              mediaType: m.mediaType,
-              media: m,
-              rating: m.voteAverage,
-              votes: m.voteCount,
-              released: DateTime.tryParse(m.date ?? ''),
-              genre: g,
-            ));
+      k,
+      () => Candidate(
+        key: k,
+        title: m.title,
+        mediaType: m.mediaType,
+        media: m,
+        rating: m.voteAverage,
+        votes: m.voteCount,
+        released: DateTime.tryParse(m.date ?? ''),
+        genre: g,
+      ),
+    );
   }
 
   final seeds = [...liked, ...disliked];
   await _inBatches(seeds, 6, (w) async {
     final jobs = <Future<void>>[
       if (w.jfId != null)
-        jf.similar(w.jfId!, limit: 12).then((l) {
-          for (final it in l) {
-            if (it.isMovie || it.isSeries) fromItem(it).link(w.key, LinkKind.similar);
-          }
-        }).catchError((_) {}),
+        jf
+            .similar(w.jfId!, limit: 12)
+            .then((l) {
+              for (final it in l) {
+                if (it.isMovie || it.isSeries) fromItem(it).link(w.key, LinkKind.similar);
+              }
+            })
+            .catchError((_) {}),
       if (seerr != null && w.tmdbId != null) ...[
-        cache.list('rec.${w.key}', () => seerr.recommendations(w.mediaType, w.tmdbId!)).then((l) {
-          for (final (i, m) in l.indexed) {
-            fromMedia(m).link(w.key, LinkKind.recommended, rank: i);
-          }
-        }).catchError((_) {}),
-        cache.list('sim.${w.key}', () => seerr.similar(w.mediaType, w.tmdbId!)).then((l) {
-          for (final m in l.take(10)) {
-            fromMedia(m).link(w.key, LinkKind.similar);
-          }
-        }).catchError((_) {}),
+        cache
+            .list('rec.${w.key}', () => seerr.recommendations(w.mediaType, w.tmdbId!))
+            .then((l) {
+              for (final (i, m) in l.indexed) {
+                fromMedia(m).link(w.key, LinkKind.recommended, rank: i);
+              }
+            })
+            .catchError((_) {}),
+        cache
+            .list('sim.${w.key}', () => seerr.similar(w.mediaType, w.tmdbId!))
+            .then((l) {
+              for (final m in l.take(10)) {
+                fromMedia(m).link(w.key, LinkKind.similar);
+              }
+            })
+            .catchError((_) {}),
       ],
     ];
     await Future.wait(jobs);
@@ -318,7 +386,9 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
       }
       // A newer season than the server has, once they've watched everything there.
       if (w.caughtUp && w.jfId != null) {
-        final aired = d.seasons.where((s) => (DateTime.tryParse(s['airDate'] as String? ?? '') ?? now!).isBefore(now!)).length;
+        final aired = d.seasons
+            .where((s) => (DateTime.tryParse(s['airDate'] as String? ?? '') ?? now!).isBefore(now!))
+            .length;
         final have = (seasonsOf[w.jfId] ?? const <JfItem>[]).where((s) => (s.indexNumber ?? 0) > 0).length;
         if (have > 0 && aired > have) fromMedia(d, key: '${w.key}#new').link(w.key, LinkKind.newSeason);
       }
@@ -343,7 +413,13 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
     ].whereType<String>().toList();
     if (ids.isEmpty) return;
     for (final id in ids) {
-      final l = await jf.items(types: const ['Movie', 'Series'], personIds: [id], sortBy: 'CommunityRating', sortOrder: 'Descending', limit: 12);
+      final l = await jf.items(
+        types: const ['Movie', 'Series'],
+        personIds: [id],
+        sortBy: 'CommunityRating',
+        sortOrder: 'Descending',
+        limit: 12,
+      );
       for (final it in l) {
         if (it.id != w.jfId && (it.isMovie || it.isSeries)) fromItem(it).link(w.key, LinkKind.people);
       }
@@ -370,8 +446,9 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
   ].nonNulls.toList();
 
   final popular = [
-    for (final it in library.where((it) => !started(it) && !watched.containsKey(_itemKey(it))).toList()
-      ..sort((a, b) => (b.communityRating ?? 0).compareTo(a.communityRating ?? 0)))
+    for (final it
+        in library.where((it) => !started(it) && !watched.containsKey(_itemKey(it))).toList()
+          ..sort((a, b) => (b.communityRating ?? 0).compareTo(a.communityRating ?? 0)))
       Candidate(key: _itemKey(it), title: it.name, mediaType: it.isSeries ? 'tv' : 'movie', item: it),
   ].take(60).toList();
 
@@ -379,7 +456,8 @@ Future<List<RecommendedRow>> recommend(JellyfinClient jf, SeerrClient? seerr, {S
   return [
     for (final row in rows)
       RecommendedRow(row.title, [
-        for (final s in row.picks) RecPick(item: s.c.item, media: s.c.item == null ? s.c.media : null, reason: reasonFor(s, watched)),
+        for (final s in row.picks)
+          RecPick(item: s.c.item, media: s.c.item == null ? s.c.media : null, reason: reasonFor(s, watched)),
       ]),
   ];
 }

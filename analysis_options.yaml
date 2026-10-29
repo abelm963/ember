@@ -18,6 +18,12 @@ analyzer:
     - macos/**
     - linux/**
 
+# `dart format` settings. Ember's code is written at 120 columns; trailing commas decide
+# whether an argument list is split one per line.
+formatter:
+  page_width: 120
+  trailing_commas: preserve
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

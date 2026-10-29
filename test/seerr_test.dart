@@ -13,16 +13,31 @@ void main() {
     String? valid;
     final mock = MockClient((req) async {
       final p = req.url.path;
-      if (p.endsWith('/quickconnect/initiate')) return http.Response(jsonEncode({'code': '123456', 'secret': 's$sessions'}), 200);
-      if (p.endsWith('/quickconnect/check')) return http.Response(jsonEncode({'authenticated': authorized.isNotEmpty}), 200);
+      if (p.endsWith('/quickconnect/initiate')) {
+        return http.Response(jsonEncode({'code': '123456', 'secret': 's$sessions'}), 200);
+      }
+      if (p.endsWith('/quickconnect/check')) {
+        return http.Response(jsonEncode({'authenticated': authorized.isNotEmpty}), 200);
+      }
       if (p.endsWith('/quickconnect/authenticate')) {
         sessions++;
         valid = 'sid$sessions';
-        return http.Response(jsonEncode({'id': 1}), 200, headers: {'set-cookie': 'connect.sid=$valid; Path=/; HttpOnly'});
+        return http.Response(
+          jsonEncode({'id': 1}),
+          200,
+          headers: {'set-cookie': 'connect.sid=$valid; Path=/; HttpOnly'},
+        );
       }
       final ok = req.headers['cookie']?.contains('connect.sid=$valid') ?? false;
       if (!ok) return http.Response(jsonEncode({'message': 'Unauthorized'}), 401);
-      return http.Response(jsonEncode({'results': [{'id': 1, 'mediaType': 'movie', 'title': 'Dune'}]}), 200);
+      return http.Response(
+        jsonEncode({
+          'results': [
+            {'id': 1, 'mediaType': 'movie', 'title': 'Dune'},
+          ],
+        }),
+        200,
+      );
     });
     await http.runWithClient(() async {
       final s = SeerrClient(baseUrl: 'https://seerr.test/login');
@@ -163,21 +178,30 @@ void main() {
       asked.add(r.url.path);
       final base = r.url.path.contains('/movie/1/') ? 10 : 12;
       return http.Response(
-          jsonEncode({
-            'results': [
-              for (var i = base; i < base + 5; i++) {'id': i, 'title': 'T$i'},
-              {'id': 99, 'title': 'On the server', 'mediaInfo': {'status': 5}},
-              {'id': 2, 'title': 'Watched already'},
-            ]
-          }),
-          200);
+        jsonEncode({
+          'results': [
+            for (var i = base; i < base + 5; i++) {'id': i, 'title': 'T$i'},
+            {
+              'id': 99,
+              'title': 'On the server',
+              'mediaInfo': {'status': 5},
+            },
+            {'id': 2, 'title': 'Watched already'},
+          ],
+        }),
+        200,
+      );
     });
     final rows = await http.runWithClient(() {
       final s = SeerrClient(baseUrl: 'http://seerr.test', apiKey: 'k');
-      return becauseYouWatched(s, [
-        (title: 'First', mediaType: 'movie', tmdbId: 1),
-        (title: 'Second', mediaType: 'movie', tmdbId: 2),
-      ], skip: {'movie:11'});
+      return becauseYouWatched(
+        s,
+        [
+          (title: 'First', mediaType: 'movie', tmdbId: 1),
+          (title: 'Second', mediaType: 'movie', tmdbId: 2),
+        ],
+        skip: {'movie:11'},
+      );
     }, () => mock);
     expect(asked, ['/api/v1/movie/1/recommendations', '/api/v1/movie/2/recommendations']);
     // 11 is skipped, 99 is on the server, 2 was watched. The second row would only have 15 and 16

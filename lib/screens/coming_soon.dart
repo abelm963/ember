@@ -15,6 +15,7 @@ import 'preview.dart';
 /// One thing on the release calendar.
 class _Release {
   final DateTime day;
+
   /// cinema, digital, series (new show), season (new season of a show), episode (show on the server).
   final String kind;
   final String mediaType;
@@ -48,11 +49,11 @@ class _Release {
   bool get isMovie => mediaType == 'movie';
   bool get yourShow => episode != null || (!isMovie && inLibrary != null);
   bool matches(String filter) => switch (filter) {
-        'Movies' => isMovie,
-        'Shows' => !isMovie && episode == null,
-        'Your shows' => yourShow,
-        _ => true,
-      };
+    'Movies' => isMovie,
+    'Shows' => !isMovie && episode == null,
+    'Your shows' => yourShow,
+    _ => true,
+  };
 
   /// Seerr's status for this (the season, for shows): 2 pending, 3 processing, 4 partial, 5 available.
   int? get seerrStatus {
@@ -73,10 +74,32 @@ class _Release {
 
 // TMDB genre ids → names (movie and TV lists combined; they're stable).
 const _genres = {
-  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama',
-  10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
-  878: 'Sci-Fi', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western', 10759: 'Action & Adventure',
-  10762: 'Kids', 10763: 'News', 10764: 'Reality', 10765: 'Sci-Fi & Fantasy', 10766: 'Soap', 10767: 'Talk',
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Sci-Fi',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+  10759: 'Action & Adventure',
+  10762: 'Kids',
+  10763: 'News',
+  10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy',
+  10766: 'Soap',
+  10767: 'Talk',
   10768: 'War & Politics',
 };
 
@@ -140,7 +163,9 @@ class _ComingSoonViewState extends State<ComingSoonView> {
       jf.releaseCalendar(region: _region()).catchError((_) => null),
       jf.upcomingEpisodes().catchError((_) => <JfItem>[]),
       jf.libraryByTmdb().catchError((_) => <String, JfItem>{}),
-      seerr == null ? Future.value(<String, Map<String, dynamic>>{}) : seerr.allMedia().catchError((_) => <String, Map<String, dynamic>>{}),
+      seerr == null
+          ? Future.value(<String, Map<String, dynamic>>{})
+          : seerr.allMedia().catchError((_) => <String, Map<String, dynamic>>{}),
     ]);
     final calendar = r[0] as List<Map<String, dynamic>>?;
     final episodes = r[1] as List<JfItem>;
@@ -151,15 +176,17 @@ class _ComingSoonViewState extends State<ComingSoonView> {
     // Shows on the server: their next episodes arrive by themselves.
     for (final e in episodes) {
       if (e.premiereDate == null) continue;
-      all.add(_Release(
-        day: _dayOf(e.premiereDate!),
-        kind: 'episode',
-        mediaType: 'tv',
-        title: e.seriesName ?? e.name,
-        overview: e.overview,
-        image: jf.landscapeImage(e),
-        episode: e,
-      ));
+      all.add(
+        _Release(
+          day: _dayOf(e.premiereDate!),
+          kind: 'episode',
+          mediaType: 'tv',
+          title: e.seriesName ?? e.name,
+          overview: e.overview,
+          image: jf.landscapeImage(e),
+          episode: e,
+        ),
+      );
     }
 
     if (calendar != null) {
@@ -167,40 +194,48 @@ class _ComingSoonViewState extends State<ComingSoonView> {
       for (final c in calendar) {
         final day = _date(c['date']);
         if (day == null) continue;
-        all.add(_Release(
-          day: day,
-          kind: '${c['kind']}',
-          mediaType: '${c['mediaType']}',
-          tmdbId: (c['tmdbId'] as num?)?.toInt(),
-          title: '${c['title']}',
-          overview: c['overview'] as String?,
-          image: SeerrMedia.image(c['backdropPath'] as String? ?? c['posterPath'] as String?, size: 'w780'),
-          genres: ((c['genres'] as List?) ?? const []).map((g) => '$g').toList(),
-          season: (c['seasonNumber'] as num?)?.toInt(),
-          cinemaDate: _date(c['cinemaDate']),
-          digitalDate: _date(c['digitalDate']),
-        ));
+        all.add(
+          _Release(
+            day: day,
+            kind: '${c['kind']}',
+            mediaType: '${c['mediaType']}',
+            tmdbId: (c['tmdbId'] as num?)?.toInt(),
+            title: '${c['title']}',
+            overview: c['overview'] as String?,
+            image: SeerrMedia.image(c['backdropPath'] as String? ?? c['posterPath'] as String?, size: 'w780'),
+            genres: ((c['genres'] as List?) ?? const []).map((g) => '$g').toList(),
+            season: (c['seasonNumber'] as num?)?.toInt(),
+            cinemaDate: _date(c['cinemaDate']),
+            digitalDate: _date(c['digitalDate']),
+          ),
+        );
       }
     } else if (seerr != null) {
       // Older plugin or none: Seerr's release search (movies and brand-new shows only).
       final lists = await Future.wait([
         for (final type in const ['movie', 'tv'])
-          for (var page = 1; page <= 3; page++) seerr.releasing(type, today, until, page: page).catchError((_) => <SeerrMedia>[]),
+          for (var page = 1; page <= 3; page++)
+            seerr.releasing(type, today, until, page: page).catchError((_) => <SeerrMedia>[]),
       ]);
       for (final m in lists.expand((l) => l)) {
         final day = _date(m.date);
         if (day == null) continue;
-        all.add(_Release(
-          day: day,
-          kind: m.isTv ? 'series' : 'cinema',
-          mediaType: m.mediaType,
-          tmdbId: m.id,
-          title: m.title,
-          overview: m.overview,
-          image: m.backdropUrl ?? m.posterUrl,
-          genres: ((m.raw['genreIds'] as List?) ?? const []).map((g) => _genres[(g as num).toInt()]).whereType<String>().toList(),
-          season: m.isTv ? 1 : null,
-        ));
+        all.add(
+          _Release(
+            day: day,
+            kind: m.isTv ? 'series' : 'cinema',
+            mediaType: m.mediaType,
+            tmdbId: m.id,
+            title: m.title,
+            overview: m.overview,
+            image: m.backdropUrl ?? m.posterUrl,
+            genres: ((m.raw['genreIds'] as List?) ?? const [])
+                .map((g) => _genres[(g as num).toInt()])
+                .whereType<String>()
+                .toList(),
+            season: m.isTv ? 1 : null,
+          ),
+        );
       }
     }
 
@@ -227,40 +262,51 @@ class _ComingSoonViewState extends State<ComingSoonView> {
     return Loader<List<_Release>>(
       deps: '${app.revision}-$_reload',
       load: () => _load(app),
-      placeholder: ListView(padding: EdgeInsets.only(top: context.px(widget.top ?? (app.isPhone ? 30 : 60))), children: [
-        widget.header,
-        SkeletonPulse(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: pad),
-            child: Column(children: [
-              for (var i = 0; i < 3; i++)
-                Padding(
-                  padding: EdgeInsets.only(bottom: context.px(40)),
-                  // Cut off at the screen's edge on narrow screens rather than overflowing.
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Bone(110, 110, radius: 14),
-                    SizedBox(width: context.px(30)),
-                    const Bone(520, 292, radius: 14),
-                    SizedBox(width: context.px(36)),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Bone(420, 44),
-                      SizedBox(height: context.px(18)),
-                      const Bone(260, 26),
-                      SizedBox(height: context.px(18)),
-                      const Bone(560, 22),
-                      SizedBox(height: context.px(10)),
-                      const Bone(520, 22),
-                    ]),
-                  ]),
-                  ),
-                ),
-            ]),
+      placeholder: ListView(
+        padding: EdgeInsets.only(top: context.px(widget.top ?? (app.isPhone ? 30 : 60))),
+        children: [
+          widget.header,
+          SkeletonPulse(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: pad),
+              child: Column(
+                children: [
+                  for (var i = 0; i < 3; i++)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: context.px(40)),
+                      // Cut off at the screen's edge on narrow screens rather than overflowing.
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Bone(110, 110, radius: 14),
+                            SizedBox(width: context.px(30)),
+                            const Bone(520, 292, radius: 14),
+                            SizedBox(width: context.px(36)),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Bone(420, 44),
+                                SizedBox(height: context.px(18)),
+                                const Bone(260, 26),
+                                SizedBox(height: context.px(18)),
+                                const Bone(560, 22),
+                                SizedBox(height: context.px(10)),
+                                const Bone(520, 22),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
       builder: (context, all) {
         const filters = ComingSoonView.filters;
         final filter = widget.filter ?? _filter;
@@ -277,31 +323,42 @@ class _ComingSoonViewState extends State<ComingSoonView> {
           itemCount: entries.length + 1,
           itemBuilder: (context, i) {
             if (i == 0) {
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                widget.header,
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: pad),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      app.seerrConfigured
-                          ? 'The next four months of movies, new shows and new seasons. Request anything now and it\'s added as soon as it can be.'
-                          : 'What\'s coming in the next four months. Connect Seerr in Settings to request titles ahead of time.',
-                      style: body(context.px(23), color: C.faint),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  widget.header,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: pad),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          app.seerrConfigured
+                              ? 'The next four months of movies, new shows and new seasons. Request anything now and it\'s added as soon as it can be.'
+                              : 'What\'s coming in the next four months. Connect Seerr in Settings to request titles ahead of time.',
+                          style: body(context.px(23), color: C.faint),
+                        ),
+                        if (widget.filter == null) ...[
+                          SizedBox(height: context.px(24)),
+                          FocusTraversalGroup(
+                            child: Wrap(
+                              spacing: context.px(12),
+                              runSpacing: context.px(12),
+                              children: [
+                                for (final f in filters)
+                                  Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: context.px(36)),
+                        if (entries.isEmpty)
+                          Text('Nothing scheduled here yet.', style: body(context.px(24), color: C.faint)),
+                      ],
                     ),
-                    if (widget.filter == null) ...[
-                      SizedBox(height: context.px(24)),
-                      FocusTraversalGroup(
-                        child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-                          for (final f in filters)
-                            Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
-                        ]),
-                      ),
-                    ],
-                    SizedBox(height: context.px(36)),
-                    if (entries.isEmpty) Text('Nothing scheduled here yet.', style: body(context.px(24), color: C.faint)),
-                  ]),
-                ),
-              ]);
+                  ),
+                ],
+              );
             }
             final e = entries[i - 1];
             return _DayGroup(
@@ -332,40 +389,60 @@ class _DayGroup extends StatelessWidget {
       width: context.px(app.isPhone ? 0 : 110),
       child: app.isPhone
           ? null
-          : Column(children: [
-              Text(_months[day.month - 1].toUpperCase(),
-                  style: body(context.px(22), color: C.accent, weight: FontWeight.w700).copyWith(letterSpacing: context.px(3))),
-              Text('${day.day}', style: display(context.px(64), height: 1.0)),
-              Text(_weekdays[day.weekday - 1].substring(0, 3), style: body(context.px(20), color: C.faint)),
-            ]),
+          : Column(
+              children: [
+                Text(
+                  _months[day.month - 1].toUpperCase(),
+                  style: body(
+                    context.px(22),
+                    color: C.accent,
+                    weight: FontWeight.w700,
+                  ).copyWith(letterSpacing: context.px(3)),
+                ),
+                Text('${day.day}', style: display(context.px(64), height: 1.0)),
+                Text(_weekdays[day.weekday - 1].substring(0, 3), style: body(context.px(20), color: C.faint)),
+              ],
+            ),
     );
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: pad),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (firstOfMonth)
-          Padding(
-            padding: EdgeInsets.only(bottom: context.px(26), top: context.px(10)),
-            child: Text('${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][day.month - 1]}'
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (firstOfMonth)
+            Padding(
+              padding: EdgeInsets.only(bottom: context.px(26), top: context.px(10)),
+              child: Text(
+                '${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][day.month - 1]}'
                 '${day.year != DateTime.now().year ? ' ${day.year}' : ''}',
-                style: display(context.px(44))),
+                style: display(context.px(44)),
+              ),
+            ),
+          if (app.isPhone)
+            Padding(
+              padding: EdgeInsets.only(bottom: context.px(14)),
+              child: Text(
+                '${_weekdays[day.weekday - 1]} ${day.day} ${_months[day.month - 1]}',
+                style: body(context.px(30), color: C.accent, weight: FontWeight.w700),
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              dateBox,
+              if (!app.isPhone) SizedBox(width: context.px(30)),
+              Expanded(
+                child: Column(
+                  children: [
+                    for (final r in releases) _ReleaseCard(release: r, onRequested: onRequested),
+                  ],
+                ),
+              ),
+            ],
           ),
-        if (app.isPhone)
-          Padding(
-            padding: EdgeInsets.only(bottom: context.px(14)),
-            child: Text('${_weekdays[day.weekday - 1]} ${day.day} ${_months[day.month - 1]}',
-                style: body(context.px(30), color: C.accent, weight: FontWeight.w700)),
-          ),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          dateBox,
-          if (!app.isPhone) SizedBox(width: context.px(30)),
-          Expanded(
-            child: Column(children: [
-              for (final r in releases) _ReleaseCard(release: r, onRequested: onRequested),
-            ]),
-          ),
-        ]),
-        SizedBox(height: context.px(18)),
-      ]),
+          SizedBox(height: context.px(18)),
+        ],
+      ),
     );
   }
 }
@@ -394,7 +471,11 @@ class _ReleaseCard extends StatelessWidget {
     if (r.episode != null) return openItem(context, r.episode!);
     if (r.inLibrary != null) return openItem(context, r.inLibrary!);
     if (r.tmdbId != null) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => PreviewScreen(mediaType: r.mediaType, tmdbId: r.tmdbId!)));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PreviewScreen(mediaType: r.mediaType, tmdbId: r.tmdbId!),
+        ),
+      );
     }
   }
 
@@ -428,9 +509,10 @@ class _ReleaseCard extends StatelessWidget {
       action = _Note(icon: Icons.check, text: ep != null ? 'On $server · arrives automatically' : 'On $server');
     } else if (r.requested) {
       action = _Note(
-          icon: Icons.schedule,
-          text: r.kind == 'cinema' ? 'Requested · added when it\'s out digitally' : 'Requested · added when it\'s out',
-          accent: true);
+        icon: Icons.schedule,
+        text: r.kind == 'cinema' ? 'Requested · added when it\'s out digitally' : 'Requested · added when it\'s out',
+        accent: true,
+      );
     } else if (app.seerrConfigured && r.tmdbId != null) {
       action = EmberButton(
         label: r.kind == 'season' ? 'Request Season ${r.season}' : 'Request',
@@ -446,27 +528,47 @@ class _ReleaseCard extends StatelessWidget {
       child: SizedBox(
         width: app.isPhone ? double.infinity : context.px(520),
         height: app.isPhone ? null : context.px(292),
-        child: AspectRatio(aspectRatio: 16 / 9, child: NetImage(r.image, fallback: TitleCard(r.title))),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: NetImage(r.image, fallback: TitleCard(r.title)),
+        ),
       ),
     );
 
-    final text = Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      Text(_when(r.day).toUpperCase(),
-          style: body(context.px(19), color: C.accent, weight: FontWeight.w700).copyWith(letterSpacing: context.px(2))),
-      SizedBox(height: context.px(8)),
-      Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: display(context.px(app.isPhone ? 40 : 46))),
-      SizedBox(height: context.px(10)),
-      if (kindLine.isNotEmpty) Text(kindLine, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.muted)),
-      if (r.overview != null && r.overview!.isNotEmpty) ...[
-        SizedBox(height: context.px(12)),
-        Text(r.overview!, maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.faint, height: 1.45)),
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _when(r.day).toUpperCase(),
+          style: body(context.px(19), color: C.accent, weight: FontWeight.w700).copyWith(letterSpacing: context.px(2)),
+        ),
+        SizedBox(height: context.px(8)),
+        Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: display(context.px(app.isPhone ? 40 : 46))),
+        SizedBox(height: context.px(10)),
+        if (kindLine.isNotEmpty)
+          Text(
+            kindLine,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: body(context.px(21), color: C.muted),
+          ),
+        if (r.overview != null && r.overview!.isNotEmpty) ...[
+          SizedBox(height: context.px(12)),
+          Text(
+            r.overview!,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: body(context.px(21), color: C.faint, height: 1.45),
+          ),
+        ],
+        if (arrival != null) ...[
+          SizedBox(height: context.px(12)),
+          Text(arrival, style: body(context.px(20), color: C.blue)),
+        ],
+        if (action != null) ...[SizedBox(height: context.px(18)), action],
       ],
-      if (arrival != null) ...[
-        SizedBox(height: context.px(12)),
-        Text(arrival, style: body(context.px(20), color: C.blue)),
-      ],
-      if (action != null) ...[SizedBox(height: context.px(18)), action],
-    ]);
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: context.px(30)),
@@ -483,12 +585,27 @@ class _ReleaseCard extends StatelessWidget {
               border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(3)),
             ),
             child: app.isPhone
-                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [imageBox, SizedBox(height: context.px(18)), text])
-                : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    imageBox,
-                    SizedBox(width: context.px(36)),
-                    Expanded(child: Padding(padding: EdgeInsets.only(top: context.px(10)), child: text)),
-                  ]),
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      imageBox,
+                      SizedBox(height: context.px(18)),
+                      text,
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      imageBox,
+                      SizedBox(width: context.px(36)),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: context.px(10)),
+                          child: text,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -503,19 +620,25 @@ class _Note extends StatelessWidget {
   const _Note({required this.icon, required this.text, this.accent = false});
   @override
   Widget build(BuildContext context) => Container(
-        height: context.px(48),
-        padding: EdgeInsets.symmetric(horizontal: context.px(18)),
-        decoration: BoxDecoration(
-          color: accent ? C.accentDark : const Color(0xFF1B3322),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: context.px(24), color: accent ? C.accent : C.good),
-          SizedBox(width: context.px(10)),
-          Flexible(
-            child: Text(text,
-                overflow: TextOverflow.ellipsis, style: body(context.px(20), weight: FontWeight.w700, color: accent ? C.accent : C.good)),
+    height: context.px(48),
+    padding: EdgeInsets.symmetric(horizontal: context.px(18)),
+    decoration: BoxDecoration(
+      color: accent ? C.accentDark : const Color(0xFF1B3322),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: context.px(24), color: accent ? C.accent : C.good),
+        SizedBox(width: context.px(10)),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: body(context.px(20), weight: FontWeight.w700, color: accent ? C.accent : C.good),
           ),
-        ]),
-      );
+        ),
+      ],
+    ),
+  );
 }

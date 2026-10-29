@@ -14,169 +14,236 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic> movie(String id, String name) => {
-      'Id': id,
-      'Name': name,
-      'Type': 'Movie',
-      'ProductionYear': 2024,
-      'OfficialRating': 'PG-13',
-      'CommunityRating': 7.8,
-      'RunTimeTicks': 72000000000,
-      'Overview': 'A long overview of the film that goes on for a while so we can see wrapping behaviour on screen.',
-      'Genres': ['Drama', 'Sci-Fi'],
-      'ImageTags': {'Primary': 'p'},
-      'BackdropImageTags': ['b'],
-      'UserData': {
-        'PlaybackPositionTicks': 18000000000,
-        'Played': false,
-        'IsFavorite': false,
-        'LastPlayedDate': DateTime.now().subtract(const Duration(days: 3)).toUtc().toIso8601String(),
-      },
-      'ProviderIds': {'Tmdb': '100'},
-      'People': [
-        {'Id': 'p1', 'Name': 'Ada Actor', 'Role': 'Lead', 'Type': 'Actor'},
-        {'Id': 'p2', 'Name': 'Dee Director', 'Type': 'Director'},
-      ],
-      'RemoteTrailers': [
-        {'Url': 'https://www.youtube.com/watch?v=abc'}
-      ],
-      'LocalTrailerCount': 0,
-    };
+  'Id': id,
+  'Name': name,
+  'Type': 'Movie',
+  'ProductionYear': 2024,
+  'OfficialRating': 'PG-13',
+  'CommunityRating': 7.8,
+  'RunTimeTicks': 72000000000,
+  'Overview': 'A long overview of the film that goes on for a while so we can see wrapping behaviour on screen.',
+  'Genres': ['Drama', 'Sci-Fi'],
+  'ImageTags': {'Primary': 'p'},
+  'BackdropImageTags': ['b'],
+  'UserData': {
+    'PlaybackPositionTicks': 18000000000,
+    'Played': false,
+    'IsFavorite': false,
+    'LastPlayedDate': DateTime.now().subtract(const Duration(days: 3)).toUtc().toIso8601String(),
+  },
+  'ProviderIds': {'Tmdb': '100'},
+  'People': [
+    {'Id': 'p1', 'Name': 'Ada Actor', 'Role': 'Lead', 'Type': 'Actor'},
+    {'Id': 'p2', 'Name': 'Dee Director', 'Type': 'Director'},
+  ],
+  'RemoteTrailers': [
+    {'Url': 'https://www.youtube.com/watch?v=abc'},
+  ],
+  'LocalTrailerCount': 0,
+};
 
 Map<String, dynamic> series(String id, String name) => {
-      ...movie(id, name),
-      'Type': 'Series',
-      'ChildCount': 2,
-      'UserData': {'UnplayedItemCount': 3},
-    };
+  ...movie(id, name),
+  'Type': 'Series',
+  'ChildCount': 2,
+  'UserData': {'UnplayedItemCount': 3},
+};
 
 Map<String, dynamic> episode(String id, int s, int e) => {
-      'Id': id,
-      'Name': 'Episode $e title',
-      'Type': 'Episode',
-      'SeriesId': 's1',
-      'SeriesName': 'Harbor Lights',
-      'SeasonId': 'season$s',
-      'IndexNumber': e,
-      'ParentIndexNumber': s,
-      'RunTimeTicks': 30000000000,
-      'Overview': 'Something happens in this episode.',
-      'ImageTags': {'Primary': 'p'},
-      'UserData': {'PlaybackPositionTicks': 0},
-    };
+  'Id': id,
+  'Name': 'Episode $e title',
+  'Type': 'Episode',
+  'SeriesId': 's1',
+  'SeriesName': 'Harbor Lights',
+  'SeasonId': 'season$s',
+  'IndexNumber': e,
+  'ParentIndexNumber': s,
+  'RunTimeTicks': 30000000000,
+  'Overview': 'Something happens in this episode.',
+  'ImageTags': {'Primary': 'p'},
+  'UserData': {'PlaybackPositionTicks': 0},
+};
 
 http.Client mockClient() => MockClient((req) async {
-      final p = req.url.path;
-      Object body;
-      if (p.endsWith('/UserViews')) {
-        body = {
-          'Items': [
-            {'Id': 'lib1', 'Name': 'Movies', 'CollectionType': 'movies', 'Type': 'CollectionFolder'},
-            {'Id': 'lib2', 'Name': 'Shows', 'CollectionType': 'tvshows', 'Type': 'CollectionFolder'},
-          ]
-        };
-      } else if (p.endsWith('/UserItems/Resume')) {
-        body = {'Items': [movie('m1', 'The Quiet Orbit'), episode('e1', 1, 2)]};
-      } else if (p.endsWith('/Shows/NextUp')) {
-        body = {'Items': [episode('e3', 1, 3)]};
-      } else if (p.endsWith('/Items/Latest')) {
-        body = [movie('m2', 'Paper Wolves'), series('s1', 'Harbor Lights')];
-      } else if (p.endsWith('/Shows/s1/Seasons')) {
-        body = {
-          'Items': [
-            {'Id': 'season1', 'Name': 'Season 1', 'Type': 'Season', 'IndexNumber': 1, 'SeriesId': 's1'},
-          ]
-        };
-      } else if (p.endsWith('/Shows/s1/Episodes')) {
-        body = {'Items': [episode('e1', 1, 1), episode('e2', 1, 2)]};
-      } else if (p.endsWith('/Similar')) {
-        body = {'Items': [movie('m3', 'Glasshouse')]};
-      } else if (p.endsWith('/Genres')) {
-        body = {'Items': [{'Name': 'Drama'}, {'Name': 'Comedy'}]};
-      } else if (RegExp(r'/Items/(m\d|s1)$').hasMatch(p)) {
-        final id = p.split('/').last;
-        body = id == 's1' ? series('s1', 'Harbor Lights') : movie(id, 'The Quiet Orbit');
-      } else if (p.endsWith('/Items')) {
-        body = {'Items': [movie('m1', 'The Quiet Orbit'), series('s1', 'Harbor Lights')]};
-      } else if (p.endsWith('/api/v1/discover/movies') || p.endsWith('/api/v1/discover/tv')) {
-        final soon = DateTime.now().add(const Duration(days: 9)).toIso8601String().substring(0, 10);
-        body = {
-          'results': [
-            if (p.endsWith('movies')) {'id': 7, 'mediaType': 'movie', 'title': 'Copper Coast', 'releaseDate': soon, 'genreIds': [18, 53], 'overview': 'A storm is coming.'},
-            if (p.endsWith('tv')) {'id': 8, 'mediaType': 'tv', 'name': 'Low Tide', 'firstAirDate': soon, 'mediaInfo': {'status': 2}},
-          ]
-        };
-      } else if (p.endsWith('/EmberTrailers/Calendar')) {
-        final d = DateTime.now().add(const Duration(days: 12)).toIso8601String().substring(0, 10);
-        final later = DateTime.now().add(const Duration(days: 60)).toIso8601String().substring(0, 10);
-        body = {
-          'items': [
-            {'mediaType': 'movie', 'tmdbId': 7, 'title': 'Copper Coast', 'date': d, 'kind': 'cinema', 'cinemaDate': d, 'digitalDate': later, 'genres': ['Drama']},
-            {'mediaType': 'tv', 'tmdbId': 8, 'title': 'Low Tide', 'date': d, 'kind': 'season', 'seasonNumber': 2, 'genres': ['Drama']},
-          ]
-        };
-      } else if (p.endsWith('/Shows/Upcoming')) {
-        body = {
-          'Items': [
-            {'Id': 'e9', 'Type': 'Episode', 'Name': 'Return', 'SeriesName': 'Harbor Lights', 'SeriesId': 's1', 'ParentIndexNumber': 2, 'IndexNumber': 1,
-             'PremiereDate': DateTime.now().add(const Duration(days: 3)).toUtc().toIso8601String(), 'ImageTags': {}},
-          ]
-        };
-      } else if (p.endsWith('/api/v1/discover/watchlist')) {
-        body = {
-          'page': 1,
-          'totalPages': 1,
-          'results': [
-            {'tmdbId': 5, 'mediaType': 'tv', 'title': 'Kingfisher'},
-          ]
-        };
-      } else if (p.endsWith('/api/v1/discover/trending')) {
-        body = {
-          'results': [
-            {'id': 5, 'mediaType': 'tv', 'name': 'Kingfisher', 'backdropPath': '/x.jpg'},
-            {'id': 6, 'mediaType': 'movie', 'title': 'Ashfall', 'mediaInfo': {'status': 2}},
-          ]
-        };
-      } else if (p.endsWith('/recommendations')) {
-        body = {
-          'results': [
-            for (var i = 0; i < 5; i++) {'id': 40 + i, 'title': 'Pick $i', 'backdropPath': '/p$i.jpg'},
-            {'id': 49, 'title': 'Already Here', 'mediaInfo': {'status': 5}},
-          ]
-        };
-      } else if (p.endsWith('/api/v1/auth/me')) {
-        body = {'id': 1, 'displayName': 'Alex', 'permissions': 2};
-      } else if (p.endsWith('/api/v1/tv/5')) {
-        body = {
-          'id': 5,
-          'name': 'Kingfisher',
-          'overview': 'A river warden logs boats that do not exist.',
-          'firstAirDate': '2024-01-01',
-          'voteAverage': 7.9,
-          'numberOfSeasons': 2,
-          'genres': [{'name': 'Thriller'}],
-          'seasons': [
-            {'seasonNumber': 1, 'name': 'Season 1', 'episodeCount': 10, 'airDate': '2024-01-01'},
-            {'seasonNumber': 2, 'name': 'Season 2', 'episodeCount': 8, 'airDate': '2025-01-01'},
-          ],
-          'credits': {
-            'cast': [
-              {'name': 'Hana L', 'character': 'Iris'}
-            ],
-            'crew': []
+  final p = req.url.path;
+  Object body;
+  if (p.endsWith('/UserViews')) {
+    body = {
+      'Items': [
+        {'Id': 'lib1', 'Name': 'Movies', 'CollectionType': 'movies', 'Type': 'CollectionFolder'},
+        {'Id': 'lib2', 'Name': 'Shows', 'CollectionType': 'tvshows', 'Type': 'CollectionFolder'},
+      ],
+    };
+  } else if (p.endsWith('/UserItems/Resume')) {
+    body = {
+      'Items': [movie('m1', 'The Quiet Orbit'), episode('e1', 1, 2)],
+    };
+  } else if (p.endsWith('/Shows/NextUp')) {
+    body = {
+      'Items': [episode('e3', 1, 3)],
+    };
+  } else if (p.endsWith('/Items/Latest')) {
+    body = [movie('m2', 'Paper Wolves'), series('s1', 'Harbor Lights')];
+  } else if (p.endsWith('/Shows/s1/Seasons')) {
+    body = {
+      'Items': [
+        {'Id': 'season1', 'Name': 'Season 1', 'Type': 'Season', 'IndexNumber': 1, 'SeriesId': 's1'},
+      ],
+    };
+  } else if (p.endsWith('/Shows/s1/Episodes')) {
+    body = {
+      'Items': [episode('e1', 1, 1), episode('e2', 1, 2)],
+    };
+  } else if (p.endsWith('/Similar')) {
+    body = {
+      'Items': [movie('m3', 'Glasshouse')],
+    };
+  } else if (p.endsWith('/Genres')) {
+    body = {
+      'Items': [
+        {'Name': 'Drama'},
+        {'Name': 'Comedy'},
+      ],
+    };
+  } else if (RegExp(r'/Items/(m\d|s1)$').hasMatch(p)) {
+    final id = p.split('/').last;
+    body = id == 's1' ? series('s1', 'Harbor Lights') : movie(id, 'The Quiet Orbit');
+  } else if (p.endsWith('/Items')) {
+    body = {
+      'Items': [movie('m1', 'The Quiet Orbit'), series('s1', 'Harbor Lights')],
+    };
+  } else if (p.endsWith('/api/v1/discover/movies') || p.endsWith('/api/v1/discover/tv')) {
+    final soon = DateTime.now().add(const Duration(days: 9)).toIso8601String().substring(0, 10);
+    body = {
+      'results': [
+        if (p.endsWith('movies'))
+          {
+            'id': 7,
+            'mediaType': 'movie',
+            'title': 'Copper Coast',
+            'releaseDate': soon,
+            'genreIds': [18, 53],
+            'overview': 'A storm is coming.',
           },
-          'relatedVideos': [
-            {'site': 'YouTube', 'type': 'Trailer', 'key': 'xyz'}
-          ],
-        };
-      } else if (p.contains('/api/v1/tv/5/similar') || p.contains('/api/v1/search')) {
-        body = {'results': []};
-      } else if (p.endsWith('/api/v1/request')) {
-        body = {'results': []};
-      } else {
-        body = {'Items': []};
-      }
-      return http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
-    });
+        if (p.endsWith('tv'))
+          {
+            'id': 8,
+            'mediaType': 'tv',
+            'name': 'Low Tide',
+            'firstAirDate': soon,
+            'mediaInfo': {'status': 2},
+          },
+      ],
+    };
+  } else if (p.endsWith('/EmberTrailers/Calendar')) {
+    final d = DateTime.now().add(const Duration(days: 12)).toIso8601String().substring(0, 10);
+    final later = DateTime.now().add(const Duration(days: 60)).toIso8601String().substring(0, 10);
+    body = {
+      'items': [
+        {
+          'mediaType': 'movie',
+          'tmdbId': 7,
+          'title': 'Copper Coast',
+          'date': d,
+          'kind': 'cinema',
+          'cinemaDate': d,
+          'digitalDate': later,
+          'genres': ['Drama'],
+        },
+        {
+          'mediaType': 'tv',
+          'tmdbId': 8,
+          'title': 'Low Tide',
+          'date': d,
+          'kind': 'season',
+          'seasonNumber': 2,
+          'genres': ['Drama'],
+        },
+      ],
+    };
+  } else if (p.endsWith('/Shows/Upcoming')) {
+    body = {
+      'Items': [
+        {
+          'Id': 'e9',
+          'Type': 'Episode',
+          'Name': 'Return',
+          'SeriesName': 'Harbor Lights',
+          'SeriesId': 's1',
+          'ParentIndexNumber': 2,
+          'IndexNumber': 1,
+          'PremiereDate': DateTime.now().add(const Duration(days: 3)).toUtc().toIso8601String(),
+          'ImageTags': {},
+        },
+      ],
+    };
+  } else if (p.endsWith('/api/v1/discover/watchlist')) {
+    body = {
+      'page': 1,
+      'totalPages': 1,
+      'results': [
+        {'tmdbId': 5, 'mediaType': 'tv', 'title': 'Kingfisher'},
+      ],
+    };
+  } else if (p.endsWith('/api/v1/discover/trending')) {
+    body = {
+      'results': [
+        {'id': 5, 'mediaType': 'tv', 'name': 'Kingfisher', 'backdropPath': '/x.jpg'},
+        {
+          'id': 6,
+          'mediaType': 'movie',
+          'title': 'Ashfall',
+          'mediaInfo': {'status': 2},
+        },
+      ],
+    };
+  } else if (p.endsWith('/recommendations')) {
+    body = {
+      'results': [
+        for (var i = 0; i < 5; i++) {'id': 40 + i, 'title': 'Pick $i', 'backdropPath': '/p$i.jpg'},
+        {
+          'id': 49,
+          'title': 'Already Here',
+          'mediaInfo': {'status': 5},
+        },
+      ],
+    };
+  } else if (p.endsWith('/api/v1/auth/me')) {
+    body = {'id': 1, 'displayName': 'Alex', 'permissions': 2};
+  } else if (p.endsWith('/api/v1/tv/5')) {
+    body = {
+      'id': 5,
+      'name': 'Kingfisher',
+      'overview': 'A river warden logs boats that do not exist.',
+      'firstAirDate': '2024-01-01',
+      'voteAverage': 7.9,
+      'numberOfSeasons': 2,
+      'genres': [
+        {'name': 'Thriller'},
+      ],
+      'seasons': [
+        {'seasonNumber': 1, 'name': 'Season 1', 'episodeCount': 10, 'airDate': '2024-01-01'},
+        {'seasonNumber': 2, 'name': 'Season 2', 'episodeCount': 8, 'airDate': '2025-01-01'},
+      ],
+      'credits': {
+        'cast': [
+          {'name': 'Hana L', 'character': 'Iris'},
+        ],
+        'crew': [],
+      },
+      'relatedVideos': [
+        {'site': 'YouTube', 'type': 'Trailer', 'key': 'xyz'},
+      ],
+    };
+  } else if (p.contains('/api/v1/tv/5/similar') || p.contains('/api/v1/search')) {
+    body = {'results': []};
+  } else if (p.endsWith('/api/v1/request')) {
+    body = {'results': []};
+  } else {
+    body = {'Items': []};
+  }
+  return http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
+});
 
 Future<AppState> signedInState(String mode) async {
   SharedPreferences.setMockInitialValues({
@@ -194,7 +261,7 @@ Future<AppState> signedInState(String mode) async {
         'token': 't',
         'isAdmin': true,
         'seerrCookie': 'connect.sid=abc',
-      }
+      },
     ]),
   });
   final s = AppState();
@@ -289,7 +356,9 @@ void main() {
           await tester.pump(const Duration(milliseconds: 100));
         }
         expect(find.text('Cast & Crew', skipOffstage: false), findsWidgets);
-        navigatorKey.currentState!.push(MaterialPageRoute(builder: (_) => const PreviewScreen(mediaType: 'tv', tmdbId: 5)));
+        navigatorKey.currentState!.push(
+          MaterialPageRoute(builder: (_) => const PreviewScreen(mediaType: 'tv', tmdbId: 5)),
+        );
         for (var i = 0; i < 6; i++) {
           await tester.pump(const Duration(milliseconds: 100));
         }

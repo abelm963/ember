@@ -38,12 +38,12 @@ List<MediaSegment> tidySegments(List<MediaSegment> raw, Duration runtime, {List<
   }
 
   bool fits(MediaSegment s) => switch (s.type) {
-        'Intro' => early(s.start) && s.end - s.start <= _maxIntro,
-        'Recap' => early(s.start) && s.end - s.start <= _maxRecap,
-        // Credits only near the end; a "credits" mark mid-episode would end the episode early.
-        'Outro' || 'Preview' => late(s.start),
-        _ => false,
-      };
+    'Intro' => early(s.start) && s.end - s.start <= _maxIntro,
+    'Recap' => early(s.start) && s.end - s.start <= _maxRecap,
+    // Credits only near the end; a "credits" mark mid-episode would end the episode early.
+    'Outro' || 'Preview' => late(s.start),
+    _ => false,
+  };
 
   final out = <String, MediaSegment>{};
   final sorted = [...raw]..sort((a, b) => a.start.compareTo(b.start));

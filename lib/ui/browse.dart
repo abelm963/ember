@@ -15,6 +15,7 @@ import 'widgets.dart';
 class PageHeader extends StatelessWidget {
   final String title;
   final List<Widget> tabs;
+
   /// The page's filters, read again after each pick so the panel shows what the page now has.
   final List<FilterGroup> Function()? filters;
   final String? note;
@@ -27,22 +28,33 @@ class PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final gap = SizedBox(width: context.px(12));
     return FocusTraversalGroup(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text(title, maxLines: 1, style: display(context.px(52), height: 1.1)),
-        SizedBox(height: context.px(14)),
-        SizedBox(
-          height: context.px(48),
-          child: Row(children: [
-            for (final t in tabs) ...[t, gap],
-            if (note != null)
-              Flexible(
-                child: Text(note!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(20), color: C.faint)),
-              ),
-            const Spacer(),
-            if (filters != null) FilterButton(groups: filters!),
-          ]),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, maxLines: 1, style: display(context.px(52), height: 1.1)),
+          SizedBox(height: context.px(14)),
+          SizedBox(
+            height: context.px(48),
+            child: Row(
+              children: [
+                for (final t in tabs) ...[t, gap],
+                if (note != null)
+                  Flexible(
+                    child: Text(
+                      note!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: body(context.px(20), color: C.faint),
+                    ),
+                  ),
+                const Spacer(),
+                if (filters != null) FilterButton(groups: filters!),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -65,7 +77,10 @@ class FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final on = [for (final g in groups()) if (g.selected > 0) g.options[g.selected]];
+    final on = [
+      for (final g in groups())
+        if (g.selected > 0) g.options[g.selected],
+    ];
     return Focusable(
       onTap: () => showFilterPanel(context, groups),
       semanticLabel: on.isEmpty ? 'Filters' : 'Filters: ${on.join(', ')}',
@@ -82,13 +97,20 @@ class FilterButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             border: on.isNotEmpty && !active ? Border.all(color: Colors.white, width: context.px(2)) : null,
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-            if (on.isNotEmpty) ...[
-              Text(on.join(' · '), style: body(context.px(19), color: fg, weight: FontWeight.w600)),
-              SizedBox(width: context.px(10)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (on.isNotEmpty) ...[
+                Text(
+                  on.join(' · '),
+                  style: body(context.px(19), color: fg, weight: FontWeight.w600),
+                ),
+                SizedBox(width: context.px(10)),
+              ],
+              Icon(Icons.filter_list_rounded, color: fg, size: context.px(26)),
             ],
-            Icon(Icons.filter_list_rounded, color: fg, size: context.px(26)),
-          ]),
+          ),
         );
       },
     );
@@ -105,82 +127,101 @@ Future<void> showFilterPanel(BuildContext context, List<FilterGroup> Function() 
     barrierColor: const Color(0x99000000),
     transitionDuration: const Duration(milliseconds: 200),
     transitionBuilder: (context, anim, _, child) => SlideTransition(
-      position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      position: Tween(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
       child: child,
     ),
     pageBuilder: (ctx, _, _) => Align(
       alignment: Alignment.centerRight,
-      child: StatefulBuilder(builder: (ctx, setPanel) {
-        final groups = read();
-        final picked = [for (final g in groups) g.selected];
-        return Material(
-          color: C.surface,
-          child: SizedBox(
-            width: ctx.px(560),
-            height: double.infinity,
-            child: FocusTraversalGroup(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(ctx.px(44), ctx.px(60), ctx.px(44), ctx.px(60)),
-                children: [
-                  Row(children: [
-                    Expanded(child: Text('Filters', style: display(ctx.px(46)))),
-                    if (picked.any((p) => p > 0))
-                      PillButton(
-                        label: 'Clear',
-                        compact: true,
-                        onTap: () => setPanel(() {
-                          for (var i = 0; i < groups.length; i++) {
-                            if (picked[i] > 0) groups[i].onPick(0);
-                          }
-                        }),
+      child: StatefulBuilder(
+        builder: (ctx, setPanel) {
+          final groups = read();
+          final picked = [for (final g in groups) g.selected];
+          return Material(
+            color: C.surface,
+            child: SizedBox(
+              width: ctx.px(560),
+              height: double.infinity,
+              child: FocusTraversalGroup(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(ctx.px(44), ctx.px(60), ctx.px(44), ctx.px(60)),
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text('Filters', style: display(ctx.px(46)))),
+                        if (picked.any((p) => p > 0))
+                          PillButton(
+                            label: 'Clear',
+                            compact: true,
+                            onTap: () => setPanel(() {
+                              for (var i = 0; i < groups.length; i++) {
+                                if (picked[i] > 0) groups[i].onPick(0);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                    for (var gi = 0; gi < groups.length; gi++) ...[
+                      SizedBox(height: ctx.px(34)),
+                      Text(
+                        groups[gi].title.toUpperCase(),
+                        style: body(ctx.px(18), color: C.faint, weight: FontWeight.w700).copyWith(letterSpacing: 3),
                       ),
-                  ]),
-                  for (var gi = 0; gi < groups.length; gi++) ...[
-                    SizedBox(height: ctx.px(34)),
-                    Text(groups[gi].title.toUpperCase(),
-                        style: body(ctx.px(18), color: C.faint, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
-                    SizedBox(height: ctx.px(12)),
-                    for (var oi = 0; oi < groups[gi].options.length; oi++)
-                      Padding(
-                        padding: EdgeInsets.only(bottom: ctx.px(6)),
-                        child: Focusable(
-                          autofocus: gi == 0 && oi == picked[0],
-                          semanticLabel: groups[gi].options[oi],
-                          onTap: () => setPanel(() {
-                            if (picked[gi] != oi) groups[gi].onPick(oi);
-                          }),
-                          builder: (context, active) => Container(
-                            height: context.px(58),
-                            padding: EdgeInsets.symmetric(horizontal: context.px(18)),
-                            decoration: BoxDecoration(
-                              color: active ? C.text : Colors.transparent,
-                              borderRadius: BorderRadius.circular(context.px(12)),
-                            ),
-                            child: Row(children: [
-                              Expanded(
-                                child: Text(groups[gi].options[oi],
-                                    style: body(context.px(23),
-                                        weight: picked[gi] == oi ? FontWeight.w700 : FontWeight.w500,
-                                        color: active ? const Color(0xFF111111) : (picked[gi] == oi ? C.text : C.muted))),
+                      SizedBox(height: ctx.px(12)),
+                      for (var oi = 0; oi < groups[gi].options.length; oi++)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: ctx.px(6)),
+                          child: Focusable(
+                            autofocus: gi == 0 && oi == picked[0],
+                            semanticLabel: groups[gi].options[oi],
+                            onTap: () => setPanel(() {
+                              if (picked[gi] != oi) groups[gi].onPick(oi);
+                            }),
+                            builder: (context, active) => Container(
+                              height: context.px(58),
+                              padding: EdgeInsets.symmetric(horizontal: context.px(18)),
+                              decoration: BoxDecoration(
+                                color: active ? C.text : Colors.transparent,
+                                borderRadius: BorderRadius.circular(context.px(12)),
                               ),
-                              if (picked[gi] == oi)
-                                Icon(Icons.check_rounded, color: active ? const Color(0xFF111111) : C.accent, size: context.px(28)),
-                            ]),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      groups[gi].options[oi],
+                                      style: body(
+                                        context.px(23),
+                                        weight: picked[gi] == oi ? FontWeight.w700 : FontWeight.w500,
+                                        color: active ? const Color(0xFF111111) : (picked[gi] == oi ? C.text : C.muted),
+                                      ),
+                                    ),
+                                  ),
+                                  if (picked[gi] == oi)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      color: active ? const Color(0xFF111111) : C.accent,
+                                      size: context.px(28),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                    ],
+                    SizedBox(height: ctx.px(30)),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: EmberButton(label: 'Done', onTap: () => Navigator.pop(ctx)),
+                    ),
                   ],
-                  SizedBox(height: ctx.px(30)),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: EmberButton(label: 'Done', onTap: () => Navigator.pop(ctx)),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     ),
   );
 }
@@ -227,7 +268,10 @@ class PillButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[Icon(icon, color: fg, size: context.px(compact ? 24 : 28)), SizedBox(width: context.px(8))],
+            if (icon != null) ...[
+              Icon(icon, color: fg, size: context.px(compact ? 24 : 28)),
+              SizedBox(width: context.px(8)),
+            ],
             Text(
               label,
               style: body(context.px(compact ? 19 : 22), color: fg, weight: FontWeight.w600),
@@ -274,7 +318,10 @@ class ActionItem extends StatelessWidget {
           width: context.px(width),
           height: context.px(54),
           padding: EdgeInsets.symmetric(horizontal: context.px(22)),
-          decoration: BoxDecoration(color: active ? C.text : Colors.transparent, borderRadius: BorderRadius.circular(999)),
+          decoration: BoxDecoration(
+            color: active ? C.text : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
           child: Row(
             children: [
               Icon(icon, color: fg, size: context.px(26)),
@@ -361,24 +408,24 @@ class PosterEntry {
   });
 
   PosterEntry withReason(String? why) => PosterEntry(
-        title: title,
-        onTap: onTap,
-        poster: poster,
-        wide: wide,
-        logo: logo,
-        subtitle: subtitle,
-        note: note,
-        progress: progress,
-        meta: meta,
-        rating: rating,
-        overview: overview,
-        badge: badge,
-        badgeAlt: badgeAlt,
-        backdrop: backdrop,
-        rank: rank,
-        wideTitled: wideTitled,
-        reason: why == null || why.isEmpty ? null : why,
-      );
+    title: title,
+    onTap: onTap,
+    poster: poster,
+    wide: wide,
+    logo: logo,
+    subtitle: subtitle,
+    note: note,
+    progress: progress,
+    meta: meta,
+    rating: rating,
+    overview: overview,
+    badge: badge,
+    badgeAlt: badgeAlt,
+    backdrop: backdrop,
+    rank: rank,
+    wideTitled: wideTitled,
+    reason: why == null || why.isEmpty ? null : why,
+  );
 }
 
 /// A titled row of posters. The focused poster widens into the title's picture, and its details
@@ -532,7 +579,12 @@ class _Details extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (e.reason != null)
-          Text(e.reason!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(19), color: C.accent, weight: FontWeight.w700)),
+          Text(
+            e.reason!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: body(context.px(19), color: C.accent, weight: FontWeight.w700),
+          ),
         MetaDots(parts: e.meta, rating: e.rating, size: 19),
         if (e.overview != null) ...[
           SizedBox(height: context.px(6)),
@@ -658,7 +710,11 @@ class _Poster extends StatelessWidget {
                   Positioned(
                     top: context.px(10),
                     right: context.px(10),
-                    child: Pill(e.badge!, bg: e.badgeAlt ? C.text : C.accent, fg: e.badgeAlt ? const Color(0xFF141414) : C.accentInk),
+                    child: Pill(
+                      e.badge!,
+                      bg: e.badgeAlt ? C.text : C.accent,
+                      fg: e.badgeAlt ? const Color(0xFF141414) : C.accentInk,
+                    ),
                   ),
               ],
             ),
@@ -806,7 +862,8 @@ class _BillboardState extends State<Billboard> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (picture != null) NetImage(picture, alignment: Alignment.topCenter, fallback: const SizedBox.shrink()),
+                  if (picture != null)
+                    NetImage(picture, alignment: Alignment.topCenter, fallback: const SizedBox.shrink()),
                   if (showFeatured && widget.preview != null) widget.preview!(_featuredActive),
                 ],
               ),
@@ -825,7 +882,10 @@ class _BillboardState extends State<Billboard> {
               children: [
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [C.bg, Color(0xB30A0A0B), Color(0x000A0A0B)], stops: [0, 0.3, 0.65]),
+                    gradient: LinearGradient(
+                      colors: [C.bg, Color(0xB30A0A0B), Color(0x000A0A0B)],
+                      stops: [0, 0.3, 0.65],
+                    ),
                   ),
                 ),
                 DecoratedBox(
@@ -864,37 +924,38 @@ class _BillboardState extends State<Billboard> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                if (e != null)
-                  SizedBox(
-                    width: context.px(820),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      layoutBuilder: (current, previous) => Stack(alignment: Alignment.bottomLeft, children: [...previous, ?current]),
-                      child: KeyedSubtree(
-                        key: ValueKey('${e.title}|${e.subtitle}|${e.poster}'),
-                        child: _SpotDetails(entry: e),
-                      ),
-                    ),
-                  ),
-                // The featured buttons stay in place (hidden while a row has focus), so moving up out
-                // of the rows lands on them and brings the featured title back.
-                if (widget.featured != null && widget.actions.isNotEmpty) ...[
-                  SizedBox(height: context.px(22)),
-                  AnimatedOpacity(
-                    opacity: showFeatured ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Focus(
-                      canRequestFocus: false,
-                      skipTraversal: true,
-                      onFocusChange: (f) {
-                        if (f) _backToFeatured();
-                      },
-                      child: FocusTraversalGroup(
-                        child: Wrap(spacing: context.px(14), children: widget.actions),
-                      ),
-                    ),
-                  ),
-                ],
+                          if (e != null)
+                            SizedBox(
+                              width: context.px(820),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                layoutBuilder: (current, previous) =>
+                                    Stack(alignment: Alignment.bottomLeft, children: [...previous, ?current]),
+                                child: KeyedSubtree(
+                                  key: ValueKey('${e.title}|${e.subtitle}|${e.poster}'),
+                                  child: _SpotDetails(entry: e),
+                                ),
+                              ),
+                            ),
+                          // The featured buttons stay in place (hidden while a row has focus), so moving up out
+                          // of the rows lands on them and brings the featured title back.
+                          if (widget.featured != null && widget.actions.isNotEmpty) ...[
+                            SizedBox(height: context.px(22)),
+                            AnimatedOpacity(
+                              opacity: showFeatured ? 1 : 0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Focus(
+                                canRequestFocus: false,
+                                skipTraversal: true,
+                                onFocusChange: (f) {
+                                  if (f) _backToFeatured();
+                                },
+                                child: FocusTraversalGroup(
+                                  child: Wrap(spacing: context.px(14), children: widget.actions),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -961,7 +1022,12 @@ class _SpotDetails extends StatelessWidget {
           Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: display(context.px(76))),
         SizedBox(height: context.px(16)),
         if (e.reason != null) ...[
-          Text(e.reason!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.accent, weight: FontWeight.w700)),
+          Text(
+            e.reason!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: body(context.px(21), color: C.accent, weight: FontWeight.w700),
+          ),
           SizedBox(height: context.px(6)),
         ],
         if (e.subtitle != null || e.note != null) ...[

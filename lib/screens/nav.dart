@@ -20,7 +20,11 @@ void openItem(BuildContext context, JfItem item) {
     return;
   }
   if (item.isSeason && item.seriesId != null) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsScreen(itemId: item.seriesId!, seasonId: item.id)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DetailsScreen(itemId: item.seriesId!, seasonId: item.id),
+      ),
+    );
     return;
   }
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsScreen(itemId: item.id)));
@@ -28,7 +32,11 @@ void openItem(BuildContext context, JfItem item) {
 
 /// Opens the "not on your server" preview for a Seerr title.
 void openSeerr(BuildContext context, SeerrMedia media) {
-  Navigator.of(context).push(MaterialPageRoute(builder: (_) => PreviewScreen(mediaType: media.mediaType, tmdbId: media.id)));
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PreviewScreen(mediaType: media.mediaType, tmdbId: media.id),
+    ),
+  );
 }
 
 /// Starts playback, resuming where the person left off unless [fromStart].
@@ -39,9 +47,11 @@ Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bo
     await NativePlayer.play(context.read<AppState>(), item, start: start);
     return;
   }
-  await Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => PlayerScreen(item: item, start: start, isTrailer: isTrailer),
-  ));
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PlayerScreen(item: item, start: start, isTrailer: isTrailer),
+    ),
+  );
 }
 
 /// Plays a series: the next unwatched (or in-progress) episode.
@@ -113,7 +123,13 @@ Future<(String?, TrailerStream?)> findTrailer(AppState app, {JfItem? item, Strin
 /// Plays a trailer inside Ember: a trailer file stored with the title, otherwise the official
 /// YouTube trailer, found and played on this device. Falls back to the YouTube app when YouTube
 /// won't hand the stream over (or when "Play trailers in the app" is off).
-Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, required String title, String? backdropUrl}) async {
+Future<void> playTrailer(
+  BuildContext context, {
+  JfItem? item,
+  String? ytKey,
+  required String title,
+  String? backdropUrl,
+}) async {
   final app = context.read<AppState>();
   final jf = app.jf!;
   if (item != null && item.localTrailerCount > 0 && app.trailersInApp) {
@@ -153,15 +169,17 @@ Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, req
   }
   if (!context.mounted) return;
   // Open the player at once; it finds the trailer while showing what it's doing.
-  await Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => PlayerScreen(
-      item: JfItem({'Id': 'trailer-${item?.id ?? ytKey}', 'Name': '$title · Trailer', 'Type': 'Trailer'}),
-      isTrailer: true,
-      youtubeKey: ytKey,
-      backdropUrl: artwork,
-      resolveTrailer: resolve,
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PlayerScreen(
+        item: JfItem({'Id': 'trailer-${item?.id ?? ytKey}', 'Name': '$title · Trailer', 'Type': 'Trailer'}),
+        isTrailer: true,
+        youtubeKey: ytKey,
+        backdropUrl: artwork,
+        resolveTrailer: resolve,
+      ),
     ),
-  ));
+  );
 }
 
 /// Gets playback ready while a title page is open: the connection test that Auto quality needs
