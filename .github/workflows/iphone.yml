@@ -1,0 +1,158 @@
+# Builds Ember for iPhone (and iPad) on one of GitHub's Macs, so no Mac of our own is needed.
+#
+# Output (under the run's Artifacts):
+#   ember-iphone-ipa   Ember-iPhone.ipa, unsigned. SideStore (or Sideloadly) signs it with a free
+#                      Apple ID when it installs it on the iPhone.
+# Pushes to apple-tv/main also update the "iphone" release, which holds the latest Ember-iPhone.ipa
+# and source.json, the SideStore/AltStore source that lets the iPhone see and install updates.
+# That release is a pre-release and never marked "latest", so atvloadly (which follows the Apple TV
+# releases) never picks the iPhone build up.
+
+name: iPhone build
+
+on:
+  push:
+    branches: [apple-tv, main, 'claude/**']
+    paths-ignore: ['**.md', 'tools/**', 'tvos/**']
+  workflow_dispatch:
+
+concurrency:
+  group: iphone-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.8
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install Flutter
+        run: |
+          git clone --depth 1 -b "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Flutter
+        run: |
+          flutter config --no-analytics
+          flutter precache --ios
+          flutter --version
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build for iPhone (unsigned)
+        run: flutter build ios --release --no-codesign --build-number ${{ github.run_number }}
+
+      - name: Package Ember-iPhone.ipa
+        run: |
+          app="build/ios/iphoneos/Runner.app"
+          [ -d "$app" ] || { echo "Runner.app not found"; find build -name '*.app'; exit 1; }
+          mkdir -p dist/Payload
+          cp -R "$app" dist/Payload/Runner.app
+          (cd dist && zip -qry Ember-iPhone.ipa Payload)
+          ls -la dist/Ember-iPhone.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ember-iphone-ipa
+          path: dist/Ember-iPhone.ipa
+          retention-days: 30
+
+      - name: Write the SideStore source
+        run: |
+          app="dist/Payload/Runner.app"
+          bundle="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")"
+          version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Info.plist")"
+          build="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Info.plist")"
+          size="$(stat -f%z dist/Ember-iPhone.ipa)"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/iphone"
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}"
+          BUNDLE="$bundle" VERSION="$version" BUILD="$build" SIZE="$size" BASE="$base" RAW="$raw" \
+          python3 - <<'EOF'
+          import datetime, json, os
+          e = os.environ
+          version = {
+              "version": e["VERSION"],
+              "buildVersion": e["BUILD"],
+              "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "localizedDescription": f"Built from {e['GITHUB_REF_NAME']} at {e['GITHUB_SHA'][:7]}.",
+              "downloadURL": f"{e['BASE']}/Ember-iPhone.ipa",
+              "size": int(e["SIZE"]),
+              "minOSVersion": "15.0",
+          }
+          source = {
+              "name": "Ember",
+              "identifier": "app.ember.source",
+              "sourceURL": f"{e['BASE']}/source.json",
+              "apps": [{
+                  "name": "Ember",
+                  "bundleIdentifier": e["BUNDLE"],
+                  "developerName": "Ember",
+                  "subtitle": "Your Jellyfin library, with Seerr requests.",
+                  "localizedDescription": "Ember for iPhone and iPad: your Jellyfin films and shows, with Seerr requests.",
+                  "iconURL": f"{e['RAW']}/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+                  "tintColor": "FF7A2F",
+                  "category": "entertainment",
+                  "versions": [version],
+                  "appPermissions": {"entitlements": [], "privacy": {
+                      "NSLocalNetworkUsageDescription": "Ember connects to your Jellyfin and Seerr servers on your home network."}},
+              }],
+              "news": [],
+          }
+          json.dump(source, open("dist/source.json", "w"), indent=2)
+          EOF
+          cat dist/source.json
+
+      # One release, "iphone", always holds the newest build. It's a pre-release and never "latest",
+      # so it stays out of atvloadly's way.
+      - name: Publish the iPhone release
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref_name == 'apple-tv' || github.ref_name == 'main')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Ember for iPhone, build ${GITHUB_RUN_NUMBER}, from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}. Add https://github.com/${GITHUB_REPOSITORY}/releases/download/iphone/source.json as a source in SideStore."
+          if gh release view iphone >/dev/null 2>&1; then
+            gh release edit iphone --prerelease --latest=false --title "Ember for iPhone (build ${GITHUB_RUN_NUMBER})" --notes "$notes"
+          else
+            gh release create iphone --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Ember for iPhone (build ${GITHUB_RUN_NUMBER})" --notes "$notes"
+          fi
+          gh release upload iphone dist/Ember-iPhone.ipa dist/source.json --clobber
+
+      # A quick look at the app on a simulated iPhone, so screens can be checked without one.
+      - name: Run in the iPhone simulator
+        continue-on-error: true
+        run: |
+          flutter build ios --simulator --debug
+          app="build/ios/iphonesimulator/Runner.app"
+          runtime="$(xcrun simctl list runtimes iOS -j | python3 -c 'import sys,json; r=[x for x in json.load(sys.stdin)["runtimes"] if x["isAvailable"]]; print(r[-1]["identifier"])')"
+          type="$(xcrun simctl list devicetypes -j | python3 -c 'import sys,json; t=[x["identifier"] for x in json.load(sys.stdin)["devicetypes"] if x["name"].startswith("iPhone") and "Pro" in x["name"] and "Max" not in x["name"]]; print(t[-1])')"
+          dev="$(xcrun simctl create EmberPhone "$type" "$runtime")"
+          xcrun simctl boot "$dev"
+          xcrun simctl bootstatus "$dev" -b
+          xcrun simctl install "$dev" "$app"
+          xcrun simctl launch "$dev" app.ember.ember
+          mkdir -p shots
+          sleep 25
+          xcrun simctl io "$dev" screenshot shots/iphone-01-start.png
+          xcrun simctl spawn "$dev" log show --last 2m --predicate 'process == "Runner"' > shots/iphone-runner-log.txt 2>&1 || true
+          xcrun simctl shutdown "$dev"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ember-iphone-screenshots
+          path: shots
+          if-no-files-found: ignore

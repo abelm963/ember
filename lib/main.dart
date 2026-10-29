@@ -24,6 +24,7 @@ void main() async {
   if (!isAppleTv) MediaKit.ensureInitialized();
   final state = AppState();
   await state.init();
+  if (state.isPhone) setPhoneOrientation(player: false);
   // Back (Esc / remote Back) must work even when nothing on screen has keyboard focus,
   // e.g. after using the mouse. Focused widgets get the key first; this only catches the rest.
   HardwareKeyboard.instance.addHandler((event) {

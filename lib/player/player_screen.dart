@@ -200,6 +200,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _app = context.read<AppState>();
     _jf = _app.jf!;
+    _phoneFullScreen(true);
     _configureMpv();
     final mpv = _mpv;
     _subs.addAll([
@@ -991,9 +992,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _skipFocus.dispose();
     _nextFocus.dispose();
     _scrubFocus.dispose();
+    _phoneFullScreen(false);
     final app = _app;
     Future.microtask(app.bumpRevision);
     super.dispose();
+  }
+
+  /// On a phone the player turns the picture sideways and hides the status bar.
+  void _phoneFullScreen(bool on) {
+    if (_app.isPhone) setPhoneOrientation(player: on);
   }
 
   // ------------------------------------------------------------------ UI
