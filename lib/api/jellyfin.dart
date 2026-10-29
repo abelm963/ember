@@ -728,12 +728,17 @@ class JellyfinClient {
     int? maxBitrate,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    String? mediaSourceId,
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
     if (isAppleTv) {
       return _appleTvSource(itemId,
-          maxBitrate: maxBitrate, audioStreamIndex: audioStreamIndex, subtitleStreamIndex: subtitleStreamIndex, start: start);
+          maxBitrate: maxBitrate,
+          audioStreamIndex: audioStreamIndex,
+          subtitleStreamIndex: subtitleStreamIndex,
+          mediaSourceId: mediaSourceId,
+          start: start);
     }
     final body = <String, dynamic>{
       'UserId': userId,
@@ -741,6 +746,7 @@ class JellyfinClient {
       'StartTimeTicks': start == null ? 0 : durationToTicks(start),
       'AudioStreamIndex': audioStreamIndex,
       'SubtitleStreamIndex': subtitleStreamIndex,
+      'MediaSourceId': mediaSourceId,
       'EnableDirectPlay': !transcode,
       'EnableDirectStream': !transcode,
       'EnableTranscoding': transcode,
@@ -839,7 +845,8 @@ class JellyfinClient {
             'Protocol': 'hls',
             'Context': 'Streaming',
             'MaxAudioChannels': '8',
-            'MinSegments': 2,
+            // Start as soon as the first piece is ready instead of waiting for two.
+            'MinSegments': 1,
             'BreakOnNonKeyFrames': true,
           },
           {'Container': 'aac', 'Type': 'Audio', 'AudioCodec': 'aac', 'Protocol': 'hls', 'Context': 'Streaming', 'MaxAudioChannels': '6'},
@@ -885,6 +892,7 @@ class JellyfinClient {
     int? maxBitrate,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    String? mediaSourceId,
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
@@ -895,7 +903,9 @@ class JellyfinClient {
       'StartTimeTicks': start == null ? 0 : durationToTicks(start),
       'AudioStreamIndex': audioStreamIndex,
       'SubtitleStreamIndex': subtitleStreamIndex,
-      // A burned-in subtitle or a different audio track means the server has to build the stream.
+      'MediaSourceId': mediaSourceId,
+      // A subtitle or a chosen soundtrack (files with several) means the server builds the
+      // stream, with only that soundtrack in it: Apple's player can't be trusted to pick it.
       'EnableDirectPlay': !transcode && subtitleStreamIndex == null && audioStreamIndex == null,
       'EnableDirectStream': !transcode,
       'EnableTranscoding': true,
@@ -907,7 +917,7 @@ class JellyfinClient {
     final m = (json as Map).cast<String, dynamic>();
     final sources = (m['MediaSources'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
     if (sources.isEmpty) throw ApiException(500, 'The server has no playable version of this title.');
-    final src = sources.first;
+    final src = sources.firstWhere((s) => s['Id'] == mediaSourceId, orElse: () => sources.first);
     final playSessionId = m['PlaySessionId'] as String? ?? '';
     final msid = src['Id'] as String;
     final streams = (src['MediaStreams'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
@@ -1047,6 +1057,21 @@ class JellyfinClient {
   }
 
   /// Speed test against the server (used to pick a streaming quality automatically). Returns bits per second.
+  (DateTime, Future<double?>)? _speed;
+
+  /// [measureBitrate], remembered for 20 minutes, so pressing Play doesn't wait for a 4 MB
+  /// download every time. Started early (when a title page opens) by `warmPlayback`.
+  Future<double?> connectionSpeed() {
+    final hit = _speed;
+    if (hit != null && DateTime.now().difference(hit.$1) < const Duration(minutes: 20)) return hit.$2;
+    final f = measureBitrate();
+    _speed = (DateTime.now(), f);
+    f.then((v) {
+      if (v == null && identical(_speed?.$2, f)) _speed = null;
+    });
+    return f;
+  }
+
   Future<double?> measureBitrate({int bytes = 4000000}) async {
     try {
       final sw = Stopwatch()..start();

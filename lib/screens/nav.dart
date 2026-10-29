@@ -34,8 +34,8 @@ void openSeerr(BuildContext context, SeerrMedia media) {
 /// Starts playback, resuming where the person left off unless [fromStart].
 Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bool isTrailer = false}) async {
   final start = fromStart || item.positionTicks == 0 ? null : ticksToDuration(item.positionTicks);
-  if (isAppleTv) {
-    // Apple's own player: true HDR, Dolby Vision and Atmos.
+  if (isAppleTv && context.read<AppState>().useApplePlayer && !isTrailer) {
+    // Apple's own player, when chosen in Settings: true HDR, Dolby Vision and Atmos.
     await NativePlayer.play(context.read<AppState>(), item, start: start);
     return;
   }
@@ -162,6 +162,12 @@ Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, req
       resolveTrailer: resolve,
     ),
   ));
+}
+
+/// Gets playback ready while a title page is open: the connection test that Auto quality needs
+/// runs now (and is remembered), so pressing Play doesn't wait for it.
+void warmPlayback(AppState app) {
+  if (app.quality == 'auto') app.jf?.connectionSpeed().ignore();
 }
 
 /// Looks the trailer up early (when a page opens), so the Trailer button starts at once.

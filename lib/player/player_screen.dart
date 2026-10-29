@@ -14,6 +14,7 @@ import '../ui/theme.dart';
 import '../screens/nav.dart' show openYouTube;
 import '../ui/widgets.dart';
 import 'engine.dart';
+import 'tracks.dart';
 
 /// Full-screen player. Built on mpv (via media_kit), which plays every common container,
 /// codec, audio format and subtitle type itself — so files are streamed untouched and the
@@ -114,6 +115,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // Audio and subtitles picked through the server (Apple TV, or while transcoding).
   int? _audioIndex;
   int? _subIndex;
+  String? _mediaSourceId;
   bool _subBurnedIn = false;
   bool _serverDefaultsDone = false;
   final List<StreamSubscription> _subs = [];
@@ -244,14 +246,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _subIndex = null;
       _subBurnedIn = false;
       _serverDefaultsDone = false;
+      _mediaSourceId = null;
     }
     _audioIndex = audioStreamIndex ?? _audioIndex;
+    if (audioStreamIndex != null) _rememberLanguage(audioStreamIndex);
     // -1 turns burned-in subtitles off again.
     if (subtitleStreamIndex != null) {
       _subIndex = subtitleStreamIndex >= 0 ? subtitleStreamIndex : null;
       _subBurnedIn = _subIndex != null;
     }
-    final burnIn = _subBurnedIn ? _subIndex : null;
     setState(() {
       _item = item;
       _loading = true;
@@ -288,30 +291,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
     try {
-      final q = _quality;
-      int? bitrate = q.bitrate;
-      var src = await _jf.playbackSource(item.id,
-          maxBitrate: bitrate, audioStreamIndex: _audioIndex, subtitleStreamIndex: burnIn);
-
-      // Auto quality: test the connection, and if it can't carry the original file
-      // comfortably, ask the server for a lower bitrate instead of buffering.
-      if (q.key == 'auto' && src.bitrate != null) {
-        final bps = await _jf.measureBitrate();
-        if (bps != null && bps < src.bitrate! * 1.1) {
-          final target = (bps * 0.8).round();
-          bitrate = qualityOptions
-              .where((o) => o.bitrate != null && o.bitrate! <= target)
-              .map((o) => o.bitrate!)
-              .fold<int>(2000000, (a, b) => b > a ? b : a);
-          src = await _jf.playbackSource(item.id,
-              maxBitrate: bitrate, audioStreamIndex: _audioIndex, subtitleStreamIndex: burnIn);
-        }
+      int? bitrate;
+      var sized = true;
+      if (isAppleTv && !_serverDefaultsDone) {
+        // Apple TV: pick the version, the person's soundtrack and subtitles first, so the server
+        // is asked once and sends exactly that soundtrack (instead of the file's default).
+        _serverDefaultsDone = true;
+        final plan = await planPlayback(_app, item, qualityKey: _quality.key);
+        _mediaSourceId = plan.mediaSourceId;
+        _audioIndex = plan.audioIndex;
+        final sub = plan.streams.where((s) => (s['Index'] as num?)?.toInt() == plan.subtitleIndex).firstOrNull;
+        _subIndex = sub == null ? null : plan.subtitleIndex;
+        // Picture-based subtitles (PGS, VobSub) are drawn into the video by the server.
+        _subBurnedIn = sub != null && sub['IsTextSubtitleStream'] != true;
+        bitrate = plan.maxBitrate;
+      } else {
+        // Auto quality: the original file unless the connection (tested once and remembered)
+        // can't carry it comfortably.
+        final sizeOf = item.mediaSources.where((s) => s['Id'] == _mediaSourceId).firstOrNull ?? item.mediaSources.firstOrNull;
+        final size = (sizeOf?['Bitrate'] as num?)?.toInt();
+        sized = size != null;
+        bitrate = await _app.maxBitrateFor(size, qualityKey: _quality.key);
+      }
+      Future<PlaybackSource> ask() => _jf.playbackSource(item.id,
+          maxBitrate: bitrate,
+          audioStreamIndex: _audioIndex,
+          subtitleStreamIndex: _subBurnedIn ? _subIndex : null,
+          mediaSourceId: _mediaSourceId);
+      var src = await ask();
+      if (!sized && bitrate == null) {
+        // The file's size wasn't known until now: check it fits the connection.
+        bitrate = await _app.maxBitrateFor(src.bitrate, qualityKey: _quality.key);
+        if (bitrate != null) src = await ask();
       }
       _src = src;
       await _engine.open(src.url, start: start);
-      // Text subtitles picked before a reopen (quality change, new audio track) come back on.
+      // Text subtitles (picked now, or before a reopen for another quality or soundtrack) come on.
       if (_serverTracks && _subIndex != null && !_subBurnedIn) unawaited(_showServerSubtitle(_subIndex!));
-      if (isAppleTv && !_serverDefaultsDone) _applyServerDefaults(start);
       if (!widget.isTrailer) {
         unawaited(_jf.reportStart(item.id, src.mediaSourceId, src.playSessionId, start ?? Duration.zero, src.transcoding));
         _reportTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -348,13 +364,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // ------------------------------------------------------------------ tracks
 
-  bool _langMatch(String? a, String? b) {
-    if (a == null || b == null) return false;
-    a = a.toLowerCase();
-    b = b.toLowerCase();
-    return a == b || a.startsWith(b.substring(0, 2)) || b.startsWith(a.substring(0, 2));
-  }
-
   /// Audio and subtitles go through the server when it's transcoding, and always on Apple TV
   /// (AVPlayer's own track switching isn't available there).
   bool get _serverTracks => isAppleTv || (_src?.transcoding ?? false);
@@ -381,41 +390,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  /// Apple TV: the person's preferred audio language and subtitle setting, picked from the
-  /// server's list of streams once the title opens.
-  void _applyServerDefaults(Duration? start) {
-    _serverDefaultsDone = true;
-    final pref = _app.preferredAudioLanguage;
-    final audio = _streamsOf('Audio');
-    if (audio.isEmpty) return;
-    var chosen = audio.firstWhere((s) => (s['Index'] as num?)?.toInt() == _defaultIndexOf('Audio'), orElse: () => audio.first);
-    if (pref != null) {
-      for (final s in audio) {
-        if (_langMatch(s['Language'] as String?, pref)) {
-          chosen = s;
-          break;
-        }
-      }
-    }
-    final subLang = pref ?? 'eng';
-    final audioLang = chosen['Language'] as String?;
-    final wantSubs = switch (_app.subtitleMode) {
-      'off' => false,
-      'always' => true,
-      _ => audioLang != null && !_langMatch(audioLang, subLang),
-    };
-    final subs = wantSubs ? _streamsOf('Subtitle').where((s) => _langMatch(s['Language'] as String?, subLang)).toList() : const [];
-    final sub = subs.isEmpty ? null : subs.first;
-
-    final chosenIndex = (chosen['Index'] as num?)?.toInt();
-    final needsAudio = chosenIndex != null && chosenIndex != _defaultIndexOf('Audio');
-    final needsBurn = sub != null && sub['IsTextSubtitleStream'] != true;
-    if (needsAudio || needsBurn) {
-      _open(_item, start,
-          audioStreamIndex: needsAudio ? chosenIndex : null,
-          subtitleStreamIndex: needsBurn ? (sub['Index'] as num).toInt() : null);
-    } else if (sub != null) {
-      _showServerSubtitle((sub['Index'] as num).toInt());
+  /// A soundtrack picked in the player becomes the preferred language, so the next film starts in it.
+  void _rememberLanguage(int index) {
+    final s = _streamsOf('Audio').where((x) => (x['Index'] as num?)?.toInt() == index).firstOrNull;
+    final lang = s == null ? null : trackLanguage(s);
+    if (lang != null && !langMatch(lang, _app.preferredAudioLanguage)) {
+      _app.update((a) => a.preferredAudioLanguage = preferredCode(lang));
     }
   }
 
@@ -429,7 +409,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     AudioTrack? chosenAudio;
     if (pref != null) {
       for (final t in audio) {
-        if (_langMatch(t.language, pref)) {
+        if (langMatch(t.language, pref)) {
           chosenAudio = t;
           break;
         }
@@ -444,12 +424,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         player.setSubtitleTrack(SubtitleTrack.no());
         break;
       case 'always':
-        final s = subs.where((t) => _langMatch(t.language, subLang)).toList();
+        final s = subs.where((t) => langMatch(t.language, subLang)).toList();
         if (s.isNotEmpty) player.setSubtitleTrack(s.first);
         break;
       default: // only when the audio isn't in the person's language
-        if (audioLang != null && !_langMatch(audioLang, subLang)) {
-          final s = subs.where((t) => _langMatch(t.language, subLang)).toList();
+        if (audioLang != null && !langMatch(audioLang, subLang)) {
+          final s = subs.where((t) => langMatch(t.language, subLang)).toList();
           if (s.isNotEmpty) player.setSubtitleTrack(s.first);
         } else {
           player.setSubtitleTrack(SubtitleTrack.no());

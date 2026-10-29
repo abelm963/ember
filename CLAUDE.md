@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 19 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 24 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -39,7 +39,7 @@ say what to click or run to see it.
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
 | `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside New & Hot) |
-| `lib/player/` | The player screen (`player_screen.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
+| `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
 | `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |
 
@@ -79,7 +79,12 @@ Smaller known issues:
   on the Apple TV. The owner uses a Mac with a free Apple ID, so the app expires after 7 days.
 - mpv doesn't run on tvOS: `MediaKit.ensureInitialized()` is skipped and `AvEngine` plays instead.
   Plugins need `_tvos` packages (`video_player_tvos`, `shared_preferences_tvos`, `url_launcher_tvos`).
-- Full-screen playback on Apple TV uses Apple's own player, not Flutter: `lib/player/native_player.dart`
+- Films and episodes on Apple TV play in **Ember's own player** (`PlayerScreen` with `AvEngine`): the
+  owner wants the player designed for Ember. Its picture is a Flutter texture, so HDR/Dolby Vision show
+  as SDR. Settings › "Use Apple's player (for HDR and Dolby Vision)" (`useApplePlayer`, off by default)
+  switches them to Apple's player below. Trailers always use Apple's player (it joins YouTube's
+  separate picture and sound files).
+- Apple's own player: `lib/player/native_player.dart`
   (Dart: asks Jellyfin, picks audio/subtitles, reports progress) talks over the `ember/player` channel
   to `tvos/Runner/NativePlayer.swift` (AVPlayerViewController: true HDR10/Dolby Vision/Atmos, Match
   Content, Skip Intro, Next Episode countdown, audio/subtitle menus, "Are you still watching?").
@@ -88,8 +93,17 @@ Smaller known issues:
   H.264/HEVC and AAC/AC3/EAC3/ALAC/FLAC; everything else comes back as fMP4 HLS with the picture and
   sound copied when possible. CodecProfiles declare HDR10/HDR10+/HLG/Dolby Vision so they pass through.
   Text subtitles go inside the HLS stream (Method `Hls`); PGS/DVD are burned in.
-- Audio defaults (`NativePlayer.chooseTracks`, tested in `test/native_player_test.dart`): preferred
-  language, then the best track Apple TV plays as-is (E-AC-3 Atmos first, never commentary). TrueHD/DTS
+- Audio defaults (`chooseTracks` in `tracks.dart`): preferred language (codes in any spelling, or the
+  language named in a track's title when it has no code), then the best track Apple TV plays as-is
+  (E-AC-3 Atmos first, never commentary). **When a file has more than one soundtrack, Ember always
+  names it (AudioStreamIndex) and the server remuxes**, because direct play left the choice to
+  AVPlayer, which picked the file's/Apple TV's language (the "Frozen in French" bug). With several
+  versions of a film, the one with the preferred language is used (MediaSourceId). A soundtrack
+  picked in the player becomes the preferred language.
+- Start-up speed: everything is decided before one PlaybackInfo call (`planPlayback`); the Auto
+  quality connection test (4 MB) is remembered for 20 minutes and started when a title page opens
+  (`warmPlayback`); HLS starts after one segment (MinSegments 1); Apple's player starts playing only
+  after the resume jump, with a keyframe-tolerant seek. TrueHD/DTS
   are converted by the server to E-AC-3 5.1/7.1, so TrueHD Atmos loses Atmos (Apple TV can't output TrueHD).
 - "Are you still watching?" (Settings, Apple TV only): asked after N episodes auto-advance with no
   remote input. Presses, swipes, pause/play, scrubbing, skip buttons and track changes count; volume

@@ -58,6 +58,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
     }
     // Have the title logo and backdrop ready so the page appears whole.
     prefetchTrailer(app, it);
+    warmPlayback(app);
     if (mounted) await warmImages(context, [jf.logoImage(it), jf.backdropImage(it)]);
     return d;
   }
