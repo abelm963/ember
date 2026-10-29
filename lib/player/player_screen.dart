@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +13,7 @@ import '../ui/browse.dart' show MetaDots;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'engine.dart';
+import 'player_controls.dart';
 import 'segments.dart';
 import 'tracks.dart';
 import 'trailers.dart';
@@ -55,13 +55,6 @@ class PlayerScreen extends StatefulWidget {
 }
 
 enum _Panel { none, controls, tracks, quality, episodes }
-
-class _MenuOption {
-  final String label;
-  final bool selected;
-  final Future<void> Function() onPick;
-  _MenuOption(this.label, this.selected, this.onPick);
-}
 
 class _PlayerScreenState extends State<PlayerScreen> {
   late final PlaybackEngine _engine = PlaybackEngine(title: 'Ember');
@@ -537,7 +530,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   static List<String> _labels(List<Map<String, dynamic>> streams, String Function(Map<String, dynamic>) label) =>
       distinctLabels([for (final s in streams) label(s)], streams);
 
-  List<_MenuOption> _audioOptions() {
+  List<PlayerMenuOption> _audioOptions() {
     final src = _src;
     if (src == null) return [];
     final player = _mpv;
@@ -546,7 +539,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final labels = _labels([for (final t in tracks) _mpvAudio(t)], audioLabel);
       return [
         for (var i = 0; i < tracks.length; i++)
-          _MenuOption(labels[i], _track.audio.id == tracks[i].id, () async {
+          PlayerMenuOption(labels[i], _track.audio.id == tracks[i].id, () async {
             await player.setAudioTrack(tracks[i]);
             final lang = tracks[i].language;
             if (lang != null && !langMatch(lang, _app.preferredAudioLanguage)) {
@@ -560,7 +553,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final labels = _labels(streams, audioLabel);
     return [
       for (var i = 0; i < streams.length; i++)
-        _MenuOption(
+        PlayerMenuOption(
           labels[i],
           (streams[i]['Index'] as num?)?.toInt() == current,
           () => _reopenAtCurrent(audioStreamIndex: (streams[i]['Index'] as num).toInt()),
@@ -568,12 +561,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     ];
   }
 
-  List<_MenuOption> _subtitleOptions() {
+  List<PlayerMenuOption> _subtitleOptions() {
     final src = _src;
     if (src == null) return [];
     final player = _mpv;
-    _MenuOption remembered(String label, bool selected, String? language, bool on, Future<void> Function() pick) =>
-        _MenuOption(label, selected, () async {
+    PlayerMenuOption remembered(String label, bool selected, String? language, bool on, Future<void> Function() pick) =>
+        PlayerMenuOption(label, selected, () async {
           await pick();
           _rememberSubtitles(on: on, language: language);
         });
@@ -644,9 +637,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     ];
   }
 
-  List<_MenuOption> _qualityMenu() => [
+  List<PlayerMenuOption> _qualityMenu() => [
     for (final o in qualityOptions)
-      _MenuOption(o.label, o.key == _quality.key, () async {
+      PlayerMenuOption(o.label, o.key == _quality.key, () async {
         _sessionQuality = o.key;
         await _reopenAtCurrent();
       }),
@@ -1085,7 +1078,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     Positioned(
                       right: context.px(80),
                       bottom: context.px(showUi && !app.isPhone ? 290 : 110),
-                      child: _SkipButton(
+                      child: PlayerSkipButton(
                         label: _skipLabels[skip.type]!,
                         focusNode: _skipFocus,
                         onTap: () => _skip(skip),
@@ -1359,7 +1352,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final shown = _scrubTarget ?? _position;
     final buttons = <Widget>[
       if (!app.isTv)
-        _BarButton(
+        PlayerBarButton(
           icon: _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
           label: _playing ? 'Pause' : 'Play',
           focusNode: _playFocus,
@@ -1369,9 +1362,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
       if (_item.isEpisode && _item.seriesId != null && !_isStream)
-        _BarButton(icon: Icons.video_library_outlined, label: 'Episodes', onTap: _openEpisodes),
+        PlayerBarButton(icon: Icons.video_library_outlined, label: 'Episodes', onTap: _openEpisodes),
       if (_next != null)
-        _BarButton(
+        PlayerBarButton(
           icon: Icons.skip_next_rounded,
           label: 'Next Episode',
           onTap: () {
@@ -1380,9 +1373,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
       if (!_isStream)
-        _BarButton(icon: Icons.subtitles_outlined, label: 'Audio & Subtitles', onTap: () => _openPanel(_Panel.tracks)),
-      _BarButton(icon: Icons.replay_rounded, label: 'Restart', onTap: () => _engine.seek(Duration.zero)),
-      if (!_isStream) _BarButton(icon: Icons.tune_rounded, label: 'Quality', onTap: () => _openPanel(_Panel.quality)),
+        PlayerBarButton(
+          icon: Icons.subtitles_outlined,
+          label: 'Audio & Subtitles',
+          onTap: () => _openPanel(_Panel.tracks),
+        ),
+      PlayerBarButton(icon: Icons.replay_rounded, label: 'Restart', onTap: () => _engine.seek(Duration.zero)),
+      if (!_isStream)
+        PlayerBarButton(icon: Icons.tune_rounded, label: 'Quality', onTap: () => _openPanel(_Panel.quality)),
     ];
 
     return FocusTraversalGroup(
@@ -1403,7 +1401,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Positioned(
               left: context.px(50),
               top: context.px(46),
-              child: _RoundIcon(
+              child: PlayerRoundIcon(
                 icon: Icons.arrow_back_rounded,
                 label: 'Back',
                 onTap: () => Navigator.of(context).pop(),
@@ -1442,7 +1440,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _Scrubber(
+                      child: PlayerScrubber(
                         position: shown,
                         duration: _duration,
                         buffered: _buffered,
@@ -1451,7 +1449,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         onSeek: _engine.seek,
                         onStep: (dir, held) => _scrub(dir, held: held),
                         onSelect: _selectOnBar,
-                        preview: _trick == null ? null : (t) => _TrickThumb(info: _trick!, jf: _jf, at: t),
+                        preview: _trick == null ? null : (t) => PlayerTrickThumb(info: _trick!, jf: _jf, at: t),
                       ),
                     ),
                     SizedBox(width: context.px(26)),
@@ -1476,7 +1474,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _languagePanel(BuildContext context) {
     final audio = _audioOptions();
     final subs = _subtitleOptions();
-    Widget column(String title, List<_MenuOption> opts, {bool first = false}) => SizedBox(
+    Widget column(String title, List<PlayerMenuOption> opts, {bool first = false}) => SizedBox(
       width: context.px(560),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1496,7 +1494,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               shrinkWrap: true,
               children: [
                 for (var i = 0; i < opts.length; i++)
-                  _MenuRow(
+                  PlayerMenuRow(
                     option: opts[i],
                     autofocus: first && (opts[i].selected || (i == 0 && !opts.any((o) => o.selected))),
                     onPicked: () {
@@ -1568,7 +1566,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 child: Text('Quality', style: body(context.px(30), weight: FontWeight.w800)),
               ),
               for (var i = 0; i < opts.length; i++)
-                _MenuRow(
+                PlayerMenuRow(
                   option: opts[i],
                   autofocus: opts[i].selected || (i == 0 && !opts.any((o) => o.selected)),
                   onPicked: () {
@@ -1617,7 +1615,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               child: ListView(
                                 children: [
                                   for (final se in seasons)
-                                    _SeasonRow(
+                                    PlayerSeasonRow(
                                       label: se.name,
                                       selected: se.id == _panelSeasonId,
                                       onFocus: () => _loadSeason(se.id),
@@ -1638,7 +1636,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 padding: EdgeInsets.only(bottom: context.px(60)),
                                 children: [
                                   for (var i = 0; i < eps.length; i++)
-                                    _EpisodeRow(
+                                    PlayerEpisodeRow(
                                       episode: eps[i],
                                       image: _jf.landscapeImage(eps[i], maxWidth: 480),
                                       current: eps[i].id == _item.id,
@@ -1739,12 +1737,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     Text(formatClock(_position), style: body(context.px(24), weight: FontWeight.w600)),
                     SizedBox(width: context.px(24)),
                     Expanded(
-                      child: _Scrubber(
+                      child: PlayerScrubber(
                         position: _position,
                         duration: _duration,
                         buffered: _buffered,
                         onSeek: _engine.seek,
-                        preview: _trick == null ? null : (t) => _TrickThumb(info: _trick!, jf: _jf, at: t),
+                        preview: _trick == null ? null : (t) => PlayerTrickThumb(info: _trick!, jf: _jf, at: t),
                       ),
                     ),
                     SizedBox(width: context.px(24)),
@@ -1842,7 +1840,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _SkipButton(
+                PlayerSkipButton(
                   label: 'Watch Credits',
                   onTap: () {
                     _acted();
@@ -1855,7 +1853,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   },
                 ),
                 SizedBox(width: context.px(14)),
-                _NextEpisodeButton(
+                PlayerNextEpisodeButton(
                   key: ValueKey('next-${n.id}-$counting'),
                   focusNode: _nextFocus,
                   countdown: counting ? const Duration(seconds: _countdownSeconds) : null,
@@ -1874,7 +1872,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _tracksPanel(BuildContext context) {
     final app = context.read<AppState>();
-    Widget column(String title, List<_MenuOption> opts, {String? note}) => Expanded(
+    Widget column(String title, List<PlayerMenuOption> opts, {String? note}) => Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1982,567 +1980,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A round icon button for the top of the player; its name shows underneath while it has focus.
-class _RoundIcon extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _RoundIcon({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    onTap: onTap,
-    semanticLabel: label,
-    scrollIntoView: false,
-    builder: (context, active) => SizedBox(
-      width: context.px(100),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: context.px(56),
-            height: context.px(56),
-            decoration: BoxDecoration(color: active ? C.text : Colors.transparent, shape: BoxShape.circle),
-            child: Icon(icon, size: context.px(32), color: active ? const Color(0xFF111111) : C.text),
-          ),
-          SizedBox(height: context.px(8)),
-          Opacity(
-            opacity: active ? 1 : 0,
-            child: Text(
-              label.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: body(context.px(15), weight: FontWeight.w700).copyWith(letterSpacing: 1),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// A button in the row under the progress bar: an icon and a word, white when focused.
-class _BarButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final FocusNode? focusNode;
-  const _BarButton({required this.icon, required this.label, required this.onTap, this.focusNode});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    onTap: onTap,
-    focusNode: focusNode,
-    semanticLabel: label,
-    scrollIntoView: false,
-    builder: (context, active) {
-      final fg = active ? const Color(0xFF111111) : C.text;
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        height: context.px(52),
-        padding: EdgeInsets.symmetric(horizontal: context.px(18)),
-        decoration: BoxDecoration(
-          color: active ? C.text : Colors.transparent,
-          borderRadius: BorderRadius.circular(context.px(8)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: context.px(28), color: fg),
-            SizedBox(width: context.px(10)),
-            Text(
-              label,
-              style: body(context.px(21), weight: FontWeight.w700, color: fg),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-/// Skip Intro / Skip Recap / Watch Credits: an outlined box at the bottom right.
-class _SkipButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final FocusNode? focusNode;
-  const _SkipButton({required this.label, required this.onTap, this.focusNode});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    onTap: onTap,
-    focusNode: focusNode,
-    semanticLabel: label,
-    scrollIntoView: false,
-    builder: (context, active) => AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      height: context.px(60),
-      padding: EdgeInsets.symmetric(horizontal: context.px(28)),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: active ? C.text : const Color(0x99000000),
-        borderRadius: BorderRadius.circular(context.px(6)),
-        border: Border.all(color: active ? C.text : const Color(0xCCFFFFFF), width: context.px(2)),
-      ),
-      child: Text(
-        label,
-        style: body(context.px(23), weight: FontWeight.w700, color: active ? const Color(0xFF111111) : C.text),
-      ),
-    ),
-  );
-}
-
-/// Next Episode: a light button whose white fill grows while it counts down ([countdown]).
-class _NextEpisodeButton extends StatelessWidget {
-  final FocusNode? focusNode;
-  final Duration? countdown;
-  final VoidCallback onTap;
-  const _NextEpisodeButton({super.key, required this.onTap, this.focusNode, this.countdown});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    onTap: onTap,
-    focusNode: focusNode,
-    semanticLabel: 'Next Episode',
-    scrollIntoView: false,
-    builder: (context, active) => Container(
-      height: context.px(60),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(context.px(6)),
-        border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(2)),
-        boxShadow: active ? [BoxShadow(color: const Color(0x55FFFFFF), blurRadius: context.px(14))] : null,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(context.px(5)),
-        child: Stack(
-          children: [
-            Positioned.fill(child: Container(color: const Color(0xFF9A9A9A))),
-            Positioned.fill(
-              child: countdown == null
-                  ? Container(color: C.text)
-                  : TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: 1),
-                      duration: countdown!,
-                      builder: (context, v, _) => FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: v,
-                        child: Container(color: C.text),
-                      ),
-                    ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.px(26)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.play_arrow_rounded, size: context.px(32), color: const Color(0xFF111111)),
-                  SizedBox(width: context.px(8)),
-                  Text(
-                    'Next Episode',
-                    style: body(context.px(23), weight: FontWeight.w800, color: const Color(0xFF111111)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-/// One choice in the Audio & Subtitles or Quality lists, with a tick when it's the current one.
-class _MenuRow extends StatelessWidget {
-  final _MenuOption option;
-  final bool autofocus;
-  final VoidCallback onPicked;
-  const _MenuRow({required this.option, required this.onPicked, this.autofocus = false});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    autofocus: autofocus,
-    semanticLabel: option.label,
-    onTap: () async {
-      await option.onPick();
-      onPicked();
-    },
-    builder: (context, active) => AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      margin: EdgeInsets.only(bottom: context.px(4)),
-      padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(11)),
-      decoration: BoxDecoration(
-        color: active ? C.text : Colors.transparent,
-        borderRadius: BorderRadius.circular(context.px(8)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: context.px(40),
-            child: option.selected
-                ? Icon(Icons.check_rounded, size: context.px(28), color: active ? const Color(0xFF111111) : C.text)
-                : null,
-          ),
-          Expanded(
-            child: Text(
-              option.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: body(
-                context.px(24),
-                weight: option.selected || active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? const Color(0xFF111111) : (option.selected ? C.text : C.muted),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// A season in the Episodes panel; moving onto it shows its episodes.
-class _SeasonRow extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onFocus;
-  const _SeasonRow({required this.label, required this.selected, required this.onFocus});
-
-  @override
-  Widget build(BuildContext context) => Focusable(
-    semanticLabel: label,
-    onTap: onFocus,
-    onFocusChange: (f) {
-      if (f) onFocus();
-    },
-    builder: (context, active) => AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      margin: EdgeInsets.only(bottom: context.px(4)),
-      padding: EdgeInsets.symmetric(horizontal: context.px(20), vertical: context.px(12)),
-      decoration: BoxDecoration(
-        color: active ? C.text : Colors.transparent,
-        borderRadius: BorderRadius.circular(context.px(8)),
-      ),
-      child: Text(
-        label,
-        style: body(
-          context.px(24),
-          weight: selected || active ? FontWeight.w800 : FontWeight.w500,
-          color: active ? const Color(0xFF111111) : (selected ? C.text : C.muted),
-        ),
-      ),
-    ),
-  );
-}
-
-/// An episode in the Episodes panel: its picture (with progress), number, name, length and story.
-class _EpisodeRow extends StatelessWidget {
-  final JfItem episode;
-  final String? image;
-  final bool current;
-  final bool autofocus;
-  final VoidCallback onTap;
-  const _EpisodeRow({
-    required this.episode,
-    required this.image,
-    required this.current,
-    required this.autofocus,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final e = episode;
-    final r = BorderRadius.circular(context.px(8));
-    return Focusable(
-      autofocus: autofocus,
-      semanticLabel: e.name,
-      onTap: onTap,
-      builder: (context, active) => AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        margin: EdgeInsets.only(bottom: context.px(10)),
-        padding: EdgeInsets.all(context.px(12)),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF2A2A2F) : Colors.transparent,
-          borderRadius: BorderRadius.circular(context.px(12)),
-          border: Border.all(color: active ? C.text : Colors.transparent, width: context.px(2)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: context.px(280),
-              child: ClipRRect(
-                borderRadius: r,
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      NetImage(image, fallback: TitleCard(e.name, label: false)),
-                      if (e.progress != null && !e.played)
-                        Align(
-                          alignment: Alignment.bottomLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: e.progress!.clamp(0.03, 1.0),
-                            child: Container(height: context.px(5), color: C.accent),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: context.px(24)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${e.indexNumber ?? ''}${e.indexNumber == null ? '' : '. '}${e.name}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: body(context.px(25), weight: FontWeight.w700),
-                        ),
-                      ),
-                      if (current)
-                        Text(
-                          'Now playing',
-                          style: body(context.px(19), color: C.accent, weight: FontWeight.w700),
-                        )
-                      else if (e.runtime != null)
-                        Text(
-                          formatRuntime(e.runtime),
-                          style: body(context.px(20), color: C.muted, weight: FontWeight.w600),
-                        ),
-                    ],
-                  ),
-                  if ((e.overview ?? '').isNotEmpty) ...[
-                    SizedBox(height: context.px(8)),
-                    Text(
-                      e.overview!,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: body(context.px(20), color: C.soft, height: 1.35),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The progress bar. Click or drag with a mouse or finger; with a remote, focus it and press left/right.
-class _Scrubber extends StatefulWidget {
-  final Duration position, duration, buffered;
-  final ValueChanged<Duration> onSeek;
-
-  /// Left/right with the remote (-1 or 1, and whether the button is held), when the player
-  /// scrubs before it jumps; without it, each press jumps 10 seconds.
-  final void Function(int direction, bool held)? onStep;
-
-  /// Select with the remote while the bar has focus.
-  final VoidCallback? onSelect;
-  final FocusNode? focusNode;
-
-  /// A scrub point is being chosen: the picture there shows above the bar.
-  final bool scrubbing;
-
-  /// Builds the thumbnail shown above the bar for a time (trickplay), if available.
-  final Widget Function(Duration at)? preview;
-  const _Scrubber({
-    required this.position,
-    required this.duration,
-    required this.buffered,
-    required this.onSeek,
-    this.preview,
-    this.onStep,
-    this.onSelect,
-    this.focusNode,
-    this.scrubbing = false,
-  });
-  @override
-  State<_Scrubber> createState() => _ScrubberState();
-}
-
-class _ScrubberState extends State<_Scrubber> {
-  double? _drag;
-  double? _hover;
-  bool _focused = false;
-
-  double _frac(Duration d) =>
-      widget.duration.inMilliseconds == 0 ? 0 : (d.inMilliseconds / widget.duration.inMilliseconds).clamp(0.0, 1.0);
-
-  void _seekFrac(double f) =>
-      widget.onSeek(Duration(milliseconds: (widget.duration.inMilliseconds * f.clamp(0.0, 1.0)).round()));
-
-  @override
-  Widget build(BuildContext context) {
-    final f = _drag ?? _frac(widget.position);
-    return Focus(
-      focusNode: widget.focusNode,
-      onFocusChange: (v) => setState(() => _focused = v),
-      onKeyEvent: (node, e) {
-        if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
-        final k = e.logicalKey;
-        if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
-          final dir = k == LogicalKeyboardKey.arrowLeft ? -1 : 1;
-          if (widget.onStep != null) {
-            widget.onStep!(dir, e is KeyRepeatEvent);
-          } else {
-            widget.onSeek(widget.position + const Duration(seconds: 10) * dir);
-          }
-          return KeyEventResult.handled;
-        }
-        if (widget.onSelect != null && isActivateKey(k)) {
-          widget.onSelect!();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: LayoutBuilder(
-        builder: (context, c) {
-          final w = c.maxWidth;
-          final h = context.px(_focused ? 14 : 10);
-          final previewFrac = _drag ?? _hover ?? (_focused || widget.scrubbing ? f : null);
-          final thumbW = context.px(240);
-          return MouseRegion(
-            onHover: (e) => setState(() => _hover = (e.localPosition.dx / w).clamp(0.0, 1.0)),
-            onExit: (_) => setState(() => _hover = null),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => _seekFrac(d.localPosition.dx / w),
-              onHorizontalDragUpdate: (d) => setState(() => _drag = (d.localPosition.dx / w).clamp(0.0, 1.0)),
-              onHorizontalDragEnd: (_) {
-                if (_drag != null) _seekFrac(_drag!);
-                setState(() => _drag = null);
-              },
-              child: SizedBox(
-                height: context.px(40),
-                child: Stack(
-                  alignment: Alignment.centerLeft,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      height: h,
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(h)),
-                    ),
-                    Container(
-                      width: w * _frac(widget.buffered),
-                      height: h,
-                      decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(h)),
-                    ),
-                    Container(
-                      width: w * f,
-                      height: h,
-                      decoration: BoxDecoration(color: C.accent, borderRadius: BorderRadius.circular(h)),
-                    ),
-                    Positioned(
-                      left: w * f - context.px(15),
-                      child: Container(
-                        width: context.px(30),
-                        height: context.px(30),
-                        decoration: BoxDecoration(
-                          color: C.accent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _focused ? C.text : Colors.transparent, width: context.px(4)),
-                        ),
-                      ),
-                    ),
-                    if (widget.preview != null && previewFrac != null && widget.duration > Duration.zero)
-                      Positioned(
-                        left: (w * previewFrac - thumbW / 2).clamp(0.0, w - thumbW),
-                        bottom: context.px(44),
-                        child: IgnorePointer(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: thumbW,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: C.text, width: context.px(3)),
-                                  borderRadius: BorderRadius.circular(context.px(10)),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(context.px(8)),
-                                  child: AspectRatio(
-                                    aspectRatio: 16 / 9,
-                                    child: widget.preview!(
-                                      Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round()),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: context.px(6)),
-                              Text(
-                                formatClock(
-                                  Duration(milliseconds: (widget.duration.inMilliseconds * previewFrac).round()),
-                                ),
-                                style: body(context.px(22), weight: FontWeight.w700),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// One frame from Jellyfin's trickplay sheets, for the scrubber preview.
-class _TrickThumb extends StatelessWidget {
-  final TrickplayInfo info;
-  final JellyfinClient jf;
-  final Duration at;
-  const _TrickThumb({required this.info, required this.jf, required this.at});
-
-  @override
-  Widget build(BuildContext context) {
-    final n = (at.inMilliseconds ~/ max(info.interval.inMilliseconds, 1)).clamp(0, max(info.count - 1, 0));
-    final sheet = n ~/ info.perSheet;
-    final within = n % info.perSheet;
-    final col = within % info.tileWidth;
-    final row = within ~/ info.tileWidth;
-    return LayoutBuilder(
-      builder: (context, c) {
-        final tw = c.maxWidth, th = c.maxHeight;
-        return ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.topLeft,
-            minWidth: tw * info.tileWidth,
-            maxWidth: tw * info.tileWidth,
-            minHeight: th * info.tileHeight,
-            maxHeight: th * info.tileHeight,
-            child: Transform.translate(
-              offset: Offset(-col * tw, -row * th),
-              child: Image.network(
-                jf.trickplaySheetUrl(info, sheet),
-                width: tw * info.tileWidth,
-                height: th * info.tileHeight,
-                fit: BoxFit.fill,
-                gaplessPlayback: true,
-                errorBuilder: (_, _, _) => Container(color: C.surface2),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }
