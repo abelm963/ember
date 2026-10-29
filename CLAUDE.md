@@ -60,7 +60,7 @@ https://claude.ai/artifact/GT3uTzN7739DSi7hcPsWLQ
   - a zip in `releases/` containing the dll and a `meta.json`;
   - its MD5 checksum in the manifest;
   - a version per target (`0.x.1.0` for Jellyfin 12, `0.x.0.1` for 10.11).
-- **How a trailer streams (0.5+):** the trailer check (`Items/{id}/Info`) runs `yt-dlp -J` once and
+- **How a trailer streams (0.6+):** the trailer check (`Items/{id}/Info`) runs `yt-dlp -J` once and
   keeps YouTube's stream addresses until shortly before they expire. `Videos/{key}/Stream` then tries,
   in order: YouTube's combined HLS stream (remuxed by Jellyfin's ffmpeg to MPEG-TS), separate H.264
   picture + AAC sound joined to Matroska, other codecs, the plain 360p file (passed through with
@@ -68,8 +68,8 @@ https://claude.ai/artifact/GT3uTzN7739DSi7hcPsWLQ
   Each try must produce data within 15 s (yt-dlp: 40 s). If all fail it answers 502 with
   `X-Ember-Error` and a JSON list of attempts; `Videos/{key}/Test` shows the same list in Ember.
 - **Endpoints** (all under `/EmberTrailers`):
-  - `Health` (the `features` list tells Ember what the running plugin can do; 0.5 adds
-    `directstreams` and `streamerrors`)
+  - `Health` (the `features` list tells Ember what the running plugin can do; 0.5 adds `hls`,
+    0.6 adds `directstreams` and `streamerrors`)
   - `Items/{id}/Info` (returns a reason when a trailer can't play)
   - `Videos/{key}/Info`
   - `Videos/{key}/Stream`
@@ -101,9 +101,9 @@ Working:
 **Trailers (in progress).** They used to fail with mpv's "Failed to open" on
 `/EmberTrailers/Videos/{key}/Stream`. Plugin 0.4 was installed but never loaded (Jellyfin needs a
 full restart). What changed on 2026-10-12:
-- Plugin 0.5 (branch `fix/robust-trailer-stream` in ember-trailers, zips and manifest entries ready,
-  **not published yet**: the owner approves before it goes to `main`) streams YouTube's addresses
-  directly with several fallbacks and reports why a stream failed (see "How a trailer streams").
+- Plugin 0.6 (published 2026-10-29) streams YouTube's addresses directly with several fallbacks
+  and reports why a stream failed (see "How a trailer streams"). It also keeps 0.5's HLS stream
+  (`Videos/{key}/master.m3u8`) that the Apple TV build uses.
 - Ember's player now falls back by itself: if the server can't start the trailer (error, empty
   stream, or nothing after 60 s) it plays the trailer straight from YouTube inside Ember
   (`youtube_direct.dart`, tried as several YouTube player kinds). Without the trailer service it
@@ -114,8 +114,8 @@ full restart). What changed on 2026-10-12:
 
 Next steps:
 1. Find out how Hearth runs Jellyfin (Docker? Unraid? TrueNAS?) and fully restart it after
-   publishing 0.5.
-2. Settings › Trailers & calendar should then show plugin 0.5.1.0 with no "New version available".
+   updating to 0.6.
+2. Settings › Trailers & calendar should then show plugin 0.6.1.0 with no "New version available".
 3. Run **Test trailer playback**: it now shows "Streamed as" and every method it tried.
 4. If YouTube blocks Hearth outright, Ember already plays trailers straight from YouTube.
 
