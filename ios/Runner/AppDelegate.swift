@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 
@@ -7,6 +8,8 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Films play with sound even when the iPhone's silent switch is on, like any video app.
+    try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

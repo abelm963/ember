@@ -151,4 +151,21 @@ Smaller known issues:
   publish the release that atvloadly installs.
 - Not yet tested on hardware: this was written on Linux. Check on the Apple TV first.
 
-Later: Android TV and phones.
+## iPhone
+
+- Plain Flutter (`ios/`), the same code as everywhere else: `FormFactor.phone` (bottom tab bar, touch
+  controls) and mpv (`MpvEngine`) for playback, so films play in Ember's own player like on Windows.
+  `isAppleTv` is false there, so none of the Apple TV paths (Apple's player, the tvOS device profile)
+  apply.
+- `.github/workflows/iphone.yml` builds an unsigned `Ember-iPhone.ipa` on GitHub's Macs. Pushes to
+  `apple-tv`/`main` replace the assets of the `iphone` release (a pre-release, never "latest", so
+  atvloadly ignores it): `Ember-iPhone.ipa` and `source.json`, an AltStore/SideStore source. The owner
+  installs with SideStore (free Apple ID, refreshes itself every 7 days) by adding
+  `https://github.com/abelm963/ember/releases/download/iphone/source.json` as a source.
+- `setPhoneOrientation` (`lib/platform.dart`): the app stays upright on phones, the player turns
+  sideways and hides the status bar. `ios/Runner/Info.plist` allows plain http (Jellyfin on the LAN
+  is http://…:8096) and asks for Local Network access. `AppDelegate.swift` sets the audio session to
+  playback so the silent switch doesn't mute films.
+- Not yet tested on hardware.
+
+Later: Android TV and Android phones.
