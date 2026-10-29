@@ -25,7 +25,12 @@ Map<String, dynamic> movie(String id, String name) => {
       'Genres': ['Drama', 'Sci-Fi'],
       'ImageTags': {'Primary': 'p'},
       'BackdropImageTags': ['b'],
-      'UserData': {'PlaybackPositionTicks': 18000000000, 'Played': false, 'IsFavorite': false},
+      'UserData': {
+        'PlaybackPositionTicks': 18000000000,
+        'Played': false,
+        'IsFavorite': false,
+        'LastPlayedDate': DateTime.now().subtract(const Duration(days: 3)).toUtc().toIso8601String(),
+      },
       'ProviderIds': {'Tmdb': '100'},
       'People': [
         {'Id': 'p1', 'Name': 'Ada Actor', 'Role': 'Lead', 'Type': 'Actor'},
@@ -230,13 +235,15 @@ void main() {
           }
         }
 
-        // Discover: New & Hot, Explore (Seerr titles not on the server) and the Coming Soon calendar.
+        // Discover: Recommended, Explore (Seerr titles not on the server) and the Coming Soon calendar.
         {
           navigatorKey.currentState!.push(MaterialPageRoute(builder: (_) => const Scaffold(body: DiscoverScreen())));
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
-          expect(find.text('Because you watched The Quiet Orbit', skipOffstage: false), findsWidgets);
+          // Recommended: ranked picks, the featured one saying why it's there.
+          expect(find.text('Top picks for you', skipOffstage: false), findsWidgets);
+          expect(find.textContaining(RegExp(r'^(Because you watched|Like) '), skipOffstage: false), findsWidgets);
           await tester.tap(find.text('Explore').first, warnIfMissed: false);
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));

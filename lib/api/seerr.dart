@@ -98,6 +98,7 @@ class SeerrMedia {
   String? get date => (raw['releaseDate'] ?? raw['firstAirDate']) as String?;
   int? get year => (date != null && date!.length >= 4) ? int.tryParse(date!.substring(0, 4)) : null;
   double? get voteAverage => (raw['voteAverage'] as num?)?.toDouble();
+  int? get voteCount => (raw['voteCount'] as num?)?.toInt();
   Map<String, dynamic>? get mediaInfo => (raw['mediaInfo'] as Map?)?.cast<String, dynamic>();
   MediaStatus get status => mediaStatusFrom((mediaInfo?['status'] as num?)?.toInt());
   List<Map<String, dynamic>> get requests =>
@@ -120,6 +121,18 @@ class SeerrMedia {
       ((raw['credits'] as Map?)?['cast'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
   List<Map<String, dynamic>> get crew =>
       ((raw['credits'] as Map?)?['crew'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
+  /// Movies: the series of films it belongs to (TMDB collection), as id and name.
+  ({int id, String name})? get collection {
+    final c = raw['collection'] ?? raw['belongsToCollection'];
+    if (c is! Map || c['id'] is! num) return null;
+    return (id: (c['id'] as num).toInt(), name: c['name'] as String? ?? '');
+  }
+
+  /// Shows: the TMDB ids of the people who created it.
+  List<int> get createdBy => [
+        for (final c in (raw['createdBy'] as List? ?? const []))
+          if (c is Map && c['id'] is num) (c['id'] as num).toInt(),
+      ];
   List<Map<String, dynamic>> get videos =>
       (raw['relatedVideos'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
   String? get certification {
@@ -531,6 +544,17 @@ class SeerrClient {
       m.raw['mediaType'] ??= mediaType;
       return m;
     }).toList();
+  }
+
+  /// The films of a TMDB collection (a series of films), oldest first.
+  Future<List<SeerrMedia>> collection(int id) async {
+    final json = await _send('GET', '/collection/$id');
+    final parts = (json is Map ? json['parts'] : null) as List? ?? const [];
+    final out = [
+      for (final p in parts.whereType<Map>()) SeerrMedia(p.cast<String, dynamic>()..['mediaType'] ??= 'movie'),
+    ];
+    out.sort((a, b) => (a.date ?? '9999').compareTo(b.date ?? '9999'));
+    return out;
   }
 
   /// This person's Seerr watchlist, newest first: titles they want to see, on the server or not.

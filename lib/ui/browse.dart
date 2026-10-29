@@ -332,6 +332,9 @@ class PosterEntry {
 
   /// Its place in a Top 10 row: the number is drawn beside the poster.
   final int? rank;
+
+  /// Why it's suggested ("Because you watched …"), shown with its details.
+  final String? reason;
   final VoidCallback onTap;
   const PosterEntry({
     required this.title,
@@ -349,7 +352,27 @@ class PosterEntry {
     this.badgeAlt = false,
     this.backdrop,
     this.rank,
+    this.reason,
   });
+
+  PosterEntry withReason(String? why) => PosterEntry(
+        title: title,
+        onTap: onTap,
+        poster: poster,
+        wide: wide,
+        logo: logo,
+        subtitle: subtitle,
+        note: note,
+        progress: progress,
+        meta: meta,
+        rating: rating,
+        overview: overview,
+        badge: badge,
+        badgeAlt: badgeAlt,
+        backdrop: backdrop,
+        rank: rank,
+        reason: why == null || why.isEmpty ? null : why,
+      );
 }
 
 /// A titled row of posters. The focused poster widens into the title's picture, and its details
@@ -502,6 +525,8 @@ class _Details extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (e.reason != null)
+          Text(e.reason!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(19), color: C.accent, weight: FontWeight.w700)),
         MetaDots(parts: e.meta, rating: e.rating, size: 19),
         if (e.overview != null) ...[
           SizedBox(height: context.px(6)),
@@ -929,6 +954,10 @@ class _SpotDetails extends StatelessWidget {
         else
           Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: display(context.px(76))),
         SizedBox(height: context.px(16)),
+        if (e.reason != null) ...[
+          Text(e.reason!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.accent, weight: FontWeight.w700)),
+          SizedBox(height: context.px(6)),
+        ],
         if (e.subtitle != null || e.note != null) ...[
           if (e.subtitle != null) Text(e.subtitle!, style: body(context.px(22), weight: FontWeight.w700)),
           if (e.note != null)

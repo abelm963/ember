@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 41 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 47 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -38,7 +38,8 @@ say what to click or run to see it.
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic sign-in |
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
-| `lib/screens/discover.dart` | Discover (menu): Recommended (`_loadRecommended`: from what was watched, liked (favourites) and put on the Seerr watchlist; on-server picks via Jellyfin's Similar first, then Seerr's not-on-server picks), Coming Soon and Explore (Seerr's movies and shows not on the server; Type and Genre in the filter panel; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
+| `lib/screens/discover.dart` | Discover (menu): Recommended, Coming Soon and Explore (Seerr's movies and shows not on the server; Type and Genre in the filter panel; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
+| `lib/api/recommend.dart`, `lib/api/taste.dart` | Recommended's ranking, run each time the tab opens. `recommend.dart` gathers 2 years of history from Jellyfin (movies: how far and how often; shows: episodes per season, seasons finished, caught up), likes and the Seerr watchlist, then links (Jellyfin Similar, TMDB recommendations/similar via Seerr, the next film in a series, shows by the same creators, a new season, same director/leads); Seerr answers are kept for a day (`rec1.*` in shared preferences). `taste.dart` has every number: taste points, fading (half every 9 months, never below 15%), link strengths, quality, the 30% variety cost and at least 12 of 20 Top picks on the server, rows, and each pick's reason (shown with its details). Tested in `test/taste_test.dart` with the worked example from the design doc |
 | `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside Discover) |
 | `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), `segments.dart` (checks the server's intro/recap/credits times against the episode's length and falls back to chapter names; tested in `test/segments_test.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |

@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
+import '../api/recommend.dart';
 import '../api/seerr.dart';
 import '../state/app_state.dart';
 import '../ui/browse.dart';
@@ -52,23 +53,13 @@ extension on DiscoverKind {
   List<String> get types => switch (this) { DiscoverKind.all => ['movie', 'tv'], DiscoverKind.movies => ['movie'], DiscoverKind.shows => ['tv'] };
 }
 
-/// One row of Discover: library items (New & Hot) or Seerr titles (Explore).
+/// One row of Discover: Recommended's picks (each with its reason) or Seerr titles (Explore).
 class _Row {
   final String title;
-  final List<JfItem> items;
-  final List<SeerrMedia> seerr;
-  const _Row(this.title, {this.items = const [], this.seerr = const []});
-  bool get isEmpty => items.isEmpty && seerr.isEmpty;
-}
-
-/// A title Recommended picks from, and why ("Because you watched").
-class _Seed {
-  final String reason;
-  final String title;
-  final String? jfId;
-  final String mediaType;
-  final int? tmdbId;
-  const _Seed(this.reason, this.title, this.jfId, this.mediaType, this.tmdbId);
+  final List<RecPick> picks;
+  _Row(this.title, {List<RecPick>? picks, List<SeerrMedia> seerr = const []})
+      : picks = picks ?? [for (final m in seerr) RecPick(media: m)];
+  bool get isEmpty => picks.isEmpty;
 }
 
 /// Seerr titles that aren't (even partly) on the server.
@@ -102,75 +93,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   DiscoverGenre? _genre;
   int _reload = 0;
 
-  /// Recommended: titles picked from what this person watched, liked (My List) and put on their
-  /// Seerr watchlist. What's on the server comes first in each row (ready to watch); Seerr's picks
-  /// that aren't on the server follow, to request.
+  /// Recommended: ranked from everything watched in the last 2 years, likes and the Seerr
+  /// watchlist (`lib/api/recommend.dart`, numbers in `lib/api/taste.dart`).
   Future<List<_Row>> _loadRecommended(AppState app) async {
-    final jf = app.jf!;
-    final seerr = app.seerrConfigured ? app.seerr : null;
-    final server = app.serverName ?? 'your server';
-    final r = await Future.wait<Object>([
-      jf.resume().catchError((_) => <JfItem>[]),
-      jf
-          .items(types: const ['Movie', 'Episode'], sortBy: 'DatePlayed', sortOrder: 'Descending', filters: 'IsPlayed', limit: 40)
-          .catchError((_) => <JfItem>[]),
-      jf.items(types: const ['Movie', 'Series'], filters: 'IsFavorite', sortBy: 'Random', limit: 3).catchError((_) => <JfItem>[]),
-      seerr?.watchlist(pages: 1).catchError((_) => <WatchlistEntry>[]) ?? Future.value(<WatchlistEntry>[]),
-      jf
-          .items(types: const ['Movie', 'Series'], filters: 'IsUnplayed', sortBy: 'CommunityRating', sortOrder: 'Descending', limit: 24)
-          .catchError((_) => <JfItem>[]),
-    ]);
-
-    // The titles to recommend from: the last few watched (an episode counts as its show), a few
-    // liked, and the newest on the watchlist.
-    final seeds = <_Seed>[];
-    final seedKeys = <String>{};
-    for (final it in [...r[0] as List<JfItem>, ...r[1] as List<JfItem>]) {
-      if (seeds.length >= 3) break;
-      final id = it.isEpisode ? it.seriesId : (it.isMovie ? it.id : null);
-      if (id == null || !seedKeys.add(id)) continue;
-      final title = it.isEpisode ? await jf.item(id).catchError((_) => it) : it;
-      if (!title.isMovie && !title.isSeries) continue;
-      seeds.add(_Seed('Because you watched', title.name, title.id, title.isSeries ? 'tv' : 'movie', int.tryParse(title.tmdbId ?? '')));
-    }
-    for (final it in r[2] as List<JfItem>) {
-      if (!seedKeys.add(it.id)) continue;
-      seeds.add(_Seed('Because you liked', it.name, it.id, it.isSeries ? 'tv' : 'movie', int.tryParse(it.tmdbId ?? '')));
-    }
-    for (final w in (r[3] as List<WatchlistEntry>).take(2)) {
-      if (w.title.isEmpty) continue;
-      seeds.add(_Seed('More like', w.title, null, w.mediaType, w.tmdbId));
-    }
-
-    final found = await Future.wait(seeds.map((x) => Future.wait<Object>([
-          x.jfId == null
-              ? Future.value(<JfItem>[])
-              : jf.similar(x.jfId!, limit: 16).then((l) => l.where((i) => !i.played).toList()).catchError((_) => <JfItem>[]),
-          seerr == null || x.tmdbId == null
-              ? Future.value(<SeerrMedia>[])
-              : seerr.recommendations(x.mediaType, x.tmdbId!).then(notOnServer).catchError((_) => <SeerrMedia>[]),
-        ])));
-    final onServer = [for (final f in found) f[0] as List<JfItem>];
-    final toRequest = [for (final f in found) f[1] as List<SeerrMedia>];
-
-    // Top picks: the best few from each, taken in turn; the rows below don't repeat them.
-    final seen = <String>{...seedKeys};
-    final top = <JfItem>[];
-    for (var i = 0; i < 4; i++) {
-      for (final l in onServer) {
-        if (i < l.length && seen.add(l[i].id)) top.add(l[i]);
-      }
-    }
-    final seenSeerr = <String>{for (final x in seeds) if (x.tmdbId != null) '${x.mediaType}:${x.tmdbId}'};
-    final rows = <_Row>[if (top.length >= 4) _Row('Top picks for you', items: top)];
-    for (var i = 0; i < seeds.length; i++) {
-      final items = onServer[i].where((it) => seen.add(it.id)).take(10).toList();
-      final more = toRequest[i].where((m) => seenSeerr.add('${m.mediaType}:${m.id}')).take(12).toList();
-      if (items.length + more.length >= 4) rows.add(_Row('${seeds[i].reason} ${seeds[i].title}', items: items, seerr: more));
-    }
-    final popular = (r[4] as List<JfItem>).where((it) => seen.add(it.id)).toList();
-    if (popular.length >= 4) rows.add(_Row('Popular on $server', items: popular));
-    return rows;
+    final rows = await recommend(app.jf!, app.seerrConfigured ? app.seerr : null, server: app.serverName ?? 'your server');
+    return [for (final r in rows) _Row(r.title, picks: r.picks)];
   }
 
   Future<List<_Row>> _loadExplore(AppState app, DiscoverKind kind, DiscoverGenre? genre) async {
@@ -345,15 +272,18 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ]);
         }
         final first = rows.first;
-        final libFeatured = first.items.where((it) => it.backdropTags.isNotEmpty && !it.isEpisode).firstOrNull;
-        final seerrFeatured = first.seerr.where((m) => m.backdropUrl != null).firstOrNull;
+        final pick = first.picks
+            .where((p) => p.item != null ? p.item!.backdropTags.isNotEmpty && !p.item!.isEpisode : p.media?.backdropUrl != null)
+            .firstOrNull;
+        final libFeatured = pick?.item;
+        final seerrFeatured = libFeatured == null ? pick?.media : null;
         return Billboard(
           key: ValueKey('bb-$_deps'),
           header: header,
           featured: libFeatured != null
-              ? libEntry(libFeatured)
+              ? libEntry(libFeatured).withReason(pick!.reason)
               : seerrFeatured != null
-                  ? seerrEntry(context, seerrFeatured)
+                  ? seerrEntry(context, seerrFeatured).withReason(pick!.reason)
                   : null,
           actions: [
             if (libFeatured != null) ...[
@@ -381,7 +311,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             for (final r in rows)
               PosterRow(
                 title: r.title,
-                entries: [for (final it in r.items) libEntry(it), for (final m in r.seerr) seerrEntry(context, m)],
+                entries: [
+                  for (final p in r.picks)
+                    if (p.item != null) libEntry(p.item!).withReason(p.reason) else if (p.media != null) seerrEntry(context, p.media!).withReason(p.reason),
+                ],
               ),
           ],
         );
@@ -430,21 +363,24 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               title: r.title,
               tileHeight: 216,
               children: [
-                for (final it in r.items)
-                  MediaTile(
-                    title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
-                    subtitle: it.isEpisode ? it.episodeLabel : null,
-                    imageUrl: jf.landscapeImage(it),
-                    onTap: () => it.isEpisode ? play(context, it) : openItem(context, it),
-                  ),
-                for (final m in r.seerr)
-                  MediaTile(
-                    title: m.title,
-                    imageUrl: m.backdropUrl ?? m.posterUrl,
-                    badge: m.isRequested ? 'Requested' : 'Not on server',
-                    badgeAlt: m.isRequested,
-                    onTap: () => openSeerr(context, m),
-                  ),
+                for (final p in r.picks)
+                  if (p.item case final it?)
+                    MediaTile(
+                      title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
+                      // The reason, unless the row's title already says it.
+                      subtitle: it.isEpisode ? it.episodeLabel : (r.title.contains(p.reason) ? null : p.reason),
+                      imageUrl: jf.landscapeImage(it),
+                      onTap: () => it.isEpisode ? play(context, it) : openItem(context, it),
+                    )
+                  else if (p.media case final m?)
+                    MediaTile(
+                      title: m.title,
+                      subtitle: r.title.contains(p.reason) ? null : p.reason,
+                      imageUrl: m.backdropUrl ?? m.posterUrl,
+                      badge: m.isRequested ? 'Requested' : 'Not on server',
+                      badgeAlt: m.isRequested,
+                      onTap: () => openSeerr(context, m),
+                    ),
               ],
             ),
           if (rows.isEmpty)
