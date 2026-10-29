@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../state/app_state.dart';
+import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'home.dart' show posterEntry;
 import 'nav.dart';
 import 'settings.dart' show pickOption;
 
@@ -65,9 +67,115 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onTap: () => openItem(context, it),
       );
 
+  void _pickGenre() => pickOption<String?>(
+        context,
+        'Genres',
+        {null: 'All genres', for (final g in _genres ?? const <String>[]) g: g},
+        _genre,
+        (v) => setState(() => _genre = v),
+      );
+
+  void _pickSort() => pickOption<int>(
+      context, 'Sort by', {for (var i = 0; i < _sorts.length; i++) i: _sorts[i].label}, _sort, (v) => setState(() => _sort = v));
+
+  /// TV and desktop: a billboard like Home. The page name with Genres and Sort at the top, a
+  /// featured title from the Top 10, then a Top 10 row and a row per genre (or every title in the
+  /// chosen genre, a row at a time).
+  Widget _tvBuild(BuildContext context, AppState app) {
+    final jf = app.jf!;
+    final s = _sorts[_sort];
+    final title = widget.kind == LibraryKind.movies ? 'Movies' : 'Shows';
+    final header = FocusTraversalGroup(
+      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(18), runSpacing: context.px(10), children: [
+        Text(title, style: display(context.px(52))),
+        PillButton(
+            label: _genre ?? 'All genres', icon: Icons.keyboard_arrow_down_rounded, compact: true, scrollIntoView: false, onTap: _pickGenre),
+        PillButton(label: 'Sort: ${s.label}', compact: true, scrollIntoView: false, onTap: _pickSort),
+        if (_count != null) Text('$_count in your library', style: body(context.px(20), color: C.faint)),
+      ]),
+    );
+    PosterEntry entry(JfItem it, {int? rank}) {
+      final e = posterEntry(context, jf, it, onTap: () => openItem(context, it));
+      return PosterEntry(
+        title: e.title,
+        poster: e.poster,
+        wide: e.wide,
+        logo: e.logo,
+        meta: e.meta,
+        rating: e.rating,
+        overview: e.overview,
+        backdrop: e.backdrop,
+        badge: it.isSeries && (it.unplayedCount ?? 0) > 0 ? '${it.unplayedCount} new' : null,
+        badgeAlt: true,
+        rank: rank,
+        onTap: e.onTap,
+      );
+    }
+
+    return Loader<List<JfItem>>(
+      deps: 'tv-top-$_genre',
+      load: () => jf.items(types: [_type], genre: _genre, sortBy: 'CommunityRating', sortOrder: 'Descending', limit: 10),
+      builder: (context, top) {
+        final featured = top.where((it) => it.backdropTags.isNotEmpty).firstOrNull ?? top.firstOrNull;
+        final rows = <Widget>[
+          PosterRow(
+            title: _genre == null ? 'Top 10 on your server' : 'Top 10 in $_genre',
+            autofocusFirst: featured == null,
+            entries: [for (var i = 0; i < top.length; i++) entry(top[i], rank: i + 1)],
+          ),
+          if (_genre == null) ...[
+            Loader<List<JfItem>>(
+              deps: 'tv-all-$_sort',
+              load: () => jf.items(types: [_type], sortBy: s.sortBy, sortOrder: s.order, filters: s.filters, limit: 30),
+              builder: (context, items) => PosterRow(title: s.label, entries: [for (final it in items) entry(it)]),
+            ),
+            for (final g in (_genres ?? const <String>[]).take(14))
+              Loader<List<JfItem>>(
+                deps: 'tv-$g-$_sort',
+                load: () => jf.items(types: [_type], genre: g, sortBy: s.sortBy, sortOrder: s.order, filters: s.filters, limit: 24),
+                builder: (context, items) => PosterRow(title: g, entries: [for (final it in items) entry(it)]),
+              ),
+          ] else
+            Loader<List<JfItem>>(
+              deps: 'tv-$_genre-$_sort-all',
+              load: () =>
+                  jf.items(types: [_type], genre: _genre, sortBy: s.sortBy, sortOrder: s.order, filters: s.filters, limit: 300),
+              builder: (context, items) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (var i = 0; i < items.length; i += 12)
+                  PosterRow(
+                    title: i == 0 ? 'All $_genre · ${s.label}' : '',
+                    entries: [for (final it in items.skip(i).take(12)) entry(it)],
+                  ),
+              ]),
+            ),
+        ];
+        return Billboard(
+          key: ValueKey('$_genre-$_sort'),
+          header: header,
+          featured: featured == null ? null : entry(featured),
+          actions: featured == null
+              ? const []
+              : [
+                  PillButton(
+                    label: featured.progress != null ? 'Resume' : 'Play',
+                    icon: Icons.play_arrow_rounded,
+                    autofocus: app.isTv,
+                    scrollIntoView: false,
+                    onTap: () => featured.isSeries ? playSeries(context, jf, featured) : play(context, featured),
+                  ),
+                  PillButton(
+                      label: 'More Info', icon: Icons.info_outline, scrollIntoView: false, onTap: () => openItem(context, featured)),
+                ],
+          rows: rows,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    if (!app.isPhone) return _tvBuild(context, app);
     final jf = app.jf!;
     final pad = context.px(gutter(context));
     final s = _sorts[_sort];

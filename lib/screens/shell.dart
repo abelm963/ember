@@ -103,15 +103,23 @@ class _AppShellState extends State<AppShell> {
   Widget _tvLayout(BuildContext context, AppState app, Widget body) {
     final barH = context.px(100);
     final items = _visible(app).where((e) => e.section != Section.requests || app.seerrConfigured).toList();
+    // Home, Shows and Movies run under the menu bar, with the picture showing through it.
+    final billboard = const [Section.home, Section.shows, Section.movies].contains(_section);
     return Stack(children: [
-      Positioned.fill(top: barH, child: FocusTraversalGroup(child: body)),
+      Positioned.fill(top: billboard ? 0 : barH, child: FocusTraversalGroup(child: body)),
       Positioned(
         left: 0,
         right: 0,
         top: 0,
         height: barH,
         child: Container(
-          color: C.bg,
+          decoration: BoxDecoration(
+            color: billboard ? null : C.bg,
+            gradient: billboard
+                ? const LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xE60A0A0B), Color(0x000A0A0B)])
+                : null,
+          ),
           padding: EdgeInsets.symmetric(horizontal: context.px(60)),
           child: FocusTraversalGroup(
             child: Row(children: [

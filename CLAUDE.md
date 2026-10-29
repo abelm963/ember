@@ -52,6 +52,13 @@ works in Ember's player too. Audio & Subtitles is two lists over the picture wit
 ("English 5.1", "English (CC)": `audioLabel`/`subtitleLabel` in `tracks.dart`); subtitle picks are
 remembered (`preferredSubtitleLanguage`, `rememberedSubtitleMode`).
 
+Home, Movies and Shows on TV and desktop are a `Billboard` (`lib/ui/browse.dart`): the focused
+title's picture fills the top of the screen (running under the menu bar) with its logo, details and
+story; the rows sit underneath, one at a time; until a row has focus the featured title shows with
+Play / More Info and its muted preview. `PosterRow`s inside it report focus through `BillboardScope`.
+Movies and Shows have a Genres picker and Sort at the top and a Top 10 row with big numbers
+(`PosterEntry.rank`).
+
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
 uses a bottom tab bar. Every interactive element goes through `Focusable`, so the remote, the mouse
 and touch all work.

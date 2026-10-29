@@ -183,7 +183,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// TV and desktop: a rounded hero card under the menu bar, then poster rows.
+  /// TV and desktop: a billboard. The featured title (or the one in focus) fills the top of the
+  /// screen, with the rows underneath.
   Widget _tvHome(BuildContext context, AppState app, _HomeData d) {
     final jf = app.jf!;
     if (d.hero == null && d.resume.isEmpty && d.latest.isEmpty) {
@@ -192,11 +193,11 @@ class _HomeScreenState extends State<HomeScreen> {
             style: body(context.px(26), color: C.muted)),
       );
     }
+    final hero = d.hero;
     final rows = <Widget>[
-      if (d.hero != null) _HeroCard(item: d.hero!, jf: jf, active: _heroActive),
       PosterRow(
         title: 'Continue Watching',
-        autofocusFirst: d.hero == null,
+        autofocusFirst: hero == null,
         entries: [for (final it in d.resume) posterEntry(context, jf, it, onTap: () => play(context, it), resume: true)],
       ),
       PosterRow(
@@ -212,6 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: m.title,
                 poster: m.posterUrl,
                 wide: m.backdropUrl,
+                backdrop: m.backdropUrl,
                 badge: m.isRequested ? 'Requested' : null,
                 badgeAlt: true,
                 overview: m.overview,
@@ -223,14 +225,23 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final (title, items) in d.latest)
         PosterRow(title: title, entries: [for (final it in items) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
       PosterRow(title: 'My List', entries: [for (final it in d.favorites) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
-      SizedBox(height: context.px(300)),
     ];
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n.metrics.axis == Axis.vertical) _heroActive.value = n.metrics.pixels < context.px(350);
-        return false;
-      },
-      child: ListView(scrollCacheExtent: const ScrollCacheExtent.pixels(4000), padding: EdgeInsets.zero, children: rows),
+    return Billboard(
+      featured: hero == null ? null : posterEntry(context, jf, hero, onTap: () => openItem(context, hero)),
+      preview: hero == null ? null : (active) => HeroPreview(item: hero, active: active, overlay: const SizedBox.shrink()),
+      actions: hero == null
+          ? const []
+          : [
+              PillButton(
+                label: hero.progress != null ? 'Resume' : 'Play',
+                icon: Icons.play_arrow_rounded,
+                autofocus: app.isTv,
+                scrollIntoView: false,
+                onTap: () => hero.isSeries ? playSeries(context, jf, hero) : play(context, hero),
+              ),
+              PillButton(label: 'More Info', icon: Icons.info_outline, scrollIntoView: false, onTap: () => openItem(context, hero)),
+            ],
+      rows: rows,
     );
   }
 
@@ -367,6 +378,7 @@ PosterEntry posterEntry(BuildContext context, JellyfinClient jf, JfItem it, {req
     meta: metaParts(it),
     rating: it.officialRating,
     overview: it.overview,
+    backdrop: jf.backdropImage(it),
     onTap: onTap,
   );
 }
@@ -380,95 +392,3 @@ List<String> metaParts(JfItem it) => [
       if (it.isMovie && it.runtime != null) formatRuntime(it.runtime),
       if (_videoBadge(it) != null) _videoBadge(it)!,
     ];
-
-/// The hero on TV and desktop: a rounded card with the backdrop (and muted preview), the logo,
-/// a meta line, the overview and Play / More Info.
-class _HeroCard extends StatelessWidget {
-  final JfItem item;
-  final JellyfinClient jf;
-  final ValueListenable<bool> active;
-  const _HeroCard({required this.item, required this.jf, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final logo = jf.logoImage(item);
-    final r = BorderRadius.circular(context.px(24));
-    // Fills the screen under the menu bar, leaving the top of the first row peeking out below.
-    final h = (MediaQuery.sizeOf(context).height - context.px(100) - context.px(150)).clamp(context.px(500), context.px(900));
-    // Landing on the hero's buttons brings the whole card back into view, top edge first.
-    return Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      onFocusChange: (f) {
-        if (f) Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 240), curve: Curves.easeOut);
-      },
-      child: Padding(
-      padding: EdgeInsets.fromLTRB(context.px(60), 0, context.px(60), context.px(34)),
-      child: Container(
-        height: h,
-        decoration: BoxDecoration(borderRadius: r, border: Border.all(color: const Color(0xFF2A2A30), width: context.px(1.5))),
-        child: ClipRRect(
-          borderRadius: r,
-          child: Stack(fit: StackFit.expand, children: [
-            NetImage(jf.backdropImage(item), alignment: Alignment.topCenter),
-            HeroPreview(
-              item: item,
-              active: active,
-              overlay: const Stack(fit: StackFit.expand, children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [Color(0xE6000000), Color(0x80000000), Color(0x00000000)], stops: [0, 0.35, 0.65]),
-                  ),
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Color(0xB3000000), Color(0x00000000)], stops: [0, 0.5]),
-                  ),
-                ),
-              ]),
-            ),
-            Positioned(
-              left: context.px(56),
-              bottom: context.px(50),
-              width: context.px(700),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                if (logo != null)
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: context.px(170), maxWidth: context.px(600)),
-                    child: NetImage(logo,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.centerLeft,
-                        loading: SizedBox(height: context.px(130)),
-                        fallback: Text(item.name, style: display(context.px(84)))),
-                  )
-                else
-                  Text(item.name, maxLines: 2, style: display(context.px(84))),
-                SizedBox(height: context.px(18)),
-                MetaDots(parts: metaParts(item), rating: item.officialRating, size: 19),
-                if (item.overview != null) ...[
-                  SizedBox(height: context.px(10)),
-                  Text(item.overview!,
-                      maxLines: 3, overflow: TextOverflow.ellipsis, style: body(context.px(21), color: C.text, height: 1.35)),
-                ],
-                SizedBox(height: context.px(22)),
-                Wrap(spacing: context.px(14), children: [
-                  PillButton(
-                    label: item.progress != null ? 'Resume' : 'Play',
-                    icon: Icons.play_arrow_rounded,
-                    autofocus: app.isTv,
-                    scrollIntoView: false,
-                    onTap: () => item.isSeries ? playSeries(context, jf, item) : play(context, item),
-                  ),
-                  PillButton(label: 'More Info', scrollIntoView: false, onTap: () => openItem(context, item)),
-                ]),
-              ]),
-            ),
-          ]),
-        ),
-      ),
-      ),
-    );
-  }
-}
