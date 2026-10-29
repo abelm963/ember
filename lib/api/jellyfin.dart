@@ -199,13 +199,19 @@ class JellyfinClient {
   String? token;
   String? userId;
 
+  /// Asks for streams Apple TV's player can open (see [playbackSource]). Defaults to whether
+  /// this is an Apple TV; tests set it to check the Apple TV requests on any machine.
+  final bool appleTv;
+
   JellyfinClient({
     required String baseUrl,
     required this.deviceId,
     required this.deviceName,
     this.token,
     this.userId,
-  }) : baseUrl = normalizeUrl(baseUrl);
+    bool? appleTv,
+  }) : baseUrl = normalizeUrl(baseUrl),
+       appleTv = appleTv ?? isAppleTv;
 
   /// Accepts whatever people paste — `hearth:8096`, a full web-app link like
   /// `https://host/web/#/home` — and returns the server's base address.
@@ -798,7 +804,7 @@ class JellyfinClient {
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
-    if (isAppleTv) {
+    if (appleTv) {
       return _appleTvSource(
         itemId,
         maxBitrate: maxBitrate,
