@@ -12,7 +12,6 @@ import '../ui/widgets.dart';
 import 'coming_soon.dart';
 import 'nav.dart';
 import 'preview.dart' show showRequestDialog;
-import 'settings.dart' show pickOption;
 import 'shared/media_entries.dart';
 
 const _tabs = ['Recommended', 'Coming Soon', 'Explore'];

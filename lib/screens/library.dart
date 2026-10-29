@@ -8,7 +8,6 @@ import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
-import 'settings.dart' show pickOption;
 import 'shared/media_entries.dart';
 
 enum LibraryKind { movies, shows }

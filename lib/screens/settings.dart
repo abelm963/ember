@@ -552,7 +552,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => _EmberDialog(
+        builder: (ctx, setD) => EmberDialog(
           title: 'Trakt key',
           children: [
             Text(
@@ -650,7 +650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _confirm(BuildContext context, String title, String text, Future<void> Function() action) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => _EmberDialog(
+      builder: (ctx) => EmberDialog(
         title: title,
         children: [
           Text(text, style: body(ctx.px(24), color: C.muted, height: 1.4)),
@@ -677,7 +677,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final code = TextEditingController();
     await showDialog(
       context: context,
-      builder: (ctx) => _EmberDialog(
+      builder: (ctx) => EmberDialog(
         title: 'Approve Quick Connect',
         children: [
           Text('Enter the code shown on the device you are signing in to.', style: body(ctx.px(23), color: C.muted)),
@@ -715,7 +715,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => _EmberDialog(
+        builder: (ctx, setD) => EmberDialog(
           title: apiKeyOnly ? 'Seerr API key' : 'Seerr address',
           children: [
             if (!apiKeyOnly) ...[
@@ -818,7 +818,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           refresh = (f) {
             if (ctx.mounted) setD(f);
           };
-          return _EmberDialog(
+          return EmberDialog(
             title: 'Seerr connection',
             children: [
               for (final r in results)
@@ -867,7 +867,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => _EmberDialog(
+        builder: (ctx, setD) => EmberDialog(
           title: 'Sign in to Seerr',
           children: [
             Text(
@@ -909,91 +909,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-}
-
-/// A list picker that works with a remote, a mouse or a finger.
-Future<void> pickOption<T>(
-  BuildContext context,
-  String title,
-  Map<T, String> options,
-  T current,
-  ValueChanged<T> onPick,
-) async {
-  await showDialog(
-    context: context,
-    builder: (ctx) => _EmberDialog(
-      title: title,
-      children: [
-        for (final e in options.entries)
-          Padding(
-            padding: EdgeInsets.only(bottom: ctx.px(8)),
-            child: Focusable(
-              autofocus: e.key == current,
-              onTap: () {
-                onPick(e.key);
-                Navigator.pop(ctx);
-              },
-              semanticLabel: e.value,
-              builder: (context, active) => Container(
-                height: context.px(66),
-                padding: EdgeInsets.symmetric(horizontal: context.px(20)),
-                decoration: BoxDecoration(
-                  color: active ? C.text : C.surface2,
-                  borderRadius: BorderRadius.circular(context.px(12)),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: context.px(40),
-                      child: e.key == current
-                          ? Icon(Icons.check, color: active ? const Color(0xFF111111) : C.accent, size: context.px(28))
-                          : null,
-                    ),
-                    Expanded(
-                      child: Text(
-                        e.value,
-                        style: body(
-                          context.px(24),
-                          weight: FontWeight.w600,
-                          color: active ? const Color(0xFF111111) : C.soft,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
-}
-
-class _EmberDialog extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  const _EmberDialog({required this.title, required this.children});
-  @override
-  Widget build(BuildContext context) => Dialog(
-    backgroundColor: C.surface,
-    insetPadding: EdgeInsets.all(context.px(60)),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.px(24))),
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: context.px(820), maxHeight: context.px(960)),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(context.px(48)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: display(context.px(46))),
-            SizedBox(height: context.px(26)),
-            ...children,
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _Card extends StatelessWidget {

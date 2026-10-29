@@ -3,6 +3,7 @@
 library;
 
 export 'buttons.dart';
+export 'dialogs.dart';
 export 'feedback.dart';
 export 'focusable.dart';
 export 'format.dart';
