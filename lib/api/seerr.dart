@@ -450,14 +450,22 @@ class SeerrClient {
 
   /// Titles releasing between [from] and [to] (movies by release date, shows by first air date),
   /// most popular first.
-  Future<List<SeerrMedia>> releasing(String mediaType, DateTime from, DateTime to, {int page = 1}) async {
+  Future<List<SeerrMedia>> releasing(String mediaType, DateTime from, DateTime to, {int page = 1}) =>
+      discover(mediaType, from: from, to: to, page: page);
+
+  /// Seerr's movie or show catalogue (from TMDB): [genre] is a TMDB genre id, [sortBy] e.g.
+  /// popularity.desc or vote_average.desc, [from]/[to] limit the release (or first air) date.
+  Future<List<SeerrMedia>> discover(String mediaType,
+      {int? genre, String sortBy = 'popularity.desc', DateTime? from, DateTime? to, int? minVotes, int page = 1}) async {
     String d(DateTime t) => '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
     final tv = mediaType == 'tv';
     final json = await _send('GET', tv ? '/discover/tv' : '/discover/movies', query: {
       'page': '$page',
-      'sortBy': 'popularity.desc',
-      if (tv) 'firstAirDateGte': d(from) else 'primaryReleaseDateGte': d(from),
-      if (tv) 'firstAirDateLte': d(to) else 'primaryReleaseDateLte': d(to),
+      'sortBy': sortBy,
+      if (genre != null) 'genre': '$genre',
+      if (minVotes != null) 'voteCountGte': '$minVotes',
+      if (from != null) (tv ? 'firstAirDateGte' : 'primaryReleaseDateGte'): d(from),
+      if (to != null) (tv ? 'firstAirDateLte' : 'primaryReleaseDateLte'): d(to),
     });
     return _results(json).map((m) {
       m.raw['mediaType'] ??= mediaType;

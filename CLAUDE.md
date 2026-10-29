@@ -38,7 +38,8 @@ say what to click or run to see it.
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic sign-in |
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
-| `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside New & Hot) |
+| `lib/screens/discover.dart` | Discover (menu): New & Hot (what just arrived on the server), Coming Soon and Explore (Seerr's movies and shows not on the server, by Movies/Shows and genre; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
+| `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside Discover) |
 | `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
 | `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |

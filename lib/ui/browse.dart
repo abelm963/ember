@@ -16,6 +16,9 @@ class PillButton extends StatelessWidget {
   final bool autofocus;
   final bool compact;
   final bool scrollIntoView;
+
+  /// The chosen one of a set of tabs: outlined, with the others dimmed ([selected] false).
+  final bool? selected;
   const PillButton({
     super.key,
     required this.label,
@@ -24,6 +27,7 @@ class PillButton extends StatelessWidget {
     this.autofocus = false,
     this.compact = false,
     this.scrollIntoView = true,
+    this.selected,
   });
 
   @override
@@ -33,12 +37,16 @@ class PillButton extends StatelessWidget {
     semanticLabel: label,
     scrollIntoView: scrollIntoView,
     builder: (context, active) {
-      final fg = active ? const Color(0xFF111111) : Colors.white;
+      final fg = active ? const Color(0xFF111111) : (selected == false ? C.muted : Colors.white);
       return AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         height: context.px(compact ? 48 : 56),
         padding: EdgeInsets.symmetric(horizontal: context.px(compact ? 20 : 26)),
-        decoration: BoxDecoration(color: active ? C.text : const Color(0x40FFFFFF), borderRadius: BorderRadius.circular(999)),
+        decoration: BoxDecoration(
+          color: active ? C.text : (selected == false ? const Color(0x1AFFFFFF) : const Color(0x40FFFFFF)),
+          borderRadius: BorderRadius.circular(999),
+          border: selected == true && !active ? Border.all(color: Colors.white, width: context.px(2)) : null,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

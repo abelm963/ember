@@ -227,7 +227,11 @@ class _ComingSoonViewState extends State<ComingSoonView> {
               for (var i = 0; i < 3; i++)
                 Padding(
                   padding: EdgeInsets.only(bottom: context.px(40)),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Cut off at the screen's edge on narrow screens rather than overflowing.
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Bone(110, 110, radius: 14),
                     SizedBox(width: context.px(30)),
                     const Bone(520, 292, radius: 14),
@@ -242,6 +246,7 @@ class _ComingSoonViewState extends State<ComingSoonView> {
                       const Bone(520, 22),
                     ]),
                   ]),
+                  ),
                 ),
             ]),
           ),

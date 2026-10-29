@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:ember/main.dart';
 import 'package:ember/screens/details.dart';
+import 'package:ember/screens/discover.dart';
 import 'package:ember/screens/preview.dart';
 import 'package:ember/state/app_state.dart';
 import 'package:flutter/material.dart';
@@ -206,7 +207,7 @@ void main() {
         expect(find.text('Because you watched The Quiet Orbit', skipOffstage: false), findsOneWidget);
 
         // Each section of the menu.
-        for (final label in ['Shows', 'Movies', 'New & Hot', 'My List', 'Requests', 'Search', 'Settings']) {
+        for (final label in ['Shows', 'Movies', 'Discover', 'My List', 'Requests', 'Search', 'Settings']) {
           final target = find.bySemanticsLabel(label);
           if (target.evaluate().isEmpty) continue;
           await tester.tap(target.first, warnIfMissed: false);
@@ -215,13 +216,19 @@ void main() {
           }
         }
 
-        // The Coming Soon calendar.
-        final nh = find.bySemanticsLabel('New & Hot');
-        if (nh.evaluate().isNotEmpty) {
-          await tester.tap(nh.first, warnIfMissed: false);
+        // Discover: New & Hot, Explore (Seerr titles not on the server) and the Coming Soon calendar.
+        {
+          navigatorKey.currentState!.push(MaterialPageRoute(builder: (_) => const Scaffold(body: DiscoverScreen())));
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
+          expect(find.text('New on Test Server', skipOffstage: false), findsOneWidget);
+          await tester.tap(find.text('Explore').first, warnIfMissed: false);
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(find.text('Trending now', skipOffstage: false), findsOneWidget);
+          expect(find.text('Popular', skipOffstage: false), findsOneWidget);
           await tester.tap(find.text('Coming Soon').first, warnIfMissed: false);
           for (var i = 0; i < 10; i++) {
             await tester.pump(const Duration(milliseconds: 100));
