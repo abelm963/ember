@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:ember/main.dart';
-import 'package:ember/ui/browse.dart' show FilterButton;
 import 'package:ember/screens/details.dart';
 import 'package:ember/screens/discover.dart';
 import 'package:ember/screens/preview.dart';
 import 'package:ember/state/app_state.dart';
+import 'package:ember/ui/browse.dart' show FilterButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

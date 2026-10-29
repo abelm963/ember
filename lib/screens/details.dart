@@ -4,13 +4,14 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../player/trailers.dart';
 import '../state/app_state.dart';
 import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
-import 'shared/media_entries.dart';
 import 'nav.dart';
 import 'preview.dart';
+import 'shared/media_entries.dart';
 
 class _Details {
   late JfItem item;

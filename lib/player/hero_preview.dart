@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/youtube.dart';
-import '../screens/nav.dart' show findTrailer;
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'engine.dart';
+import 'trailers.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();

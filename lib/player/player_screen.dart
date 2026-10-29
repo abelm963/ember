@@ -12,11 +12,11 @@ import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/browse.dart' show MetaDots;
 import '../ui/theme.dart';
-import '../screens/nav.dart' show openYouTube;
 import '../ui/widgets.dart';
 import 'engine.dart';
 import 'segments.dart';
 import 'tracks.dart';
+import 'trailers.dart';
 
 /// Full-screen player. Built on mpv (via media_kit), which plays every common container,
 /// codec, audio format and subtitle type itself — so files are streamed untouched and the
