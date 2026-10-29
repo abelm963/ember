@@ -401,10 +401,14 @@ class MetaLine extends _MetaLine {
 /// the episode and the time left underneath when focused ([resume]).
 PosterEntry posterEntry(BuildContext context, JellyfinClient jf, JfItem it, {required VoidCallback onTap, bool resume = false}) {
   final left = _HomeScreenState._left(it);
+  final cleanWide = !it.isEpisode && it.backdropTags.isNotEmpty;
   return PosterEntry(
     title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
     poster: jf.posterImage(it),
-    wide: jf.landscapeImage(it, maxWidth: 960),
+    // The focused card: a backdrop (clean art) with the logo drawn on it. Without one, the
+    // Thumb, which usually has the title written on it already, so no logo goes over it.
+    wide: cleanWide ? jf.backdropImage(it, maxWidth: 960) : jf.landscapeImage(it, maxWidth: 960),
+    wideTitled: !cleanWide && it.imageTags['Thumb'] != null,
     logo: jf.logoImage(it, maxWidth: 600),
     progress: it.progress,
     subtitle: resume && it.isEpisode ? '${it.episodeLabel.replaceAll(' : ', ' ')} · ${it.name}' : null,

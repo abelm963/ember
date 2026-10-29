@@ -97,6 +97,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         title: e.title,
         poster: e.poster,
         wide: e.wide,
+        wideTitled: e.wideTitled,
         logo: e.logo,
         meta: e.meta,
         rating: e.rating,

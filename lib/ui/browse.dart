@@ -335,6 +335,10 @@ class PosterEntry {
 
   /// Why it's suggested ("Because you watched …"), shown with its details.
   final String? reason;
+
+  /// The [wide] picture already has the title written on it (a Thumb), so the focused card
+  /// doesn't draw the logo over it a second time.
+  final bool wideTitled;
   final VoidCallback onTap;
   const PosterEntry({
     required this.title,
@@ -353,6 +357,7 @@ class PosterEntry {
     this.backdrop,
     this.rank,
     this.reason,
+    this.wideTitled = false,
   });
 
   PosterEntry withReason(String? why) => PosterEntry(
@@ -371,6 +376,7 @@ class PosterEntry {
         badgeAlt: badgeAlt,
         backdrop: backdrop,
         rank: rank,
+        wideTitled: wideTitled,
         reason: why == null || why.isEmpty ? null : why,
       );
 }
@@ -632,7 +638,7 @@ class _Poster extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (wide)
+                if (wide && !e.wideTitled)
                   Positioned(
                     left: context.px(22),
                     bottom: context.px(20),
