@@ -25,10 +25,11 @@ class RequestsScreen extends StatefulWidget {
 class _RequestsScreenState extends State<RequestsScreen> {
   String _filter = 'All';
   int _reload = 0;
+  int _take = 50;
   static final Map<String, SeerrMedia> _cache = {};
 
   Future<List<_Row>> _load(AppState app) async {
-    final reqs = await app.seerr!.requests(take: 40);
+    final reqs = await app.seerr!.requests(take: _take);
     return Future.wait(reqs.map((r) async {
       if (r.tmdbId == null) return _Row(r, null);
       final key = '${r.mediaType}/${r.tmdbId}';
@@ -44,7 +45,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       await f();
       setState(() => _reload++);
     } catch (e) {
-      if (mounted) toast(context, '$e');
+      if (mounted) toast(context, requestErrorText(e));
     }
   }
 
@@ -80,7 +81,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       );
     }
     return Loader<List<_Row>>(
-      deps: '$_reload-${app.revision}',
+      deps: '$_reload-$_take-${app.revision}',
       load: () => _load(app),
       builder: (context, rows) {
         final shown = rows.where((r) => _filter == 'All' || r.req.filterKey == _filter).toList();
@@ -92,7 +93,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
               Text('Requests', style: display(context.px(72))),
               Padding(
                 padding: EdgeInsets.only(bottom: context.px(8)),
-                child: Text('From Seerr · everyone on this server', style: body(context.px(22), color: C.faint)),
+                child: Text(app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests', style: body(context.px(22), color: C.faint)),
               ),
             ]),
             SizedBox(height: context.px(24)),
@@ -105,6 +106,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
             SizedBox(height: context.px(28)),
             if (shown.isEmpty) Text('No requests here.', style: body(context.px(24), color: C.faint)),
             for (final r in shown) _RequestRow(row: r, canManage: app.canManageRequests, onAct: _act),
+            if (rows.length >= _take) ...[
+              SizedBox(height: context.px(16)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: EmberButton(label: 'Show older requests', kind: BtnKind.ghost, onTap: () => setState(() => _take += 50)),
+              ),
+            ],
           ],
         );
       },
@@ -122,7 +130,7 @@ class _RequestRow extends StatelessWidget {
         'Pending approval' => (const Color(0xFF3A3016), C.warn),
         'Downloading' => (C.accentDark, const Color(0xFFFF9A5C)),
         'Available' || 'Partly available' => (const Color(0xFF1B3322), C.good),
-        'Declined' => (const Color(0xFF3A1C1C), C.bad),
+        'Declined' || 'Failed' => (const Color(0xFF3A1C1C), C.bad),
         _ => (const Color(0xFF1B2B40), C.blue),
       };
 
@@ -235,7 +243,7 @@ class _RequestRow extends StatelessWidget {
   Widget _actions(BuildContext context) {
     final app = context.read<AppState>();
     final r = row.req;
-    final playable = r.jellyfinId != null && (r.label == 'Available' || r.label == 'Partly available');
+    final playable = r.playable;
     final buttons = <Widget>[
       if (canManage && r.status == 1) ...[
         EmberButton(label: 'Approve', kind: BtnKind.accent, compact: true, onTap: () => onAct(() => app.seerr!.approve(r.id))),

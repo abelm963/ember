@@ -96,6 +96,9 @@ class AppState extends ChangeNotifier {
   String? seerrUrl;
   String? seerrApiKey;
   Map<String, dynamic>? seerrUser;
+
+  /// Seerr's public settings, read at sign-in (null until then, or if Seerr wouldn't say).
+  Map<String, dynamic>? seerrSettings;
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
@@ -167,6 +170,14 @@ class AppState extends ChangeNotifier {
   List<Account> get serverAccounts => accounts.where((a) => a.serverUrl == serverUrl).toList();
   bool get seerrConfigured => seerr != null && seerr!.isSignedIn;
   bool get canManageRequests => seerrUser != null ? SeerrClient.canManageRequests(seerrUser!) : (account?.isAdmin ?? false);
+
+  /// Whether to offer 4K: Seerr has a 4K Radarr / Sonarr and this person may ask for 4K.
+  bool canRequest4k({required bool tv}) {
+    final enabled = seerrSettings?[tv ? 'series4kEnabled' : 'movie4kEnabled'];
+    if (enabled == false) return false;
+    final user = seerrUser;
+    return user == null || SeerrClient.canRequest4k(user, tv: tv);
+  }
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -467,6 +478,9 @@ class AppState extends ChangeNotifier {
         }
       }
       if (seerr == s) seerrError = null;
+      try {
+        seerrSettings = await s.publicSettings();
+      } catch (_) {}
     } catch (e) {
       seerrUser = null;
       seerrError ??= '$e';

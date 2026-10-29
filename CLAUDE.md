@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 24 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 33 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -78,7 +78,10 @@ Coming Soon; otherwise Coming Soon comes from Seerr. Ember never offers to insta
 
 Working:
 - Library browsing, details pages, the player (tracks, quality, trickplay, Skip Intro, Up Next) and search.
-- Seerr: automatic sign-in, Requests, Trending, Preview, requesting.
+- Seerr: automatic sign-in, Requests, Trending, Preview, requesting. A request's status (`SeerrRequest.label` in
+  `seerr.dart`, tested in `test/seerr_test.dart`) puts approval first (Pending/Declined/Failed), then follows the
+  copy it asked for: the 4K copy for 4K requests, only the requested seasons for series. 4K is offered only when
+  Seerr has 4K set up and the account may ask for it (`AppState.canRequest4k`).
 - The Coming Soon calendar (from Seerr, or the optional plugin when a server has it).
 - Skeleton loading on title pages.
 

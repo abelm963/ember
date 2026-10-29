@@ -17,6 +17,25 @@ MediaStatus mediaStatusFrom(int? v) => switch (v) {
       _ => MediaStatus.other,
     };
 
+/// A request error in words a person can act on.
+String requestErrorText(Object e) {
+  final text = '$e';
+  final low = text.toLowerCase();
+  if (low.contains('quota')) {
+    return "You've reached your request limit in Seerr for now. Try again later, or ask the server's owner to raise it.";
+  }
+  if (low.contains('4k') && (low.contains('permission') || low.contains('not allowed'))) {
+    return "Your Seerr account isn't allowed to request in 4K. Choose HD, or ask the server's owner.";
+  }
+  if ((e is ApiException && e.status == 409) || low.contains('already exists') || low.contains('already requested')) {
+    return 'This has already been requested.';
+  }
+  if (low.contains('permission')) return "Your Seerr account isn't allowed to make this request. Ask the server's owner.";
+  if (e is ApiException && e.status >= 500) return 'Seerr had a problem sending this on (${e.message}). Try again in a minute.';
+  if (e is! ApiException) return "Ember couldn't reach Seerr. Check that the server is on, then try again.";
+  return text;
+}
+
 /// A movie or series as Seerr describes it (from TMDB).
 class SeerrMedia {
   final Map<String, dynamic> raw;
@@ -91,10 +110,32 @@ class SeerrRequest {
   SeerrRequest(this.raw);
   int get id => (raw['id'] as num).toInt();
 
-  /// 1 pending, 2 approved, 3 declined.
+  /// 1 pending, 2 approved, 3 declined, 4 failed (Radarr/Sonarr refused it), 5 completed.
   int get status => (raw['status'] as num?)?.toInt() ?? 1;
   Map<String, dynamic> get media => (raw['media'] as Map?)?.cast<String, dynamic>() ?? const {};
-  MediaStatus get mediaStatus => mediaStatusFrom((media['status'] as num?)?.toInt());
+
+  /// Where the requested copy stands. A 4K request follows the 4K copy, and a series request
+  /// follows only the seasons it asked for (season 1 being on the server doesn't make a request
+  /// for season 2 "Partly available").
+  MediaStatus get mediaStatus {
+    final key = is4k ? 'status4k' : 'status';
+    final whole = mediaStatusFrom((media[key] as num?)?.toInt());
+    final asked = seasonNumbers.toSet();
+    final seasons = (media['seasons'] as List?) ?? const [];
+    if (mediaType != 'tv' || asked.isEmpty || seasons.isEmpty) return whole;
+    final states = <MediaStatus>[
+      for (final s in seasons)
+        if (asked.contains(((s as Map)['seasonNumber'] as num?)?.toInt())) mediaStatusFrom((s[key] as num?)?.toInt()),
+    ];
+    if (states.isEmpty) return whole;
+    if (states.every((x) => x == MediaStatus.available)) return MediaStatus.available;
+    if (states.any((x) => x == MediaStatus.available || x == MediaStatus.partiallyAvailable)) {
+      return MediaStatus.partiallyAvailable;
+    }
+    if (states.any((x) => x == MediaStatus.processing)) return MediaStatus.processing;
+    return states.any((x) => x == MediaStatus.pending) ? MediaStatus.pending : MediaStatus.unknown;
+  }
+
   int? get tmdbId => (media['tmdbId'] as num?)?.toInt();
   String get mediaType => media['mediaType'] as String? ?? raw['type'] as String? ?? 'movie';
   bool get is4k => raw['is4k'] == true;
@@ -136,23 +177,33 @@ class SeerrRequest {
   /// The Jellyfin item, once it's on the server.
   String? get jellyfinId => media[is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId'] as String?;
 
-  /// Plain-language status that combines approval and download state.
+  /// Plain-language status that combines approval and download state. Approval comes first:
+  /// a declined or waiting request says so even when another copy is already on the server.
   String get label {
     if (status == 3) return 'Declined';
-    if (mediaStatus == MediaStatus.available) return 'Available';
-    if (mediaStatus == MediaStatus.partiallyAvailable) return downloads.isNotEmpty ? 'Downloading' : 'Partly available';
     if (status == 1) return 'Pending approval';
+    if (status == 4) return 'Failed';
+    if (mediaStatus == MediaStatus.available) return 'Available';
     if (downloads.isNotEmpty) return 'Downloading';
+    if (mediaStatus == MediaStatus.partiallyAvailable) return 'Partly available';
+    if (status == 5) return 'Available';
     if (mediaStatus == MediaStatus.processing) return 'Approved · waiting for release';
     return 'Approved';
   }
 
-  String get filterKey {
-    if (status == 3) return 'Declined';
-    if (mediaStatus == MediaStatus.available || mediaStatus == MediaStatus.partiallyAvailable) return 'Available';
-    if (status == 1) return 'Pending';
-    return 'Approved';
-  }
+  /// Which chip on the Requests page shows it.
+  String get filterKey => switch (label) {
+        'Declined' || 'Failed' => 'Declined',
+        'Pending approval' => 'Pending',
+        'Available' || 'Partly available' => 'Available',
+        _ => 'Approved',
+      };
+
+  /// Something to watch on the server already.
+  bool get playable => jellyfinId != null && (label == 'Available' || label == 'Partly available');
+
+  /// Still on its way (for My List's "arriving" row).
+  bool get arriving => status != 3 && status != 4 && label != 'Available';
 }
 
 /// Seerr client. Signs in either with the user's Jellyfin credentials (session cookie, so
@@ -337,6 +388,16 @@ class SeerrClient {
     return (p & 2) != 0 || (p & 16) != 0;
   }
 
+  /// Seerr permission bits: ADMIN = 2, REQUEST_4K = 1024, REQUEST_4K_MOVIE = 2048, REQUEST_4K_TV = 4096.
+  static bool canRequest4k(Map<String, dynamic> user, {required bool tv}) {
+    final p = (user['permissions'] as num?)?.toInt() ?? 0;
+    return (p & 2) != 0 || (p & 1024) != 0 || (p & (tv ? 4096 : 2048)) != 0;
+  }
+
+  /// Seerr's public settings (whether a 4K Radarr / Sonarr is set up, and so on).
+  Future<Map<String, dynamic>> publicSettings() async =>
+      ((await _send('GET', '/settings/public')) as Map).cast<String, dynamic>();
+
   List<SeerrMedia> _results(dynamic json) {
     final list = (json as Map)['results'] as List? ?? const [];
     return list
@@ -406,17 +467,27 @@ class SeerrClient {
     }).toList();
   }
 
-  Future<void> request({required String mediaType, required int tmdbId, List<int>? seasons, bool is4k = false}) async {
-    await _send('POST', '/request', body: {
+  /// Sends a request and returns it as Seerr stored it (its status says whether it was
+  /// approved straight away or waits for an admin).
+  Future<SeerrRequest?> request({required String mediaType, required int tmdbId, List<int>? seasons, bool is4k = false}) async {
+    final json = await _send('POST', '/request', body: {
       'mediaType': mediaType,
       'mediaId': tmdbId,
       if (mediaType == 'tv') 'seasons': seasons ?? 'all',
       'is4k': is4k,
     });
+    return json is Map ? SeerrRequest(json.cast<String, dynamic>()) : null;
   }
 
-  Future<List<SeerrRequest>> requests({int take = 40}) async {
-    final json = await _send('GET', '/request', query: {'take': '$take', 'skip': '0', 'sort': 'added', 'filter': 'all'});
+  /// Newest requests first. [requestedBy] (a Seerr user id) keeps only that person's.
+  Future<List<SeerrRequest>> requests({int take = 40, int skip = 0, Object? requestedBy}) async {
+    final json = await _send('GET', '/request', query: {
+      'take': '$take',
+      'skip': '$skip',
+      'sort': 'added',
+      'filter': 'all',
+      if (requestedBy != null) 'requestedBy': '$requestedBy',
+    });
     final list = (json as Map)['results'] as List? ?? const [];
     return list.map((e) => SeerrRequest((e as Map).cast<String, dynamic>())).toList();
   }

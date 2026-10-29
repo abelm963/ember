@@ -23,12 +23,14 @@ class MyListScreen extends StatelessWidget {
     if (app.seerrConfigured && app.addRequestsToMyList) {
       try {
         final me = app.seerrUser?['id'];
-        final reqs = await app.seerr!.requests(take: 30);
+        // Ask Seerr for this person's requests only, so other people's don't crowd them out.
+        final reqs = await app.seerr!.requests(take: 30, requestedBy: me);
+        final seen = <String>{};
         final mine = reqs.where((r) =>
             (me == null || (r.raw['requestedBy'] as Map?)?['id'] == me) &&
-            r.status != 3 &&
-            r.mediaStatus != MediaStatus.available &&
-            r.tmdbId != null);
+            r.arriving &&
+            r.tmdbId != null &&
+            seen.add('${r.mediaType}/${r.tmdbId}'));
         d.arriving = await Future.wait(mine.map((r) => app.seerr!.details(r.mediaType, r.tmdbId!)));
       } catch (_) {}
     }

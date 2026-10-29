@@ -142,7 +142,7 @@ class _DetailsBodyState extends State<_DetailsBody> {
       final m = await app.seerr!.details('movie', int.parse(tmdb));
       if (mounted) await showRequestDialog(context, m, uhd: true);
     } catch (e) {
-      if (mounted) toast(context, '$e');
+      if (mounted) toast(context, requestErrorText(e));
     }
   }
 
@@ -279,7 +279,7 @@ class _DetailsBodyState extends State<_DetailsBody> {
                     widget.onChanged();
                   },
                 ),
-                if (it.isMovie && app.seerrConfigured && !is4k && it.tmdbId != null)
+                if (it.isMovie && app.seerrConfigured && app.canRequest4k(tv: false) && !is4k && it.tmdbId != null)
                   ActionItem(label: 'Request in 4K', icon: Icons.download_outlined, onTap: _request4k),
               ]),
             ),
@@ -424,7 +424,7 @@ class _DetailsBodyState extends State<_DetailsBody> {
                     },
                   ),
                   if (hasTrailer && it.isSeries) EmberButton(label: '', icon: Icons.movie_filter_outlined, onTap: _trailer),
-                  if (it.isMovie && app.seerrConfigured && !is4k && it.tmdbId != null)
+                  if (it.isMovie && app.seerrConfigured && app.canRequest4k(tv: false) && !is4k && it.tmdbId != null)
                     EmberButton(label: 'Request 4K', icon: Icons.download_outlined, onTap: _request4k),
                 ]),
               ),
