@@ -10,7 +10,7 @@ import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'coming_soon.dart';
-import 'home.dart' show posterEntry, seerrEntry;
+import 'shared/media_entries.dart';
 import 'nav.dart';
 import 'preview.dart' show showRequestDialog;
 import 'settings.dart' show pickOption;

@@ -715,7 +715,7 @@ class JellyfinClient {
   String imageUrl(String itemId, String type, {String? tag, int? maxWidth, int? maxHeight, int index = 0}) {
     final q = <String, String>{
       'quality': '90',
-      if (tag != null) 'tag': tag,
+      'tag': ?tag,
       if (maxWidth != null) 'maxWidth': '$maxWidth',
       if (maxHeight != null) 'maxHeight': '$maxHeight',
     };

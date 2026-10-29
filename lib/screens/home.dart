@@ -13,6 +13,7 @@ import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
+import 'shared/media_entries.dart';
 import 'shell.dart';
 
 class _HomeData {
@@ -147,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
               for (final it in d.resume)
                 MediaTile(
                   title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
-                  subtitle: it.isEpisode ? it.episodeLabel : _left(it),
+                  subtitle: it.isEpisode ? it.episodeLabel : timeLeft(it),
                   imageUrl: jf.landscapeImage(it),
                   progress: it.progress,
                   autofocus: d.hero == null && it == d.resume.first,
@@ -315,13 +316,6 @@ class _HomeScreenState extends State<HomeScreen> {
       rows: rows,
     );
   }
-
-  static String? _left(JfItem it) {
-    final rt = it.runtime;
-    if (rt == null || it.positionTicks == 0) return null;
-    final left = rt - ticksToDuration(it.positionTicks);
-    return '${formatRuntime(left)} left';
-  }
 }
 
 class _Hero extends StatelessWidget {
@@ -401,7 +395,7 @@ class _Hero extends StatelessWidget {
                 else
                   Text(item.name, maxLines: 2, style: display(context.px(app.isPhone ? 72 : 104))),
                 SizedBox(height: context.px(18)),
-                _MetaLine(item: item),
+                MetaLine(item: item),
                 if (!app.isPhone && item.overview != null) ...[
                   SizedBox(height: context.px(18)),
                   Text(
@@ -434,103 +428,3 @@ class _Hero extends StatelessWidget {
     );
   }
 }
-
-class _MetaLine extends StatelessWidget {
-  final JfItem item;
-  const _MetaLine({required this.item});
-  @override
-  Widget build(BuildContext context) {
-    final parts = <Widget>[
-      if (item.communityRating != null)
-        Text(
-          '★ ${item.communityRating!.toStringAsFixed(1)}',
-          style: body(context.px(23), color: C.good, weight: FontWeight.w700),
-        ),
-      if (item.year != null) Text('${item.year}', style: body(context.px(23), color: C.muted)),
-      if (item.officialRating != null) Badge2(item.officialRating!),
-      if (item.isMovie && item.runtime != null)
-        Text(formatRuntime(item.runtime), style: body(context.px(23), color: C.muted)),
-      if (item.isSeries && item.childCount != null)
-        Text(
-          '${item.childCount} Season${item.childCount == 1 ? '' : 's'}',
-          style: body(context.px(23), color: C.muted),
-        ),
-      if (item.genres.isNotEmpty) Text(item.genres.take(2).join(' · '), style: body(context.px(23), color: C.muted)),
-      if (_videoBadge(item) != null) Badge2(_videoBadge(item)!),
-    ];
-    return Wrap(
-      spacing: context.px(18),
-      runSpacing: context.px(8),
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: parts,
-    );
-  }
-}
-
-/// "4K · HDR" style badge from the file's video stream, as in the design.
-String? _videoBadge(JfItem item) {
-  final b = FormatInfo.fromStreams(item.mediaStreams).badges;
-  final video = b
-      .where((x) => const ['4K', 'HD', 'Dolby Vision', 'HDR10', 'HDR10+', 'HLG'].contains(x))
-      .take(2)
-      .toList();
-  if (video.isEmpty) return null;
-  return video.map((x) => x == 'HDR10' ? 'HDR' : x).join(' · ');
-}
-
-class MetaLine extends _MetaLine {
-  const MetaLine({required super.item});
-}
-
-/// The poster-row entry for a library item. Episodes show their series' poster and logo, with
-/// the episode and the time left underneath when focused ([resume]).
-PosterEntry posterEntry(
-  BuildContext context,
-  JellyfinClient jf,
-  JfItem it, {
-  required VoidCallback onTap,
-  bool resume = false,
-}) {
-  final left = _HomeScreenState._left(it);
-  final cleanWide = !it.isEpisode && it.backdropTags.isNotEmpty;
-  return PosterEntry(
-    title: it.isEpisode ? (it.seriesName ?? it.name) : it.name,
-    poster: jf.posterImage(it),
-    // The focused card: a backdrop (clean art) with the logo drawn on it. Without one, the
-    // Thumb, which usually has the title written on it already, so no logo goes over it.
-    wide: cleanWide ? jf.backdropImage(it, maxWidth: 960) : jf.landscapeImage(it, maxWidth: 960),
-    wideTitled: !cleanWide && it.imageTags['Thumb'] != null,
-    logo: jf.logoImage(it, maxWidth: 600),
-    progress: it.progress,
-    subtitle: resume && it.isEpisode ? '${it.episodeLabel.replaceAll(' : ', ' ')} · ${it.name}' : null,
-    note: resume ? left : null,
-    meta: metaParts(it),
-    rating: it.officialRating,
-    overview: it.overview,
-    backdrop: jf.backdropImage(it),
-    onTap: onTap,
-  );
-}
-
-/// The poster-row entry for a Seerr title that isn't on the server: opening it offers Request.
-PosterEntry seerrEntry(BuildContext context, SeerrMedia m) => PosterEntry(
-  title: m.title,
-  poster: m.posterUrl,
-  wide: m.backdropUrl,
-  backdrop: m.backdropUrl,
-  badge: m.isRequested ? 'Requested' : null,
-  badgeAlt: true,
-  overview: m.overview,
-  meta: [m.isTv ? 'Series' : 'Film', if (m.year != null) '${m.year}'],
-  onTap: () => openSeerr(context, m),
-);
-
-/// "Series · Drama · 2026 · 5 Seasons" for a movie or series.
-List<String> metaParts(JfItem it) => [
-  if (it.isSeries) 'Series' else if (it.isMovie) 'Film',
-  if (it.genres.isNotEmpty) it.genres.first,
-  if (it.year != null) '${it.year}',
-  if (it.isSeries && it.childCount != null) '${it.childCount} Season${it.childCount == 1 ? '' : 's'}',
-  if (it.isMovie && it.runtime != null) formatRuntime(it.runtime),
-  if (_videoBadge(it) != null) _videoBadge(it)!,
-];
