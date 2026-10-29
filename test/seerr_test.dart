@@ -193,6 +193,29 @@ void main() {
     expect([a.mediaType, b.mediaType, c.mediaType], ['tv', 'tv', 'movie']);
     expect(WatchlistEntry.from({'title': 'No id'}), isNull);
   });
+
+  test('finding Seerr: its usual spots next to Jellyfin, the first that answers wins', () async {
+    expect(SeerrClient.guessesFrom('http://192.168.1.20:8096'), [
+      'http://192.168.1.20:5055',
+      'https://192.168.1.20:5055',
+      'http://192.168.1.20:8097',
+      'http://192.168.1.20:8095',
+      'http://192.168.1.20:8098',
+      'http://192.168.1.20:8094',
+    ]);
+    expect(SeerrClient.guessesFrom('https://hearth.ts.net:10001').take(4),
+        ['https://hearth.ts.net:5055', 'http://hearth.ts.net:5055', 'https://hearth.ts.net:10002', 'https://hearth.ts.net:10000']);
+    final mock = MockClient((req) async {
+      if (req.url.port == 10002 && req.url.path == '/api/v1/status') return http.Response(jsonEncode({'version': '3.5.0'}), 200);
+      if (req.url.port == 8097) return http.Response('<html>not seerr</html>', 200);
+      throw http.ClientException('refused');
+    });
+    await http.runWithClient(() async {
+      expect(await SeerrClient.find(['https://hearth.ts.net:8097', 'https://hearth.ts.net:5055', 'https://hearth.ts.net:10002']),
+          'https://hearth.ts.net:10002');
+      expect(await SeerrClient.find(['https://hearth.ts.net:5055']), isNull);
+    }, () => mock);
+  });
 }
 
 ApiException _api(int status, String message) => ApiException(status, message);
