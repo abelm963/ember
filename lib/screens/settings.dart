@@ -259,39 +259,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
             (v) => app.update((s) => s.preferredAudioLanguage = v)),
       ),
       SettingRow(
+        label: 'Subtitle language',
+        value: app.preferredSubtitleLanguage == null
+            ? 'Same as audio'
+            : (langs[app.preferredSubtitleLanguage] ?? app.preferredSubtitleLanguage!),
+        onTap: () => pickOption<String?>(context, 'Subtitle language', {...langs, null: 'Same as audio'},
+            app.preferredSubtitleLanguage, (v) => app.update((s) => s.preferredSubtitleLanguage = v)),
+      ),
+      SettingRow(
         label: 'Subtitles',
         value: subModes[app.subtitleMode] ?? '',
         onTap: () => pickOption<String>(context, 'Subtitles', subModes, app.subtitleMode, (v) => app.update((s) => s.subtitleMode = v)),
       ),
       ToggleRow(label: 'Autoplay next episode', value: app.autoplayNext, onChanged: (v) => app.update((s) => s.autoplayNext = v)),
       ToggleRow(label: 'Skip intros automatically', value: app.autoSkipIntro, onChanged: (v) => app.update((s) => s.autoSkipIntro = v)),
-      if (isAppleTv && app.useApplePlayer) ...[
-        ToggleRow(
-          label: 'Ask "Are you still watching?"',
-          value: app.stillWatching,
-          onChanged: (v) => app.update((s) => s.stillWatching = v),
+      ToggleRow(
+        label: 'Ask "Are you still watching?"',
+        value: app.stillWatching,
+        onChanged: (v) => app.update((s) => s.stillWatching = v),
+      ),
+      if (app.stillWatching)
+        SettingRow(
+          label: 'Ask after',
+          value: '${app.stillWatchingEpisodes} episodes in a row',
+          onTap: () => pickOption<int>(
+              context,
+              'Ask "Are you still watching?" after',
+              {for (final n in [1, 2, 3, 4, 5, 6, 8]) n: '$n episode${n == 1 ? '' : 's'} in a row'},
+              app.stillWatchingEpisodes,
+              (v) => app.update((s) => s.stillWatchingEpisodes = v)),
         ),
-        if (app.stillWatching)
-          SettingRow(
-            label: 'Ask after',
-            value: '${app.stillWatchingEpisodes} episodes in a row',
-            onTap: () => pickOption<int>(
-                context,
-                'Ask "Are you still watching?" after',
-                {for (final n in [1, 2, 3, 4, 5, 6, 8]) n: '$n episode${n == 1 ? '' : 's'} in a row'},
-                app.stillWatchingEpisodes,
-                (v) => app.update((s) => s.stillWatchingEpisodes = v)),
-          ),
-        Padding(
-          padding: EdgeInsets.only(top: context.px(6)),
-          child: Text(
-            'Only when the episodes played one after another with nothing pressed on the remote: '
-            'no pause or play, no skipping or scrubbing, no change of audio or subtitles. '
-            'Volume goes straight from the remote to the TV, so Ember can\'t see it.',
-            style: body(context.px(20), color: C.faint, height: 1.5),
-          ),
+      Padding(
+        padding: EdgeInsets.only(top: context.px(6)),
+        child: Text(
+          'Only when the episodes played one after another with nothing pressed on the remote: '
+          'no pause or play, no skipping or scrubbing, no change of audio or subtitles. '
+          'Volume goes straight from the remote to the TV, so Ember can\'t see it.',
+          style: body(context.px(20), color: C.faint, height: 1.5),
         ),
-      ],
+      ),
       SizedBox(height: context.px(20)),
       Text('PICTURE AND SOUND', style: body(context.px(20), color: C.faint, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
       SizedBox(height: context.px(12)),

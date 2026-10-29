@@ -123,6 +123,8 @@ class AppState extends ChangeNotifier {
   String quality = 'auto';
   String? preferredAudioLanguage;
   String subtitleMode = 'foreign'; // off, foreign, always
+  /// The subtitle language last picked in the player (null: the preferred audio language).
+  String? preferredSubtitleLanguage;
 
   JellyfinClient? jf;
   SeerrClient? seerr;
@@ -195,6 +197,7 @@ class AppState extends ChangeNotifier {
     quality = _prefs.getString('quality') ?? 'auto';
     preferredAudioLanguage = _prefs.getString('preferredAudioLanguage');
     subtitleMode = _prefs.getString('subtitleMode') ?? 'foreign';
+    preferredSubtitleLanguage = _prefs.getString('preferredSubtitleLanguage');
     final raw = _prefs.getString('accounts');
     if (raw != null) {
       try {
@@ -270,6 +273,7 @@ class AppState extends ChangeNotifier {
     _setOrRemove('seerrUrl', seerrUrl);
     _setOrRemove('seerrApiKey', seerrApiKey);
     _setOrRemove('preferredAudioLanguage', preferredAudioLanguage);
+    _setOrRemove('preferredSubtitleLanguage', preferredSubtitleLanguage);
     await _prefs.setString('interfaceMode', interfaceMode.name);
     await _prefs.setBool('autoSkipIntro', autoSkipIntro);
     await _prefs.setBool('audioPassthrough', audioPassthrough);

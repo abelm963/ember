@@ -43,6 +43,15 @@ say what to click or run to see it.
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
 | `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |
 
+Player layout (TV and desktop) follows the big streaming apps: everything along the bottom (title,
+progress bar with the time left, then Episodes / Next Episode / Audio & Subtitles / Restart / Quality).
+Select plays/pauses (or presses Skip Intro/Recap while it shows), left/right scrub with the trickplay
+picture and jump when the presses stop. After 12 s paused a dimmed "You're watching" screen shows the
+story. Next Episode fills up as it counts down, with Watch Credits beside it; "Are you still watching?"
+works in Ember's player too. Audio & Subtitles is two lists over the picture with plain names
+("English 5.1", "English (CC)": `audioLabel`/`subtitleLabel` in `tracks.dart`); subtitle picks are
+remembered (`preferredSubtitleLanguage`, `rememberedSubtitleMode`).
+
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
 uses a bottom tab bar. Every interactive element goes through `Focusable`, so the remote, the mouse
 and touch all work.
