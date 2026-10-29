@@ -426,7 +426,7 @@ PosterEntry seerrEntry(BuildContext context, SeerrMedia m) => PosterEntry(
       badge: m.isRequested ? 'Requested' : null,
       badgeAlt: true,
       overview: m.overview,
-      meta: [m.isTv ? 'Series' : 'Film', if (m.year != null) '${m.year}', 'Not on your server yet'],
+      meta: [m.isTv ? 'Series' : 'Film', if (m.year != null) '${m.year}'],
       onTap: () => openSeerr(context, m),
     );
 
