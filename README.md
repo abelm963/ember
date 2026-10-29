@@ -32,21 +32,37 @@ With a free Apple ID, Apple lets a self-installed app run for 7 days. After that
 until you run `bash setup-appletv.sh` again. A paid Apple Developer account ($99/year) removes the
 limit and allows TestFlight.
 
-On Apple TV, Ember plays through Apple's own player. Files it can't open directly (MKV, DTS,
-TrueHD) are repackaged by your server into a stream it can, copying the picture untouched where
-possible. Audio and subtitle choices go through the server, and picture-based subtitles (PGS)
-are burned in.
+On Apple TV, films and episodes play in Ember's own player, drawn on top of Apple's video engine
+(AVPlayer). Settings › "Use Apple's player (for HDR and Dolby Vision)" switches them to Apple's
+own player instead, which shows true HDR10 and Dolby Vision. Trailers always use Apple's player.
+Files Apple TV can't open directly (MKV, DTS, TrueHD) are repackaged by your server into a
+stream it can, copying the picture untouched where possible. Audio and subtitle choices go
+through the server, and picture-based subtitles (PGS) are burned in.
+
+### Apple TV builds on GitHub (no Mac needed)
+
+Every push to `apple-tv` or `main` builds `Ember.ipa` on one of GitHub's Macs
+(`.github/workflows/apple-tv.yml`) and publishes it as a release. atvloadly on a home server
+(`tools/hearth/install-atvloadly.sh`) picks each release up, signs it with a free Apple ID and
+installs it on the Apple TV. Pushes to `claude/**` branches are built to check them but are not
+published.
 
 ## How it is organised
 
 | Folder | What's in it |
 | --- | --- |
-| `lib/api/jellyfin.dart` | Jellyfin server: sign-in (password and Quick Connect), library, playback, progress, intro markers, file formats |
-| `lib/api/seerr.dart` | Seerr: trending, search, title details, requests, approve/decline |
+| `lib/main.dart` | Start-up, the Back key everywhere, and the first screen (connect → profiles → app) |
+| `lib/api/` | Jellyfin (`jellyfin.dart`), Seerr (`seerr.dart`), trailers found on YouTube (`youtube.dart`), and the Recommended ranking (`recommend.dart`, `taste.dart`) |
 | `lib/state/app_state.dart` | Saved servers, profiles, settings, and which layout to use |
-| `lib/ui/` | Colours, fonts, and the shared building blocks (focusable tiles, buttons, rows) |
-| `lib/screens/` | Every screen: connect, sign in, profiles, home, shows, movies, My List, search, details, preview, requests, settings |
-| `lib/player/` | The video player: mpv everywhere, Apple's player on Apple TV (`engine.dart`) |
+| `lib/player/` | The player screen and its controls, the playback engines (mpv, or AVPlayer on Apple TV), track choice, intro markers, trailers, Apple's player on Apple TV |
+| `lib/screens/` | Every screen, plus `nav.dart` (opening titles and starting playback) and `shared/` (pieces several screens use) |
+| `lib/ui/` | Colours, fonts and the shared building blocks: `Focusable`, buttons, images, rows, dialogs, skeletons |
+| `lib/util/` | Logging with sign-in secrets removed |
+| `test/` | Unit and widget tests against a fake server |
+| `tvos/` | The Apple TV Xcode project, including Apple's player (`NativePlayer.swift`) |
+
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the parts fit together, and
+[CONTRIBUTING.md](CONTRIBUTING.md) how to change and check the code.
 
 ## One app, three ways to navigate
 
@@ -54,43 +70,54 @@ The layout is picked automatically, and can be forced in Settings › Interface:
 
 - **TV** (Apple TV, Android TV): remote only. A side menu, a focus highlight that is always
   visible, Select to open, Back to go back. On Windows use the arrow keys, Enter and Esc to test it.
-- **Desktop** (Windows, Mac): mouse first. A top menu bar, hover effects, scroll arrows on rows,
-  Back buttons. The keyboard also works.
+- **Desktop** (Windows, Mac): mouse first. The same side menu as TV (it also opens when the mouse
+  moves onto it), hover effects, scroll arrows on rows, Back buttons. The keyboard also works.
 - **Phone** (iPhone, Android): touch. A bottom tab bar and swipeable rows.
 
-Every interactive element is a `Focusable` (`lib/ui/widgets.dart`), which handles remote focus,
+Every interactive element is a `Focusable` (`lib/ui/focusable.dart`), which handles remote focus,
 mouse hover and touch in one place, so new screens get all three for free.
 
 ## Picture and sound
 
-| Format | Windows (this build) | Apple TV / Android TV (later) |
+| Format | Windows | Apple TV |
 | --- | --- | --- |
 | 4K, HEVC, AV1, MKV, any subtitle | Plays directly | Plays directly |
-| HDR10, HDR10+, HLG | Tone-mapped to SDR (accurate colours, not true HDR) | True HDR through the native player |
-| Dolby Vision (profiles 5, 7, 8) | Decoded with correct colours, shown as SDR | True Dolby Vision through the native player |
-| Dolby Atmos, TrueHD, DTS-HD MA, DTS:X | Passthrough to a receiver (Settings › Playback), or decoded to multichannel | Passthrough to a receiver where the TV box supports it |
+| HDR10, HDR10+, HLG | Tone-mapped to SDR (accurate colours, not true HDR) | Apple TV: true HDR with Settings › "Use Apple's player", SDR in Ember's player |
+| Dolby Vision (profiles 5, 7, 8) | Decoded with correct colours, shown as SDR | Apple TV: true Dolby Vision with Apple's player, SDR in Ember's player |
+| Dolby Atmos, TrueHD, DTS-HD MA, DTS:X | Passthrough to a receiver (Settings › Playback), or decoded to multichannel | Apple TV: Dolby Digital Plus (including Atmos) plays as-is; TrueHD and DTS are converted by the server to Dolby Digital Plus 5.1/7.1, so TrueHD Atmos loses Atmos |
 
-Flutter draws in SDR on Windows, so true HDR there needs a native video surface. That is
-planned with the Apple TV and Android TV players.
+Flutter draws in SDR, so true HDR needs a native video surface: on Apple TV that is Apple's
+player (the setting above). Android TV is not built yet.
 
 ## Seerr
 
-Settings › Seerr requests: add the Seerr address, then sign in with your Jellyfin username and
-password (or sign in to Ember with a password and it happens automatically). Requests are made
-as you, and admins can approve or decline from the Requests screen.
+Settings › Seerr requests: add the Seerr address. Ember then signs in to Seerr as you by itself,
+using your Jellyfin sign-in (Quick Connect), so there is no second password. Signing in to Ember
+with a password also signs in to Seerr with it. Requests are made as you, and admins can approve
+or decline from the Requests screen.
 
-## Trailers inside Ember (server plugin)
+## Trailers
 
-`server-plugin/EmberTrailers-plugin.zip` is a Jellyfin plugin (built for Jellyfin 12.1) that
-streams official trailers through your server, so Ember plays them in its own player and
-autoplays muted previews on Home. Nothing is stored.
+Nothing needs installing on the server. Ember finds each title's official trailer (from
+Jellyfin's trailer links, or Seerr's) on YouTube itself and plays it in its own player, keeping
+the original soundtrack. If YouTube won't hand a stream over, or Settings › "Play trailers in
+the app" is off, the trailer opens in the YouTube app instead.
 
-1. Unzip it into Jellyfin's `plugins` folder, so you get `plugins/EmberTrailers_0.1.0.0/`:
-   - Docker: the folder mapped to `/config/plugins`
-   - Linux: `/var/lib/jellyfin/plugins`
-   - Windows: `C:\ProgramData\Jellyfin\Server\plugins`
-2. Restart Jellyfin. On start it downloads yt-dlp, and updates it every night at 03:00
-   (Dashboard › Scheduled Tasks › Ember Trailers).
-3. In Ember: Settings › Trailers should say "online".
+The older Ember Trailers Jellyfin plugin now lives in
+[abelm963/ember-trailers](https://github.com/abelm963/ember-trailers). It is optional: if a server
+has it, Ember only uses its release calendar for Coming Soon.
 
-Source is in `server-plugin/src` (`dotnet build -c Release`).
+## Development
+
+```bash
+flutter pub get
+dart format --output=none --set-exit-if-changed .   # formatting (120 columns)
+flutter analyze                                     # expected: No issues found
+flutter test                                        # unit and widget tests against a fake server
+```
+
+The same three checks run on GitHub for every push and pull request
+(`.github/workflows/checks.yml`). See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Ember is built with Flutter 3.47.8 (Dart 3.13). Apple TV uses flutter-tvos `v3.47.8-tvos.1.11.4`,
+which pins the same Flutter.

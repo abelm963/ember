@@ -35,7 +35,7 @@ const _entries = [
 
 /// The signed-in app. The same sections are reached three different ways:
 ///  - TV: a side menu that expands when the remote moves onto it.
-///  - Desktop: a top bar with links, search and profile, driven by the mouse.
+///  - Desktop: the same side menu, which also opens when the mouse moves onto it.
 ///  - Phone: a bottom tab bar.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
