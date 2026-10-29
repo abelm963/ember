@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:ember/main.dart';
+import 'package:ember/ui/browse.dart' show FilterButton;
 import 'package:ember/screens/details.dart';
+import 'package:ember/screens/discover.dart';
 import 'package:ember/screens/preview.dart';
 import 'package:ember/state/app_state.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +25,12 @@ Map<String, dynamic> movie(String id, String name) => {
       'Genres': ['Drama', 'Sci-Fi'],
       'ImageTags': {'Primary': 'p'},
       'BackdropImageTags': ['b'],
-      'UserData': {'PlaybackPositionTicks': 18000000000, 'Played': false, 'IsFavorite': false},
+      'UserData': {
+        'PlaybackPositionTicks': 18000000000,
+        'Played': false,
+        'IsFavorite': false,
+        'LastPlayedDate': DateTime.now().subtract(const Duration(days: 3)).toUtc().toIso8601String(),
+      },
       'ProviderIds': {'Tmdb': '100'},
       'People': [
         {'Id': 'p1', 'Name': 'Ada Actor', 'Role': 'Lead', 'Type': 'Actor'},
@@ -114,11 +121,26 @@ http.Client mockClient() => MockClient((req) async {
              'PremiereDate': DateTime.now().add(const Duration(days: 3)).toUtc().toIso8601String(), 'ImageTags': {}},
           ]
         };
+      } else if (p.endsWith('/api/v1/discover/watchlist')) {
+        body = {
+          'page': 1,
+          'totalPages': 1,
+          'results': [
+            {'tmdbId': 5, 'mediaType': 'tv', 'title': 'Kingfisher'},
+          ]
+        };
       } else if (p.endsWith('/api/v1/discover/trending')) {
         body = {
           'results': [
             {'id': 5, 'mediaType': 'tv', 'name': 'Kingfisher', 'backdropPath': '/x.jpg'},
             {'id': 6, 'mediaType': 'movie', 'title': 'Ashfall', 'mediaInfo': {'status': 2}},
+          ]
+        };
+      } else if (p.endsWith('/recommendations')) {
+        body = {
+          'results': [
+            for (var i = 0; i < 5; i++) {'id': 40 + i, 'title': 'Pick $i', 'backdropPath': '/p$i.jpg'},
+            {'id': 49, 'title': 'Already Here', 'mediaInfo': {'status': 5}},
           ]
         };
       } else if (p.endsWith('/api/v1/auth/me')) {
@@ -196,23 +218,55 @@ void main() {
         }
         expect(find.text('Continue Watching'), findsOneWidget);
         expect(find.text('Trending — not in your library yet', skipOffstage: false), findsOneWidget);
+        expect(find.text('Because you watched The Quiet Orbit', skipOffstage: false), findsOneWidget);
 
         // Each section of the menu.
-        for (final label in ['Shows', 'Movies', 'New & Hot', 'My List', 'Requests', 'Search', 'Settings']) {
+        for (final label in ['Shows', 'Movies', 'Discover', 'My List', 'Requests', 'Search', 'Settings']) {
           final target = find.bySemanticsLabel(label);
           if (target.evaluate().isEmpty) continue;
           await tester.tap(target.first, warnIfMissed: false);
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
+          // My List: the Seerr watchlist has its own part.
+          if (label == 'My List') {
+            expect(find.text('Watchlist', skipOffstage: false), findsOneWidget);
+            expect(find.text('Kingfisher', skipOffstage: false), findsWidgets);
+          }
         }
 
-        // The Coming Soon calendar.
-        final nh = find.bySemanticsLabel('New & Hot');
-        if (nh.evaluate().isNotEmpty) {
-          await tester.tap(nh.first, warnIfMissed: false);
+        // Discover: Recommended, Explore (Seerr titles not on the server) and the Coming Soon calendar.
+        {
+          navigatorKey.currentState!.push(MaterialPageRoute(builder: (_) => const Scaffold(body: DiscoverScreen())));
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
+          }
+          // Recommended: ranked picks, the featured one saying why it's there.
+          expect(find.text('Top picks for you', skipOffstage: false), findsWidgets);
+          expect(find.textContaining(RegExp(r'^(Because you watched|Like) '), skipOffstage: false), findsWidgets);
+          await tester.tap(find.text('Explore').first, warnIfMissed: false);
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(find.text('Trending now', skipOffstage: false), findsOneWidget);
+          expect(find.text('Popular', skipOffstage: false), findsOneWidget);
+          // TV and desktop: Explore's filters live in the filter panel at the right of the header.
+          if (find.byType(FilterButton).evaluate().isNotEmpty) {
+            await tester.tap(find.byType(FilterButton));
+            for (var i = 0; i < 4; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('GENRE'), findsOneWidget);
+            await tester.tap(find.text('Shows').last);
+            for (var i = 0; i < 6; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('Popular shows', skipOffstage: false), findsOneWidget);
+            Navigator.of(tester.element(find.text('GENRE'))).pop();
+            for (var i = 0; i < 4; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('GENRE'), findsNothing);
           }
           await tester.tap(find.text('Coming Soon').first, warnIfMissed: false);
           for (var i = 0; i < 10; i++) {

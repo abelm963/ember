@@ -28,6 +28,22 @@ class PreviewScreen extends StatefulWidget {
 class _PreviewScreenState extends State<PreviewScreen> {
   int _tab = 0;
   int _reload = 0;
+  bool? _onWatchlist;
+
+  /// Adds the title to this person's Seerr watchlist (shown on My List), or takes it off.
+  Future<void> _toggleWatchlist(SeerrMedia m) async {
+    final seerr = context.read<AppState>().seerr!;
+    final on = _onWatchlist ?? m.onWatchlist;
+    setState(() => _onWatchlist = !on);
+    try {
+      on ? await seerr.removeFromWatchlist(m) : await seerr.addToWatchlist(m);
+      if (mounted) toast(context, on ? 'Removed from your watchlist' : 'Added to your watchlist');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _onWatchlist = on);
+      toast(context, 'Seerr couldn\'t change your watchlist. Try again in a moment.');
+    }
+  }
 
   Future<_Preview> _load(AppState app) async {
     final p = _Preview()..media = await app.seerr!.details(widget.mediaType, widget.tmdbId);
@@ -223,6 +239,12 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         autofocus: app.isTv && p.inLibrary == null,
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Scaffold(body: RequestsScreen()))),
                       ),
+                    if (p.inLibrary == null)
+                      EmberButton(
+                        label: (_onWatchlist ?? m.onWatchlist) ? 'On Watchlist' : 'Watchlist',
+                        icon: (_onWatchlist ?? m.onWatchlist) ? Icons.check : Icons.add,
+                        onTap: () => _toggleWatchlist(m),
+                      ),
                     if (trailer != null)
                       EmberButton(
                         label: 'Watch Trailer',
@@ -327,22 +349,38 @@ class _RequestDialogState extends State<_RequestDialog> {
   late bool _uhd = widget.uhd;
   bool _busy = false;
   bool _done = false;
+  bool _waitsForApproval = false;
   String? _error;
 
   List<int> get _available {
-    // Seasons Seerr reports as already available/requested can't be requested again.
+    // Seasons Seerr reports as already available/requested (in the chosen quality) can't be
+    // requested again. Season 0 (specials) is left out unless it was asked for.
+    final key = _uhd ? 'status4k' : 'status';
     final taken = <int>{};
     for (final s in (widget.media.mediaInfo?['seasons'] as List? ?? const [])) {
-      final st = ((s as Map)['status'] as num?)?.toInt() ?? 1;
+      final st = ((s as Map)[key] as num?)?.toInt() ?? 1;
       if (st >= 2) taken.add((s['seasonNumber'] as num).toInt());
     }
-    return widget.media.seasons.map((s) => (s['seasonNumber'] as num).toInt()).where((n) => !taken.contains(n)).toList();
+    return widget.media.seasons
+        .map((s) => (s['seasonNumber'] as num).toInt())
+        .where((n) => !taken.contains(n) && (n > 0 || (widget.preselect?.contains(0) ?? false)))
+        .toList();
   }
+
+  void _setQuality(bool uhd) => setState(() {
+        _uhd = uhd;
+        final open = _available.toSet();
+        _seasons = _seasons.intersection(open);
+        if (_seasons.isEmpty && widget.preselect == null) _seasons = open;
+      });
 
   @override
   void initState() {
     super.initState();
-    _seasons = widget.preselect ?? _available.toSet();
+    final app = context.read<AppState>();
+    if (_uhd && !app.canRequest4k(tv: widget.media.isTv)) _uhd = false;
+    final open = _available.toSet();
+    _seasons = widget.preselect?.intersection(open) ?? open;
   }
 
   Future<void> _submit() async {
@@ -353,16 +391,19 @@ class _RequestDialogState extends State<_RequestDialog> {
       _error = null;
     });
     try {
-      await app.seerr!.request(
+      final sent = await app.seerr!.request(
         mediaType: widget.media.mediaType,
         tmdbId: widget.media.id,
         seasons: widget.media.isTv ? (_seasons.toList()..sort()) : null,
         is4k: _uhd,
       );
       app.bumpRevision();
-      setState(() => _done = true);
+      setState(() {
+        _done = true;
+        _waitsForApproval = sent?.status == 1;
+      });
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = requestErrorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -397,7 +438,10 @@ class _RequestDialogState extends State<_RequestDialog> {
                   SizedBox(height: context.px(26)),
                   Text('Requested', style: display(context.px(60))),
                   SizedBox(height: context.px(18)),
-                  Text("${m.title} has been sent to Seerr. It will appear in your library once it's downloaded.",
+                  Text(
+                      _waitsForApproval
+                          ? "${m.title} is waiting for the server's owner to approve it. You'll find it under Requests, and in your library once it's downloaded."
+                          : "${m.title} has been sent to Seerr. It will appear in your library once it's downloaded.",
                       style: body(context.px(25), color: C.muted, height: 1.5)),
                   SizedBox(height: context.px(36)),
                   EmberButton(label: 'Done', kind: BtnKind.accent, autofocus: true, onTap: () => Navigator.pop(context)),
@@ -430,13 +474,15 @@ class _RequestDialogState extends State<_RequestDialog> {
                       ],
                       SizedBox(height: context.px(20)),
                     ],
-                    Text('Quality', style: body(context.px(22), color: C.muted, weight: FontWeight.w700)),
-                    SizedBox(height: context.px(12)),
-                    Row(children: [
-                      Chip2(label: 'HD', selected: !_uhd, onTap: () => setState(() => _uhd = false)),
-                      SizedBox(width: context.px(12)),
-                      Chip2(label: '4K', selected: _uhd, onTap: () => setState(() => _uhd = true)),
-                    ]),
+                    if (context.read<AppState>().canRequest4k(tv: m.isTv)) ...[
+                      Text('Quality', style: body(context.px(22), color: C.muted, weight: FontWeight.w700)),
+                      SizedBox(height: context.px(12)),
+                      Row(children: [
+                        Chip2(label: 'HD', selected: !_uhd, onTap: () => _setQuality(false)),
+                        SizedBox(width: context.px(12)),
+                        Chip2(label: '4K', selected: _uhd, onTap: () => _setQuality(true)),
+                      ]),
+                    ],
                     if (_error != null) ...[
                       SizedBox(height: context.px(18)),
                       Text(_error!, style: body(context.px(21), color: C.bad)),

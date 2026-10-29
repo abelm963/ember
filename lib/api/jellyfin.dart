@@ -49,6 +49,8 @@ class JfItem {
   bool get isFavorite => userData['IsFavorite'] == true;
   double? get playedPercentage => (userData['PlayedPercentage'] as num?)?.toDouble();
   int? get unplayedCount => (userData['UnplayedItemCount'] as num?)?.toInt();
+  int get playCount => (userData['PlayCount'] as num?)?.toInt() ?? 0;
+  DateTime? get lastPlayed => DateTime.tryParse(userData['LastPlayedDate'] as String? ?? '')?.toLocal();
 
   String? get seriesId => raw['SeriesId'] as String?;
   String? get seriesName => raw['SeriesName'] as String?;
@@ -522,6 +524,9 @@ class JellyfinClient {
     int? limit,
     int? startIndex,
     bool recursive = true,
+    String? fields,
+    List<String>? personIds,
+    bool images = true,
   }) async =>
       _items(await _send('GET', '/Items', query: {
         'userId': userId,
@@ -535,8 +540,9 @@ class JellyfinClient {
         'limit': limit,
         'startIndex': startIndex,
         'recursive': recursive,
-        'fields': _fields,
-        'enableImageTypes': 'Primary,Backdrop,Thumb,Logo',
+        'personIds': personIds,
+        'fields': fields ?? _fields,
+        if (images) 'enableImageTypes': 'Primary,Backdrop,Thumb,Logo' else 'enableImages': false,
       }));
 
   /// How many items of these types the library holds.

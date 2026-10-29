@@ -96,6 +96,9 @@ class AppState extends ChangeNotifier {
   String? seerrUrl;
   String? seerrApiKey;
   Map<String, dynamic>? seerrUser;
+
+  /// Seerr's public settings, read at sign-in (null until then, or if Seerr wouldn't say).
+  Map<String, dynamic>? seerrSettings;
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
@@ -119,10 +122,15 @@ class AppState extends ChangeNotifier {
   /// of Ember's player.
   bool useApplePlayer = false;
   bool showTrendingRow = true;
+
+  /// Home shows "Because you watched …" rows of Seerr titles that aren't on the server yet.
+  bool showRecommendations = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
   String? preferredAudioLanguage;
   String subtitleMode = 'foreign'; // off, foreign, always
+  /// The subtitle language last picked in the player (null: the preferred audio language).
+  String? preferredSubtitleLanguage;
 
   JellyfinClient? jf;
   SeerrClient? seerr;
@@ -166,6 +174,14 @@ class AppState extends ChangeNotifier {
   bool get seerrConfigured => seerr != null && seerr!.isSignedIn;
   bool get canManageRequests => seerrUser != null ? SeerrClient.canManageRequests(seerrUser!) : (account?.isAdmin ?? false);
 
+  /// Whether to offer 4K: Seerr has a 4K Radarr / Sonarr and this person may ask for 4K.
+  bool canRequest4k({required bool tv}) {
+    final enabled = seerrSettings?[tv ? 'series4kEnabled' : 'movie4kEnabled'];
+    if (enabled == false) return false;
+    final user = seerrUser;
+    return user == null || SeerrClient.canRequest4k(user, tv: tv);
+  }
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     deviceId = _prefs.getString('deviceId') ?? _newId();
@@ -191,10 +207,12 @@ class AppState extends ChangeNotifier {
     stillWatchingEpisodes = _prefs.getInt('stillWatchingEpisodes') ?? 3;
     useApplePlayer = _prefs.getBool('useApplePlayer') ?? false;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
+    showRecommendations = _prefs.getBool('showRecommendations') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
     preferredAudioLanguage = _prefs.getString('preferredAudioLanguage');
     subtitleMode = _prefs.getString('subtitleMode') ?? 'foreign';
+    preferredSubtitleLanguage = _prefs.getString('preferredSubtitleLanguage');
     final raw = _prefs.getString('accounts');
     if (raw != null) {
       try {
@@ -270,6 +288,7 @@ class AppState extends ChangeNotifier {
     _setOrRemove('seerrUrl', seerrUrl);
     _setOrRemove('seerrApiKey', seerrApiKey);
     _setOrRemove('preferredAudioLanguage', preferredAudioLanguage);
+    _setOrRemove('preferredSubtitleLanguage', preferredSubtitleLanguage);
     await _prefs.setString('interfaceMode', interfaceMode.name);
     await _prefs.setBool('autoSkipIntro', autoSkipIntro);
     await _prefs.setBool('audioPassthrough', audioPassthrough);
@@ -282,6 +301,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setInt('stillWatchingEpisodes', stillWatchingEpisodes);
     await _prefs.setBool('useApplePlayer', useApplePlayer);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
+    await _prefs.setBool('showRecommendations', showRecommendations);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);
     await _prefs.setString('subtitleMode', subtitleMode);
@@ -463,6 +483,9 @@ class AppState extends ChangeNotifier {
         }
       }
       if (seerr == s) seerrError = null;
+      try {
+        seerrSettings = await s.publicSettings();
+      } catch (_) {}
     } catch (e) {
       seerrUser = null;
       seerrError ??= '$e';

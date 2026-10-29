@@ -83,8 +83,7 @@ bool langMatch(String? a, String? b) {
   return x != null && y != null && x == y;
 }
 
-String _describe(Map<String, dynamic> s) =>
-    '${s['Profile'] ?? ''} ${s['DisplayTitle'] ?? ''} ${s['Title'] ?? ''}'.toLowerCase();
+String _describe(Map<String, dynamic> s) => '${s['Profile'] ?? ''} ${s['DisplayTitle'] ?? ''} ${s['Title'] ?? ''}'.toLowerCase();
 
 /// The language of a stream: its code, or failing that a language named in its title.
 String? trackLanguage(Map<String, dynamic> s) {
@@ -121,7 +120,9 @@ int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
 /// means the file has a single soundtrack (or none) and can play untouched.
 ///
 /// Subtitles follow Settings › Subtitles ('off', 'foreign', 'always'): null means none.
-(int?, int?) chooseTracks(List<Map<String, dynamic>> streams, String? preferredLanguage, String subtitleMode) {
+/// Subtitles are in [subtitleLanguage] when given (the last language picked in the player),
+/// otherwise in the preferred audio language, otherwise English.
+(int?, int?) chooseTracks(List<Map<String, dynamic>> streams, String? preferredLanguage, String subtitleMode, {String? subtitleLanguage}) {
   final audio = streams.where((s) => s['Type'] == 'Audio').toList();
   if (audio.isEmpty) return (null, null);
   final defaultAudio = audio.firstWhere((s) => s['IsDefault'] == true, orElse: () => audio.first);
@@ -138,17 +139,15 @@ int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
     if (_audioScore(s) > _audioScore(chosen)) chosen = s;
   }
 
-  final subLang = preferredLanguage ?? 'eng';
+  final subLang = subtitleLanguage ?? preferredLanguage ?? 'eng';
   final chosenLang = trackLanguage(chosen);
   final wantSubs = switch (subtitleMode) {
     'off' => false,
     'always' => true,
-    _ => chosenLang != null && !langMatch(chosenLang, subLang),
+    _ => chosenLang != null && !langMatch(chosenLang, preferredLanguage ?? subLang),
   };
   final subs = wantSubs
-      ? streams
-            .where((s) => s['Type'] == 'Subtitle' && langMatch(trackLanguage(s), subLang) && s['IsForced'] != true)
-            .toList()
+      ? streams.where((s) => s['Type'] == 'Subtitle' && langMatch(trackLanguage(s), subLang) && s['IsForced'] != true).toList()
       : const <Map<String, dynamic>>[];
 
   return (audio.length > 1 ? _indexOf(chosen) : null, subs.isEmpty ? null : _indexOf(subs.first));
@@ -201,7 +200,7 @@ Future<PlaybackPlan> planPlayback(AppState app, JfItem item, {String? qualityKey
   }
   final msid = pickMediaSource(sources, app.preferredAudioLanguage);
   final streams = streamsOf(sources, msid);
-  final (audio, sub) = chooseTracks(streams, app.preferredAudioLanguage, app.subtitleMode);
+  final (audio, sub) = chooseTracks(streams, app.preferredAudioLanguage, app.subtitleMode, subtitleLanguage: app.preferredSubtitleLanguage);
   final src = sources.where((s) => s['Id'] == msid).firstOrNull;
   final bitrate = await app.maxBitrateFor((src?['Bitrate'] as num?)?.toInt(), qualityKey: key);
   return PlaybackPlan(mediaSourceId: msid, audioIndex: audio, subtitleIndex: sub, maxBitrate: bitrate, streams: streams);
@@ -214,4 +213,140 @@ String preferredCode(String lang) {
     if (e.value == c && e.key.length == 3) return e.key;
   }
   return c;
+}
+
+/// Language names for the player's Audio & Subtitles menu, by the codes [trackLanguage] returns.
+const _languageNames = {
+  'eng': 'English',
+  'fra': 'French',
+  'deu': 'German',
+  'spa': 'Spanish',
+  'ita': 'Italian',
+  'por': 'Portuguese',
+  'nld': 'Dutch',
+  'jpn': 'Japanese',
+  'kor': 'Korean',
+  'zho': 'Chinese',
+  'rus': 'Russian',
+  'hin': 'Hindi',
+  'ara': 'Arabic',
+  'afr': 'Afrikaans',
+  'zul': 'Zulu',
+  'xho': 'Xhosa',
+  'swe': 'Swedish',
+  'nor': 'Norwegian',
+  'nob': 'Norwegian',
+  'dan': 'Danish',
+  'fin': 'Finnish',
+  'pol': 'Polish',
+  'tur': 'Turkish',
+  'ces': 'Czech',
+  'ell': 'Greek',
+  'heb': 'Hebrew',
+  'hun': 'Hungarian',
+  'ron': 'Romanian',
+  'tha': 'Thai',
+  'vie': 'Vietnamese',
+  'ind': 'Indonesian',
+  'msa': 'Malay',
+  'ukr': 'Ukrainian',
+  'tam': 'Tamil',
+  'tel': 'Telugu',
+  'fil': 'Filipino',
+  'tgl': 'Filipino',
+  'cat': 'Catalan',
+  'hrv': 'Croatian',
+  'srp': 'Serbian',
+  'bul': 'Bulgarian',
+  'slk': 'Slovak',
+  'fas': 'Persian',
+  'isl': 'Icelandic',
+  'est': 'Estonian',
+  'lav': 'Latvian',
+  'lit': 'Lithuanian',
+  'slv': 'Slovenian',
+  'ben': 'Bengali',
+  'urd': 'Urdu',
+  'swa': 'Swahili',
+  'sot': 'Sesotho',
+  'tsn': 'Setswana',
+  'nso': 'Sepedi',
+};
+
+/// "English", "French"… for a language code in any spelling; null when it isn't known.
+String? languageName(String? code) {
+  final c = _canonical(code);
+  return c == null ? null : (_languageNames[c] ?? c.toUpperCase());
+}
+
+/// How a soundtrack reads in the player's menu: "English 5.1", "French", "English – Audio
+/// Description", "English – Commentary".
+String audioLabel(Map<String, dynamic> s) {
+  final d = _describe(s);
+  final name = languageName(trackLanguage(s)) ?? _fallbackName(s, 'Audio');
+  final ch = (s['Channels'] as num?)?.toInt() ?? 2;
+  final parts = <String>[name];
+  if (ch > 2) parts.add('${ch - 1}.1');
+  if (_isAtmos(s)) parts.add('Atmos');
+  var label = parts.join(' ');
+  if (d.contains('descri')) {
+    label += ' – Audio Description';
+  } else if (_isCommentary(s)) {
+    label += ' – Commentary';
+  }
+  return label;
+}
+
+/// How a subtitle track reads in the player's menu: "English", "English (CC)", "French (Forced)".
+String subtitleLabel(Map<String, dynamic> s) {
+  final d = _describe(s);
+  var label = languageName(trackLanguage(s)) ?? _fallbackName(s, 'Subtitles');
+  if (s['IsHearingImpaired'] == true || RegExp(r'\b(sdh|cc)\b').hasMatch(d) || d.contains('hearing')) {
+    label += ' (CC)';
+  } else if (s['IsForced'] == true || d.contains('forced')) {
+    label += ' (Forced)';
+  }
+  return label;
+}
+
+String _fallbackName(Map<String, dynamic> s, String kind) {
+  final t = (s['Title'] as String?)?.trim();
+  if (t != null && t.isNotEmpty) return t;
+  final dt = (s['DisplayTitle'] as String?)?.trim();
+  if (dt != null && dt.isNotEmpty) return dt;
+  return '$kind ${s['Index'] ?? ''}'.trim();
+}
+
+/// [labels] with repeats told apart ("English 5.1 · EAC3", then "· 2", "· 3"…), in order.
+List<String> distinctLabels(List<String> labels, List<Map<String, dynamic>> streams) {
+  final out = [...labels];
+  for (var i = 0; i < out.length; i++) {
+    if (labels.where((l) => l == labels[i]).length < 2) continue;
+    final codec = (streams[i]['Codec'] as String?)?.toUpperCase();
+    if (codec != null && codec.isNotEmpty) out[i] = '${labels[i]} · $codec';
+  }
+  for (var i = 0; i < out.length; i++) {
+    final same = [
+      for (var j = 0; j < out.length; j++)
+        if (out[j] == out[i]) j,
+    ];
+    if (same.length > 1) {
+      for (var k = 1; k < same.length; k++) {
+        out[same[k]] = '${out[same[k]]} · ${k + 1}';
+      }
+    }
+  }
+  return out;
+}
+
+/// The Subtitles setting after the person turns subtitles [on] or off in the player, the way a
+/// streaming app remembers it: subtitles over a soundtrack in their own language mean "always";
+/// turning them off over a foreign soundtrack means "off". Otherwise the setting stays.
+String rememberedSubtitleMode(String current, {required bool on, required bool ownLanguageAudio}) {
+  if (on) {
+    if (ownLanguageAudio) return 'always';
+    return current == 'off' ? 'foreign' : current;
+  }
+  if (ownLanguageAudio) return current == 'always' ? 'foreign' : current;
+  return 'off';
 }

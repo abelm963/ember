@@ -7,13 +7,13 @@ import '../ui/widgets.dart';
 import 'home.dart';
 import 'library.dart';
 import 'mylist.dart';
-import 'newhot.dart';
+import 'discover.dart';
 import 'profiles.dart';
 import 'requests.dart';
 import 'search.dart';
 import 'settings.dart';
 
-enum Section { search, home, shows, movies, newHot, myList, requests, settings }
+enum Section { search, home, shows, movies, discover, myList, requests, settings }
 
 class _NavEntry {
   final Section section;
@@ -27,7 +27,7 @@ const _entries = [
   _NavEntry(Section.home, 'Home', Icons.home_outlined),
   _NavEntry(Section.shows, 'Shows', Icons.tv),
   _NavEntry(Section.movies, 'Movies', Icons.movie_outlined),
-  _NavEntry(Section.newHot, 'New & Hot', Icons.local_fire_department),
+  _NavEntry(Section.discover, 'Discover', Icons.explore_outlined),
   _NavEntry(Section.myList, 'My List', Icons.add),
   _NavEntry(Section.requests, 'Requests', Icons.download_outlined),
   _NavEntry(Section.settings, 'Settings', Icons.settings_outlined),
@@ -58,8 +58,8 @@ class _AppShellState extends State<AppShell> {
         return const LibraryScreen(kind: LibraryKind.shows);
       case Section.movies:
         return const LibraryScreen(kind: LibraryKind.movies);
-      case Section.newHot:
-        return const NewHotScreen();
+      case Section.discover:
+        return const DiscoverScreen();
       case Section.myList:
         return const MyListScreen();
       case Section.requests:
@@ -103,15 +103,23 @@ class _AppShellState extends State<AppShell> {
   Widget _tvLayout(BuildContext context, AppState app, Widget body) {
     final barH = context.px(100);
     final items = _visible(app).where((e) => e.section != Section.requests || app.seerrConfigured).toList();
+    // Home, Shows, Movies and Discover run under the menu bar, with the picture showing through it.
+    final billboard = const [Section.home, Section.shows, Section.movies, Section.discover].contains(_section);
     return Stack(children: [
-      Positioned.fill(top: barH, child: FocusTraversalGroup(child: body)),
+      Positioned.fill(top: billboard ? 0 : barH, child: FocusTraversalGroup(child: body)),
       Positioned(
         left: 0,
         right: 0,
         top: 0,
         height: barH,
         child: Container(
-          color: C.bg,
+          decoration: BoxDecoration(
+            color: billboard ? null : C.bg,
+            gradient: billboard
+                ? const LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xE60A0A0B), Color(0x000A0A0B)])
+                : null,
+          ),
           padding: EdgeInsets.symmetric(horizontal: context.px(60)),
           child: FocusTraversalGroup(
             child: Row(children: [

@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 24 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 47 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -38,10 +38,34 @@ say what to click or run to see it.
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic sign-in |
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
-| `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside New & Hot) |
-| `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
+| `lib/screens/discover.dart` | Discover (menu): Recommended, Coming Soon and Explore (Seerr's movies and shows not on the server; Type and Genre in the filter panel; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
+| `lib/api/recommend.dart`, `lib/api/taste.dart` | Recommended's ranking, run each time the tab opens. `recommend.dart` gathers 2 years of history from Jellyfin (movies: how far and how often; shows: episodes per season, seasons finished, caught up), likes and the Seerr watchlist, then links (Jellyfin Similar, TMDB recommendations/similar via Seerr, the next film in a series, shows by the same creators, a new season, same director/leads); Seerr answers are kept for a day (`rec1.*` in shared preferences). `taste.dart` has every number: taste points, fading (half every 9 months, never below 15%), link strengths, quality, the 30% variety cost and at least 12 of 20 Top picks on the server, rows, and each pick's reason (shown with its details). Tested in `test/taste_test.dart` with the worked example from the design doc |
+| `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside Discover) |
+| `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), `segments.dart` (checks the server's intro/recap/credits times against the episode's length and falls back to chapter names; tested in `test/segments_test.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
 | `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |
+
+Player layout (TV and desktop) follows the big streaming apps: everything along the bottom (title,
+progress bar with the time left, then Episodes / Next Episode / Audio & Subtitles / Restart / Quality).
+Select plays/pauses (or presses Skip Intro/Recap while it shows), left/right scrub with the trickplay
+picture and jump when the presses stop. After 12 s paused a dimmed "You're watching" screen shows the
+story. Next Episode fills up as it counts down, with Watch Credits beside it; "Are you still watching?"
+works in Ember's player too. Audio & Subtitles is two lists over the picture with plain names
+("English 5.1", "English (CC)": `audioLabel`/`subtitleLabel` in `tracks.dart`); subtitle picks are
+remembered (`preferredSubtitleLanguage`, `rememberedSubtitleMode`).
+
+Home, Movies and Shows on TV and desktop are a `Billboard` (`lib/ui/browse.dart`): the focused
+title's picture fills the top of the screen (running under the menu bar) with its logo, details and
+story; the rows sit underneath, one at a time; until a row has focus the featured title shows with
+Play / More Info and its muted preview. `PosterRow`s inside it report focus through `BillboardScope`.
+Movies and Shows have Genre and Sort in the filter panel and a Top 10 row with big numbers
+(`PosterEntry.rank`).
+
+Page headers (TV and desktop): every top-level page uses `PageHeader` (`lib/ui/browse.dart`): the title,
+then one fixed line with the page's tabs on the left and a filter button (three lines) on the right, always at
+`PageHeader.top`, so switching tabs never moves the heading. All of a page's filters (`FilterGroup`s: Coming
+Soon's Show, Explore's Type and Genre, Movies/Shows' Genre and Sort, Requests' Status) are in the panel that
+button opens from the right; with a filter on, the button names it. Phone keeps its chips.
 
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
 uses a bottom tab bar. Every interactive element goes through `Focusable`, so the remote, the mouse
@@ -62,8 +86,16 @@ Coming Soon; otherwise Coming Soon comes from Seerr. Ember never offers to insta
 
 Working:
 - Library browsing, details pages, the player (tracks, quality, trickplay, Skip Intro, Up Next) and search.
-- Seerr: automatic sign-in, Requests, Trending, Preview, requesting.
+- Seerr: automatic sign-in, Requests, Trending, Preview, requesting. A request's status (`SeerrRequest.label` in
+  `seerr.dart`, tested in `test/seerr_test.dart`) puts approval first (Pending/Declined/Failed), then follows the
+  copy it asked for: the 4K copy for 4K requests, only the requested seasons for series. 4K is offered only when
+  Seerr has 4K set up and the account may ask for it (`AppState.canRequest4k`).
+- Home: "Because you watched …" rows (up to 3) of Seerr titles that aren't on the server yet, from TMDB's
+  recommendations for the titles watched most recently (`becauseYouWatched` in `seerr.dart`,
+  `_recentlyWatched` in `home.dart`; Settings › Seerr can turn them off).
 - The Coming Soon calendar (from Seerr, or the optional plugin when a server has it).
+- Watchlist: Seerr's own watchlist (`/discover/watchlist`, `POST /watchlist`, `DELETE /watchlist/{tmdbId}`), with a
+  Watchlist button on Seerr title pages. My List shows My List (Jellyfin favourites), Watchlist and Requested.
 - Skeleton loading on title pages.
 
 Trailers: played in Ember's own player on every platform, with no server plugin. If YouTube won't

@@ -17,6 +17,72 @@ MediaStatus mediaStatusFrom(int? v) => switch (v) {
       _ => MediaStatus.other,
     };
 
+/// A request error in words a person can act on.
+String requestErrorText(Object e) {
+  final text = '$e';
+  final low = text.toLowerCase();
+  if (low.contains('quota')) {
+    return "You've reached your request limit in Seerr for now. Try again later, or ask the server's owner to raise it.";
+  }
+  if (low.contains('4k') && (low.contains('permission') || low.contains('not allowed'))) {
+    return "Your Seerr account isn't allowed to request in 4K. Choose HD, or ask the server's owner.";
+  }
+  if ((e is ApiException && e.status == 409) || low.contains('already exists') || low.contains('already requested')) {
+    return 'This has already been requested.';
+  }
+  if (low.contains('permission')) return "Your Seerr account isn't allowed to make this request. Ask the server's owner.";
+  if (e is ApiException && e.status >= 500) return 'Seerr had a problem sending this on (${e.message}). Try again in a minute.';
+  if (e is! ApiException) return "Ember couldn't reach Seerr. Check that the server is on, then try again.";
+  return text;
+}
+
+/// A title the person watched lately, to base "Because you watched" picks on.
+typedef WatchedTitle = ({String title, String mediaType, int tmdbId});
+
+/// "Because you watched …" rows: for each recently watched title (newest first), Seerr's
+/// recommendations that aren't on the server yet. No title shows twice, nor anything in [skip]
+/// ("movie:123" keys); a row with fewer than [minPerRow] picks is left out.
+Future<List<(String, List<SeerrMedia>)>> becauseYouWatched(
+  SeerrClient seerr,
+  List<WatchedTitle> watched, {
+  int rows = 3,
+  int perRow = 15,
+  int minPerRow = 4,
+  Set<String> skip = const {},
+}) async {
+  final seen = {...skip, for (final w in watched) '${w.mediaType}:${w.tmdbId}'};
+  final lists = await Future.wait(watched.take(rows + 2).map(
+      (w) => seerr.recommendations(w.mediaType, w.tmdbId).catchError((_) => <SeerrMedia>[])));
+  final out = <(String, List<SeerrMedia>)>[];
+  for (var i = 0; i < lists.length && out.length < rows; i++) {
+    final picks = <SeerrMedia>[];
+    for (final m in lists[i]) {
+      if (picks.length >= perRow) break;
+      if (m.isAvailable || m.status == MediaStatus.partiallyAvailable) continue;
+      if (!seen.add('${m.mediaType}:${m.id}')) continue;
+      picks.add(m);
+    }
+    if (picks.length >= minPerRow) out.add(('Because you watched ${watched[i].title}', picks));
+  }
+  return out;
+}
+
+/// A title on someone's Seerr watchlist.
+class WatchlistEntry {
+  final int tmdbId;
+  final String mediaType;
+  final String title;
+  const WatchlistEntry(this.tmdbId, this.mediaType, this.title);
+
+  /// Seerr's own watchlist says `mediaType`; a Plex watchlist says `type` ("movie" or "show").
+  static WatchlistEntry? from(Map<String, dynamic> r) {
+    final id = (r['tmdbId'] as num?)?.toInt();
+    final kind = (r['mediaType'] ?? r['type']) as String?;
+    if (id == null || kind == null) return null;
+    return WatchlistEntry(id, kind == 'movie' ? 'movie' : 'tv', r['title'] as String? ?? '');
+  }
+}
+
 /// A movie or series as Seerr describes it (from TMDB).
 class SeerrMedia {
   final Map<String, dynamic> raw;
@@ -32,10 +98,13 @@ class SeerrMedia {
   String? get date => (raw['releaseDate'] ?? raw['firstAirDate']) as String?;
   int? get year => (date != null && date!.length >= 4) ? int.tryParse(date!.substring(0, 4)) : null;
   double? get voteAverage => (raw['voteAverage'] as num?)?.toDouble();
+  int? get voteCount => (raw['voteCount'] as num?)?.toInt();
   Map<String, dynamic>? get mediaInfo => (raw['mediaInfo'] as Map?)?.cast<String, dynamic>();
   MediaStatus get status => mediaStatusFrom((mediaInfo?['status'] as num?)?.toInt());
   List<Map<String, dynamic>> get requests =>
       (mediaInfo?['requests'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
+  /// On this person's Seerr watchlist (details only).
+  bool get onWatchlist => raw['onUserWatchlist'] == true;
   bool get isAvailable => status == MediaStatus.available;
   bool get isRequested =>
       status == MediaStatus.pending || status == MediaStatus.processing || (requests.isNotEmpty && !isAvailable);
@@ -52,6 +121,18 @@ class SeerrMedia {
       ((raw['credits'] as Map?)?['cast'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
   List<Map<String, dynamic>> get crew =>
       ((raw['credits'] as Map?)?['crew'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
+  /// Movies: the series of films it belongs to (TMDB collection), as id and name.
+  ({int id, String name})? get collection {
+    final c = raw['collection'] ?? raw['belongsToCollection'];
+    if (c is! Map || c['id'] is! num) return null;
+    return (id: (c['id'] as num).toInt(), name: c['name'] as String? ?? '');
+  }
+
+  /// Shows: the TMDB ids of the people who created it.
+  List<int> get createdBy => [
+        for (final c in (raw['createdBy'] as List? ?? const []))
+          if (c is Map && c['id'] is num) (c['id'] as num).toInt(),
+      ];
   List<Map<String, dynamic>> get videos =>
       (raw['relatedVideos'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
   String? get certification {
@@ -91,10 +172,32 @@ class SeerrRequest {
   SeerrRequest(this.raw);
   int get id => (raw['id'] as num).toInt();
 
-  /// 1 pending, 2 approved, 3 declined.
+  /// 1 pending, 2 approved, 3 declined, 4 failed (Radarr/Sonarr refused it), 5 completed.
   int get status => (raw['status'] as num?)?.toInt() ?? 1;
   Map<String, dynamic> get media => (raw['media'] as Map?)?.cast<String, dynamic>() ?? const {};
-  MediaStatus get mediaStatus => mediaStatusFrom((media['status'] as num?)?.toInt());
+
+  /// Where the requested copy stands. A 4K request follows the 4K copy, and a series request
+  /// follows only the seasons it asked for (season 1 being on the server doesn't make a request
+  /// for season 2 "Partly available").
+  MediaStatus get mediaStatus {
+    final key = is4k ? 'status4k' : 'status';
+    final whole = mediaStatusFrom((media[key] as num?)?.toInt());
+    final asked = seasonNumbers.toSet();
+    final seasons = (media['seasons'] as List?) ?? const [];
+    if (mediaType != 'tv' || asked.isEmpty || seasons.isEmpty) return whole;
+    final states = <MediaStatus>[
+      for (final s in seasons)
+        if (asked.contains(((s as Map)['seasonNumber'] as num?)?.toInt())) mediaStatusFrom((s[key] as num?)?.toInt()),
+    ];
+    if (states.isEmpty) return whole;
+    if (states.every((x) => x == MediaStatus.available)) return MediaStatus.available;
+    if (states.any((x) => x == MediaStatus.available || x == MediaStatus.partiallyAvailable)) {
+      return MediaStatus.partiallyAvailable;
+    }
+    if (states.any((x) => x == MediaStatus.processing)) return MediaStatus.processing;
+    return states.any((x) => x == MediaStatus.pending) ? MediaStatus.pending : MediaStatus.unknown;
+  }
+
   int? get tmdbId => (media['tmdbId'] as num?)?.toInt();
   String get mediaType => media['mediaType'] as String? ?? raw['type'] as String? ?? 'movie';
   bool get is4k => raw['is4k'] == true;
@@ -136,23 +239,33 @@ class SeerrRequest {
   /// The Jellyfin item, once it's on the server.
   String? get jellyfinId => media[is4k ? 'jellyfinMediaId4k' : 'jellyfinMediaId'] as String?;
 
-  /// Plain-language status that combines approval and download state.
+  /// Plain-language status that combines approval and download state. Approval comes first:
+  /// a declined or waiting request says so even when another copy is already on the server.
   String get label {
     if (status == 3) return 'Declined';
-    if (mediaStatus == MediaStatus.available) return 'Available';
-    if (mediaStatus == MediaStatus.partiallyAvailable) return downloads.isNotEmpty ? 'Downloading' : 'Partly available';
     if (status == 1) return 'Pending approval';
+    if (status == 4) return 'Failed';
+    if (mediaStatus == MediaStatus.available) return 'Available';
     if (downloads.isNotEmpty) return 'Downloading';
+    if (mediaStatus == MediaStatus.partiallyAvailable) return 'Partly available';
+    if (status == 5) return 'Available';
     if (mediaStatus == MediaStatus.processing) return 'Approved · waiting for release';
     return 'Approved';
   }
 
-  String get filterKey {
-    if (status == 3) return 'Declined';
-    if (mediaStatus == MediaStatus.available || mediaStatus == MediaStatus.partiallyAvailable) return 'Available';
-    if (status == 1) return 'Pending';
-    return 'Approved';
-  }
+  /// Which chip on the Requests page shows it.
+  String get filterKey => switch (label) {
+        'Declined' || 'Failed' => 'Declined',
+        'Pending approval' => 'Pending',
+        'Available' || 'Partly available' => 'Available',
+        _ => 'Approved',
+      };
+
+  /// Something to watch on the server already.
+  bool get playable => jellyfinId != null && (label == 'Available' || label == 'Partly available');
+
+  /// Still on its way (for My List's "arriving" row).
+  bool get arriving => status != 3 && status != 4 && label != 'Available';
 }
 
 /// Seerr client. Signs in either with the user's Jellyfin credentials (session cookie, so
@@ -337,6 +450,16 @@ class SeerrClient {
     return (p & 2) != 0 || (p & 16) != 0;
   }
 
+  /// Seerr permission bits: ADMIN = 2, REQUEST_4K = 1024, REQUEST_4K_MOVIE = 2048, REQUEST_4K_TV = 4096.
+  static bool canRequest4k(Map<String, dynamic> user, {required bool tv}) {
+    final p = (user['permissions'] as num?)?.toInt() ?? 0;
+    return (p & 2) != 0 || (p & 1024) != 0 || (p & (tv ? 4096 : 2048)) != 0;
+  }
+
+  /// Seerr's public settings (whether a 4K Radarr / Sonarr is set up, and so on).
+  Future<Map<String, dynamic>> publicSettings() async =>
+      ((await _send('GET', '/settings/public')) as Map).cast<String, dynamic>();
+
   List<SeerrMedia> _results(dynamic json) {
     final list = (json as Map)['results'] as List? ?? const [];
     return list
@@ -358,14 +481,22 @@ class SeerrClient {
 
   /// Titles releasing between [from] and [to] (movies by release date, shows by first air date),
   /// most popular first.
-  Future<List<SeerrMedia>> releasing(String mediaType, DateTime from, DateTime to, {int page = 1}) async {
+  Future<List<SeerrMedia>> releasing(String mediaType, DateTime from, DateTime to, {int page = 1}) =>
+      discover(mediaType, from: from, to: to, page: page);
+
+  /// Seerr's movie or show catalogue (from TMDB): [genre] is a TMDB genre id, [sortBy] e.g.
+  /// popularity.desc or vote_average.desc, [from]/[to] limit the release (or first air) date.
+  Future<List<SeerrMedia>> discover(String mediaType,
+      {int? genre, String sortBy = 'popularity.desc', DateTime? from, DateTime? to, int? minVotes, int page = 1}) async {
     String d(DateTime t) => '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
     final tv = mediaType == 'tv';
     final json = await _send('GET', tv ? '/discover/tv' : '/discover/movies', query: {
       'page': '$page',
-      'sortBy': 'popularity.desc',
-      if (tv) 'firstAirDateGte': d(from) else 'primaryReleaseDateGte': d(from),
-      if (tv) 'firstAirDateLte': d(to) else 'primaryReleaseDateLte': d(to),
+      'sortBy': sortBy,
+      if (genre != null) 'genre': '$genre',
+      if (minVotes != null) 'voteCountGte': '$minVotes',
+      if (from != null) (tv ? 'firstAirDateGte' : 'primaryReleaseDateGte'): d(from),
+      if (to != null) (tv ? 'firstAirDateLte' : 'primaryReleaseDateLte'): d(to),
     });
     return _results(json).map((m) {
       m.raw['mediaType'] ??= mediaType;
@@ -406,17 +537,69 @@ class SeerrClient {
     }).toList();
   }
 
-  Future<void> request({required String mediaType, required int tmdbId, List<int>? seasons, bool is4k = false}) async {
-    await _send('POST', '/request', body: {
+  /// TMDB's "if you liked this, try…" picks for a title.
+  Future<List<SeerrMedia>> recommendations(String mediaType, int tmdbId) async {
+    final json = await _send('GET', mediaType == 'tv' ? '/tv/$tmdbId/recommendations' : '/movie/$tmdbId/recommendations');
+    return _results(json).map((m) {
+      m.raw['mediaType'] ??= mediaType;
+      return m;
+    }).toList();
+  }
+
+  /// The films of a TMDB collection (a series of films), oldest first.
+  Future<List<SeerrMedia>> collection(int id) async {
+    final json = await _send('GET', '/collection/$id');
+    final parts = (json is Map ? json['parts'] : null) as List? ?? const [];
+    final out = [
+      for (final p in parts.whereType<Map>()) SeerrMedia(p.cast<String, dynamic>()..['mediaType'] ??= 'movie'),
+    ];
+    out.sort((a, b) => (a.date ?? '9999').compareTo(b.date ?? '9999'));
+    return out;
+  }
+
+  /// This person's Seerr watchlist, newest first: titles they want to see, on the server or not.
+  /// Only the TMDB id, kind and name come back; [details] has the rest.
+  Future<List<WatchlistEntry>> watchlist({int pages = 2}) async {
+    final out = <WatchlistEntry>[];
+    for (var page = 1; page <= pages; page++) {
+      final json = await _send('GET', '/discover/watchlist', query: {'page': '$page'});
+      final results = (json is Map ? json['results'] : null) as List? ?? const [];
+      for (final r in results.whereType<Map>()) {
+        final e = WatchlistEntry.from(r.cast<String, dynamic>());
+        if (e != null) out.add(e);
+      }
+      if (json is! Map || page >= ((json['totalPages'] as num?)?.toInt() ?? 1)) break;
+    }
+    return out;
+  }
+
+  Future<void> addToWatchlist(SeerrMedia m) =>
+      _send('POST', '/watchlist', body: {'tmdbId': m.id, 'mediaType': m.mediaType, 'title': m.title});
+
+  Future<void> removeFromWatchlist(SeerrMedia m) =>
+      _send('DELETE', '/watchlist/${m.id}', query: {'mediaType': m.mediaType});
+
+  /// Sends a request and returns it as Seerr stored it (its status says whether it was
+  /// approved straight away or waits for an admin).
+  Future<SeerrRequest?> request({required String mediaType, required int tmdbId, List<int>? seasons, bool is4k = false}) async {
+    final json = await _send('POST', '/request', body: {
       'mediaType': mediaType,
       'mediaId': tmdbId,
       if (mediaType == 'tv') 'seasons': seasons ?? 'all',
       'is4k': is4k,
     });
+    return json is Map ? SeerrRequest(json.cast<String, dynamic>()) : null;
   }
 
-  Future<List<SeerrRequest>> requests({int take = 40}) async {
-    final json = await _send('GET', '/request', query: {'take': '$take', 'skip': '0', 'sort': 'added', 'filter': 'all'});
+  /// Newest requests first. [requestedBy] (a Seerr user id) keeps only that person's.
+  Future<List<SeerrRequest>> requests({int take = 40, int skip = 0, Object? requestedBy}) async {
+    final json = await _send('GET', '/request', query: {
+      'take': '$take',
+      'skip': '$skip',
+      'sort': 'added',
+      'filter': 'all',
+      if (requestedBy != null) 'requestedBy': '$requestedBy',
+    });
     final list = (json as Map)['results'] as List? ?? const [];
     return list.map((e) => SeerrRequest((e as Map).cast<String, dynamic>())).toList();
   }
