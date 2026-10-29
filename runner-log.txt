@@ -1,0 +1,311 @@
+getpwuid_r did not find a match for uid 501
+Timestamp                       Thread     Type        Activity             PID    TTL  
+2026-10-29 16:44:10.675836+0000 0xa32d     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106004e80] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-10-29 16:44:10.676224+0000 0xa315     Default     0x0                  11808  0    Runner: (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-10-29 16:44:10.683872+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-10-29 16:44:10.684597+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-10-29 16:44:10.685266+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-10-29 16:44:10.685691+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x600002104460>
+2026-10-29 16:44:10.685877+0000 0xa315     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Initializing connection
+2026-10-29 16:44:10.686424+0000 0xa315     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:process] Removing all cached process handles
+2026-10-29 16:44:10.686843+0000 0xa315     Default     0x0                  11808  0    Runner: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-10-29 16:44:10.687848+0000 0xa315     Default     0x0                  11808  0    Runner: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-10-29 16:44:10.687894+0000 0xa32d     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-10-29 16:44:10.688185+0000 0xa32d     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106106840] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-10-29 16:44:10.688317+0000 0xa331     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-10-29 16:44:10.688584+0000 0xa32e     Default     0x0                  11808  0    Runner: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-10-29 16:44:10.689097+0000 0xa32e     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10620a8f0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-10-29 16:44:10.689461+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-10-29 16:44:10.691273+0000 0xa32f     Activity    0x33d50              11808  0    Runner: (RunningBoardServices) didChangeInheritances
+2026-10-29 16:44:10.691526+0000 0xa331     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Handshake succeeded
+2026-10-29 16:44:10.691645+0000 0xa331     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Identity resolved as app<app.ember.ember((null))>
+2026-10-29 16:44:10.691821+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x600000210c00; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-10-29 16:44:10.691989+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600003004120 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-10-29 16:44:10.693350+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x600002104460>
+2026-10-29 16:44:10.700310+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600003004120 com.apple.frontboard.systemappservices> sent handshake
+2026-10-29 16:44:10.700358+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x60000170a280>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 529 (elapsed = 0).
+2026-10-29 16:44:10.700981+0000 0xa315     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x60000020dca0>
+2026-10-29 16:44:10.701177+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-10-29 16:44:10.703356+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIRemoteFocusParentSceneClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.703625+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIRemoteFocusChildSceneSettings> on FBSSceneSettings
+2026-10-29 16:44:10.703711+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIRemoteFocusChildSceneClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.703781+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferencesHostSettingsExtension on FBSSceneSettings
+2026-10-29 16:44:10.704055+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneSafeAreaSettingsExtension on FBSSceneSettings
+2026-10-29 16:44:10.705231+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferenceClientSettingsExtension on FBSSceneClientSettings
+2026-10-29 16:44:10.705885+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-10-29 16:44:10.706874+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-10-29 16:44:10.707600+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneRenderingEnvironmentClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.708205+0000 0xa315     Default     0x0                  11808  0    Runner: (CoreServicesInternal) [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/runner/Library/Developer/CoreSimulator/Devices/E83485F6-5317-442A-8C27-CFF815F867A6/data/Containers/Data/Application/8F00A0D0-23C5-4B49-A027-D10EF227FAF6/Library/Caches//flutter_callback_cache.json
+2026-10-29 16:44:10.708658+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-10-29 16:44:10.709091+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneFocusSystemSettings> on FBSSceneSettings
+2026-10-29 16:44:10.709331+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneWindowingControlClientSettings on FBSSceneClientSettings
+2026-10-29 16:44:10.709614+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.709750+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-10-29 16:44:10.710780+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-10-29 16:44:10.711582+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.712006+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-10-29 16:44:10.712521+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-10-29 16:44:10.713027+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.714712+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingViewControllerPreferencePropagationClientSettings> on FBSSceneClientSettings
+2026-10-29 16:44:10.715274+0000 0xa315     Default     0x0                  11808  0    Runner: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-10-29 16:44:10.715622+0000 0xa32d     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneZoomTransitionSettings> on FBSSceneSettings
+2026-10-29 16:44:10.715805+0000 0xa315     Default     0x0                  11808  0    Runner: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-10-29 16:44:10.716489+0000 0xa315     Default     0x0                  11808  0    Runner: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-10-29 16:44:10.716819+0000 0xa331     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-10-29 16:44:10.717109+0000 0xa315     Default     0x0                  11808  0    Runner: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-10-29 16:44:10.717906+0000 0xa331     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-10-29 16:44:10.719249+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+2026-10-29 16:44:10.719845+0000 0xa331     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-10-29 16:44:10.721104+0000 0xa331     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-10-29 16:44:10.721607+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x106006540> for initial
+2026-10-29 16:44:10.721892+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x106006540> for CADisplay KVO
+2026-10-29 16:44:10.722490+0000 0xa315     Default     0x0                  11808  0    Runner: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-10-29 16:44:10.739485+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) Warning: Unable to create restoration in progress marker file
+2026-10-29 16:44:10.740473+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 10; deactivation reasons: 3072 -> 2048; animating application lifecycle event: 0
+2026-10-29 16:44:10.741728+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Touch: not found, path="/System/Library/EventTimingProfiles/Sim.Touch.plist"
+2026-10-29 16:44:10.742909+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Pencil: not found, path="/System/Library/EventTimingProfiles/Sim.Pencil.plist"
+2026-10-29 16:44:10.743757+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UpdateScheduler] Selected display: name=TVOut (PurpleTVOut), id=1
+2026-10-29 16:44:10.761735+0000 0xa315     Default     0x0                  11808  0    Runner: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:2] Alloc com.apple.backboard.hid-services.xpc
+2026-10-29 16:44:10.762495+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106109e80] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-10-29 16:44:10.764003+0000 0xa337     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventDeliveryManager - connection activation
+2026-10-29 16:44:10.769218+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-10-29 16:44:10.769677+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 5; deactivation reasons: 2048 -> 2080; animating application lifecycle event: 1
+2026-10-29 16:44:10.770458+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 1 -> 2, <UIWindowScene: 0x10620e980> (app.ember.ember-default)
+2026-10-29 16:44:10.770747+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x60000290cd90] Initialized with scene: <UIWindowScene: 0x10620e980>; behavior: <_UIEventDeferringBehavior_tvOS: 0x60000021c840>; availableForProcess: 1, systemShellManagesKeyboardFocus: 0
+2026-10-29 16:44:10.771048+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomTV to LastOneWins
+2026-10-29 16:44:10.774682+0000 0xa315     Activity    0x33d51              11808  0    Runner: (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-10-29 16:44:10.799656+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10610ad90] activating connection: mach=true listener=false peer=false name=com.apple.metal.simulator
+2026-10-29 16:44:10.811232+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10620ee90] activating connection: mach=true listener=false peer=false name=com.apple.metal.simulator
+2026-10-29 16:44:10.811686+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10620efc0] activating connection: mach=true listener=false peer=false name=com.apple.metal.simulator
+2026-10-29 16:44:10.812904+0000 0xa315     Error       0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] FlutterView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+2026-10-29 16:44:10.846330+0000 0xa315     Default     0x0                  11808  0    Runner: (Flutter) [IMPORTANT:flutter/shell/platform/darwin/graphics/FlutterDarwinContextMetalImpeller.mm(45)] Using the Impeller rendering backend (Metal).
+2026-10-29 16:44:10.859386+0000 0xa315     Error       0x0                  11808  0    Runner: (libCoreFSCache.dylib) fopen failed for data file: errno = 2 (No such file or directory)
+2026-10-29 16:44:10.859583+0000 0xa315     Error       0x0                  11808  0    Runner: (libCoreFSCache.dylib) Errors found! Invalidating cache...
+2026-10-29 16:44:10.860678+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10620fea0] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-10-29 16:44:10.880439+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106008be0] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-10-29 16:44:10.880675+0000 0xa334     Activity    0x33d52              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:10.881183+0000 0xa315     Error       0x0                  11808  0    Runner: (libCoreFSCache.dylib) fopen failed for data file: errno = 2 (No such file or directory)
+2026-10-29 16:44:10.881321+0000 0xa315     Error       0x0                  11808  0    Runner: (libCoreFSCache.dylib) Errors found! Invalidating cache...
+2026-10-29 16:44:10.882258+0000 0xa331     Activity    0x33d53              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:10.927178+0000 0xa315     Default     0x0                  11808  0    Runner: (AVFCore) [com.apple.coremedia:] <<<< AVReadWriteDispatchQueue >>>> usesSerialQueue_block_invoke: Using read/write queue
+2026-10-29 16:44:10.940430+0000 0xa315     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:connection] Creating side-channel connection to com.apple.runningboard
+2026-10-29 16:44:10.940478+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106028ad0] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-10-29 16:44:10.941902+0000 0xa315     Default     0x0                  11808  0    Runner: (RunningBoardServices) [com.apple.runningboard:process] Hit the server for a process handle 16cab49900002e20 that resolved to: [app<app.ember.ember((null))>:11808]
+2026-10-29 16:44:10.943958+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:_UIVisualStyleRegistry] Warning: no visual style classes have been registered at all.
+2026-10-29 16:44:10.944051+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:_UIVisualStyleRegistry] Warning: no visual style classes have been registered at all.
+2026-10-29 16:44:10.944104+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:_UIVisualStyleRegistry] Note: no default visual style class registered as fallback for stylable class UIActivityIndicatorView
+2026-10-29 16:44:10.944487+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:_UIVisualStyleRegistry] Note: no default visual style class registered as fallback for stylable class UIActivityIndicatorView
+2026-10-29 16:44:10.951987+0000 0xa315     Default     0x0                  11808  0    Runner: (caulk) [com.apple.audio.caulk:alloc] Registered notify signal com.apple.caulk.alloc.rtdump (0)
+2026-10-29 16:44:11.134970+0000 0xa315     Default     0x0                  11808  0    Runner: (CoreAudio)   HALPlugInManagement.cpp:443    HALPlugInManagement::RegisterPlugIns: loading in-process plug-ins
+2026-10-29 16:44:11.135231+0000 0xa315     Error       0x0                  11808  0    Runner: (CoreFoundation) [com.apple.CFBundle:plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x60000022ddc0> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+2026-10-29 16:44:11.172387+0000 0xa315     Default     0x0                  11808  0    Runner: (AudioSession) [com.apple.coreaudio:as_client] AVAudioSessionImpl_Simulator.mm:111   Set volume on device 80 to 0.60
+2026-10-29 16:44:11.172583+0000 0xa315     Default     0x0                  11808  0    Runner: (AudioSession) [com.apple.coreaudio:as_client] AVAudioSessionImpl_Simulator.mm:111   Set volume on device 80 to 0.60
+2026-10-29 16:44:11.180496+0000 0xa315     Default     0x0                  11808  0    Runner: (AudioToolbox) [com.apple.coreaudio:ddagg]        AggregateDevice.mm:887   Creating DefaultDeviceAggregate
+2026-10-29 16:44:11.184998+0000 0xa334     Activity    0x33d54              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.201764+0000 0xa334     Activity    0x33d55              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.208390+0000 0xa334     Activity    0x33d56              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.218640+0000 0xa334     Activity    0x33d57              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.225822+0000 0xa315     Default     0x0                  11808  0    Runner: (AudioToolbox) [com.apple.coreaudio:ddagg]        AggregateDevice.mm:688   Built valid aggregate 110
+2026-10-29 16:44:11.225931+0000 0xa315     Default     0x0                  11808  0    Runner: (AudioToolbox) [com.apple.coreaudio:ddagg]        AggregateDevice.mm:1008  PrimarySessionActiveWithInputEnabled 0 -> 0
+2026-10-29 16:44:11.230773+0000 0xa334     Activity    0x33d58              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.233150+0000 0xa334     Activity    0x33d59              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.241008+0000 0xa334     Activity    0x33d5a              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.244335+0000 0xa315     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002610e40; process scope; status: none> was:none
+2026-10-29 16:44:11.248811+0000 0xa334     Activity    0x33d5b              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.255349+0000 0xa334     Activity    0x33d5c              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.256437+0000 0xa336     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventObserver - connection activation
+2026-10-29 16:44:11.261508+0000 0xa334     Activity    0x33d5d              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.267574+0000 0xa334     Activity    0x33d5e              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.270925+0000 0xa334     Activity    0x33d5f              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.278209+0000 0xa334     Activity    0x33dc0              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.282661+0000 0xa334     Activity    0x33dc1              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.288341+0000 0xa334     Activity    0x33dc2              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.293036+0000 0xa331     Activity    0x33dc3              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.298652+0000 0xa315     Default     0x0                  11808  1    Runner: (GameController) [com.apple.gamecontroller:Session] Creating the shared game controller session...
+2026-10-29 16:44:11.299052+0000 0xa334     Activity    0x33dc4              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.299055+0000 0xa331     Activity    0x33dc5              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.302462+0000 0xa331     Activity    0x33dc6              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.304166+0000 0xa334     Activity    0x33dc7              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.305775+0000 0xa315     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002602160; process scope; status: none> was:none
+2026-10-29 16:44:11.305815+0000 0xa315     Activity    0x33dc8              11808  0    Runner: (GameController) [GCDeviceSession] Activate
+2026-10-29 16:44:11.306519+0000 0xa331     Activity    0x33dc9              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.307377+0000 0xa315     Default     0x0                  11808  7    Runner: (MediaPlayer) [com.apple.amp.mediaplayer:RemoteControl] [RCC:0x10621eb10:MediaRemote-DefaultPlayer] initWithPlayerPath:【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】
+2026-10-29 16:44:11.307830+0000 0xa315     Default     0x0                  11808  7    Runner: (MediaPlayer) [com.apple.amp.mediaplayer:RemoteControl] [RCC:0x10621eb10:MediaRemote-DefaultPlayer] _startMediaRemoteSync | MRMediaRemoteAddCommandHandlerForPlayer [] playerPath=【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】
+2026-10-29 16:44:11.308271+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:NowPlaying] [MRNowPlayingOriginClient] Creating MRNowPlayingOriginClient for origin 􁊸 LOCL
+2026-10-29 16:44:11.309978+0000 0xa334     Activity    0x33dca              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.312333+0000 0xa334     Activity    0x33dcb              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.312464+0000 0xa331     Activity    0x33dcc              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.313987+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:MediaRemote] Set: 【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 setting ActivePlayerPath to <􀽍 default>
+2026-10-29 16:44:11.313990+0000 0xa331     Activity    0x33dcd              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.314188+0000 0xa334     Activity    0x33dce              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.314443+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:rr] Request: setNowPlayingPlayer<C9E619C2-FF18-4700-B945-8E39DF8E5F2C> for 【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 because New player 【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 was added
+2026-10-29 16:44:11.314727+0000 0xa315     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10621f6b0] activating connection: mach=true listener=false peer=false name=com.apple.mediaremoted.xpc
+2026-10-29 16:44:11.316224+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:MediaRemote] MediaRemote server initializing
+2026-10-29 16:44:11.316540+0000 0xa331     Activity    0x33dcf              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.317409+0000 0xa334     Activity    0x33dd0              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.318078+0000 0xa315     Default     0x0                  11808  7    Runner: (MediaPlayer) [com.apple.amp.mediaplayer:RemoteControl_Oversize] [RCC] reevaluateCanBeNowPlayingApplication: canBeNowPlayingApplication=YES playerPath=【 􁊸 LOCL ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 commands=(
+    "<MPRemoteCommand: 0x6000021270c0 type=BeginFastForward (8) enabled=YES handlers=[0x600000c340c0]>"
+)
+2026-10-29 16:44:11.318243+0000 0xa331     Activity    0x33dd1              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.319337+0000 0xa334     Activity    0x33dd2              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.321934+0000 0xa331     Activity    0x33dd3              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.322065+0000 0xa334     Activity    0x33dd4              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.322828+0000 0xa337     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=1
+2026-10-29 16:44:11.325150+0000 0xa334     Activity    0x33dd5              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.325758+0000 0xa337     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=2
+2026-10-29 16:44:11.325861+0000 0xa331     Activity    0x33dd6              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.328914+0000 0xa334     Activity    0x33dd7              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.330982+0000 0xa334     Activity    0x33dd8              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.332434+0000 0xa331     Activity    0x33dd9              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.335341+0000 0xa334     Activity    0x33dda              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.337685+0000 0xa334     Activity    0x33ddb              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.344776+0000 0xa334     Activity    0x33ddc              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.346368+0000 0xa331     Activity    0x33ddd              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.349865+0000 0xa331     Activity    0x33dde              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.351636+0000 0xa331     Activity    0x33ddf              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.352608+0000 0xa331     Activity    0x33de0              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.353914+0000 0xa334     Activity    0x33de1              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.355089+0000 0xa331     Activity    0x33de2              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.355730+0000 0xa334     Activity    0x33de3              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.357757+0000 0xa334     Activity    0x33de4              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.359791+0000 0xa334     Activity    0x33de5              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.360584+0000 0xa331     Activity    0x33de6              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.362634+0000 0xa331     Activity    0x33de7              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.363852+0000 0xa334     Activity    0x33de8              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.364255+0000 0xa331     Activity    0x33de9              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.365740+0000 0xa334     Activity    0x33dea              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.366305+0000 0xa331     Activity    0x33deb              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.367555+0000 0xa334     Activity    0x33dec              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.368065+0000 0xa331     Activity    0x33ded              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.369587+0000 0xa334     Activity    0x33dee              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.369854+0000 0xa331     Activity    0x33def              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.372354+0000 0xa334     Activity    0x33df0              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.373052+0000 0xa331     Activity    0x33df1              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.376849+0000 0xa334     Activity    0x33df2              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.377694+0000 0xa331     Activity    0x33df3              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.381077+0000 0xa334     Activity    0x33df4              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.381318+0000 0xa337     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=3
+2026-10-29 16:44:11.390220+0000 0xa331     Activity    0x33df5              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.390264+0000 0xa334     Activity    0x33df6              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.392282+0000 0xa334     Activity    0x33df7              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.392303+0000 0xa331     Activity    0x33df8              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.394523+0000 0xa334     Activity    0x33df9              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.395000+0000 0xa331     Activity    0x33dfa              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.397289+0000 0xa334     Activity    0x33dfb              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.402734+0000 0xa334     Activity    0x33dfc              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.410968+0000 0xa331     Activity    0x33dfd              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.415924+0000 0xa334     Activity    0x33dfe              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.422415+0000 0xa334     Activity    0x33dff              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.431818+0000 0xa334     Activity    0x33e00              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.440322+0000 0xa334     Activity    0x33e01              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.444784+0000 0xa331     Activity    0x33e02              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.453989+0000 0xa331     Activity    0x33e03              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.456405+0000 0xa334     Activity    0x33e04              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.460609+0000 0xa334     Activity    0x33e05              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.461053+0000 0xa331     Activity    0x33e06              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.463971+0000 0xa331     Activity    0x33e07              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.470994+0000 0xa331     Activity    0x33e08              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.472007+0000 0xa334     Activity    0x33e09              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.477445+0000 0xa331     Activity    0x33e0a              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.478028+0000 0xa334     Activity    0x33e0b              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.479458+0000 0xa331     Activity    0x33e0c              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.481244+0000 0xa331     Activity    0x33e0d              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.481669+0000 0xa334     Activity    0x33e0e              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.485031+0000 0xa331     Activity    0x33e0f              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.486952+0000 0xa334     Activity    0x33e10              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.487930+0000 0xa331     Activity    0x33e11              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.493361+0000 0xa331     Activity    0x33e12              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.499467+0000 0xa334     Activity    0x33e13              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.500015+0000 0xa331     Activity    0x33e14              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.507477+0000 0xa331     Activity    0x33e15              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.509968+0000 0xa334     Activity    0x33e16              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.512937+0000 0xa331     Activity    0x33e17              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.551155+0000 0xa32f     Activity    0x33e18              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.557881+0000 0xa32d     Activity    0x33e19              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.574738+0000 0xa331     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:rr] Response: setNowPlayingPlayer<C9E619C2-FF18-4700-B945-8E39DF8E5F2C> returned for 【 􁊸 LOCL (Apple TV) ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 in 0.2602 seconds
+2026-10-29 16:44:11.610057+0000 0xa32f     Activity    0x33e1a              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.614449+0000 0xa32f     Activity    0x33e1b              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.618748+0000 0xa32d     Activity    0x33e1c              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.618871+0000 0xa32f     Activity    0x33e1d              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.634196+0000 0xa32f     Activity    0x33e1e              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.642405+0000 0xa32d     Activity    0x33e1f              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.646488+0000 0xa32f     Activity    0x33e40              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.650761+0000 0xa32f     Activity    0x33e41              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.652329+0000 0xa32f     Activity    0x33e42              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.652618+0000 0xa32d     Activity    0x33e43              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.654507+0000 0xa32d     Activity    0x33e44              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.656594+0000 0xa32f     Activity    0x33e45              11808  0    Runner: (Metal) Metal Compiling Shader
+2026-10-29 16:44:11.707405+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 1
+2026-10-29 16:44:11.707820+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Ending task with identifier 1 and description: <_UIBackgroundTaskInfo: 0x60000170a280>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 529 (elapsed = 1), _expireHandler: (null)
+2026-10-29 16:44:11.708238+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x600002104460> (used by background task with identifier 1: <_UIBackgroundTaskInfo: 0x60000170a280>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 529 (elapsed = 1))
+2026-10-29 16:44:11.708846+0000 0xa32d     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x600002104460> for task identifier: 1
+2026-10-29 16:44:11.928031+0000 0xa359     Default     0x0                  11808  0    Runner: (Flutter) flutter: The Dart VM service is listening on http://127.0.0.1:49474/-wMT2ZtB3qI=/
+2026-10-29 16:44:11.945490+0000 0xa334     Activity    0x33e46              11808  0    Runner: (RunningBoardServices) didChangeInheritances
+2026-10-29 16:44:12.177271+0000 0xa315     Default     0x0                  11808  0    Runner: (CoreAnalytics) [com.apple.CoreAnalytics:client] No XPC connection in Simulator
+2026-10-29 16:44:12.212344+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:KeyWindow] Key window API is scene-level: YES
+2026-10-29 16:44:12.212603+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:KeyWindow] UIWindowScene: 0x10620e980: Window became key in scene: UIWindow: 0x10602bec0; contextId: 0x4BF460A7: reason: UIWindowScene: 0x10620e980: Window requested to become key in scene: 0x10602bec0
+2026-10-29 16:44:12.212724+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:KeyWindow] Key window needs update: 1; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x10620e980; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x10602bec0; reason: UIWindowScene: 0x10620e980: Window requested to become key in scene: 0x10602bec0
+2026-10-29 16:44:12.212805+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:KeyWindow] Window did become application key: UIWindow: 0x10602bec0; contextId: 0x4BF460A7; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:app.ember.ember-default
+2026-10-29 16:44:12.212896+0000 0xa315     Default     0x0                  11808  1    Runner: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x60000290cd90] Begin local event deferring requested for token: 0x600002609fe0; environments: 1; reason: UIWindowScene: 0x10620e980: Begin event deferring in keyboardFocus for window: 0x10602bec0
+2026-10-29 16:44:12.215969+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: app.ember.ember-default  persistentID: app.ember.ember-default
+2026-10-29 16:44:12.216423+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Ignoring already applied deactivation reason: 5; deactivation reasons: 2080
+2026-10-29 16:44:12.216517+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 12; deactivation reasons: 2080 -> 6176; animating application lifecycle event: 1
+2026-10-29 16:44:12.216840+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 11; deactivation reasons: 6176 -> 4128; animating application lifecycle event: 1
+2026-10-29 16:44:12.217051+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneIntelligenceSupportSettings> on FBSSceneSettings
+2026-10-29 16:44:12.218165+0000 0xa337     Default     0x0                  11808  0    Runner: (UIIntelligenceSupport) [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-10-29 16:44:12.218593+0000 0xa337     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:session] [0x60000212fa70] Session created.
+2026-10-29 16:44:12.218639+0000 0xa337     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:session] [0x60000212fa70] Session created from connection [0x10610eff0]
+2026-10-29 16:44:12.218802+0000 0xa337     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x10610eff0] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-10-29 16:44:12.219858+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UpdateScheduler] Target list changed: <CADisplay:TVOut PurpleTVOut>
+2026-10-29 16:44:12.220271+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] Focus system enabled
+2026-10-29 16:44:12.221165+0000 0xa337     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:session] [0x60000212fa70] Session activated
+2026-10-29 16:44:12.221317+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] Failed to update focus with context <UIFocusUpdateContext: 0x600003007cc0; previouslyFocusedItem: (nil); nextFocusedItem: (nil); focusHeading: None>. No additional info available.
+2026-10-29 16:44:12.226521+0000 0xa337     Activity    0x33e47              11808  0    Runner: (RunningBoardServices) didChangeInheritances
+2026-10-29 16:44:12.241085+0000 0xa315     Default     0x33dc8              11808  1    Runner: (GameController) [com.apple.gamecontroller:Session] Connected devices changed (2 added, 0 removed) -> [2] {(
+    <GCKeyboard 0x6000002883a0 'Generic Keyboard'>,
+    <GCController 0x600003d00d20 'MFi'/'Gamepad'>
+)}
+2026-10-29 16:44:12.245193+0000 0xa315     Default     0x33dc8              11808  1    Runner: (GameController) [com.apple.gamecontroller:Session] Connected devices changed (0 added, 0 removed) -> [2] {(
+    <GCKeyboard 0x6000002883a0 'Generic Keyboard'>,
+    <GCController 0x600003d00d20 'MFi'/'Gamepad'>
+)}
+2026-10-29 16:44:12.245610+0000 0xa315     Default     0x33dc8              11808  1    Runner: (GameController) [com.apple.gamecontroller:Session] Connected devices changed (0 added, 0 removed) -> [2] {(
+    <GCKeyboard 0x6000002883a0 'Generic Keyboard'>,
+    <GCController 0x600003d00d20 'MFi'/'Gamepad'>
+)}
+2026-10-29 16:44:12.245801+0000 0xa315     Default     0x33dc8              11808  1    Runner: (GameController) [com.apple.gamecontroller:Session] Connected devices changed (0 added, 0 removed) -> [2] {(
+    <GCKeyboard 0x6000002883a0 'Generic Keyboard'>,
+    <GCController 0x600003d00d20 'MFi'/'Gamepad'>
+)}
+2026-10-29 16:44:12.245891+0000 0xa315     Activity    0x33e48              11808  0    Runner: (GameControllerFoundation) [HID Event System Client] Activate
+2026-10-29 16:44:12.246472+0000 0xa315     Default     0x0                  11808  7    Runner: (MediaPlayer) [com.apple.amp.mediaplayer:RemoteControl] <MPRemoteCommandCenter: 0x10621eb10 (【 􁊸 LOCL (Apple TV) ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】)> [MPRemoteCommandCenter] setSupportedCommands (
+    "<MRCommandInfo: 0x60000028d1c0, ChangePlaybackRateCommand, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d200, BeginRewind, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d220, EndRewind, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d240, BeginFastForward, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d260, EndFastForward, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d280, Stop, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d2a0, TogglePlayPause, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d2c0, Pause, enabled = 1, options = {\n}>",
+    "<MRCommandInfo: 0x60000028d2e0, Play, enabled = 1, options = {\n}>"
+)
+2026-10-29 16:44:12.246882+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaRemote) [com.apple.amp.mediaremote:NowPlaying] [MRNowPlaying] MRMediaRemoteSetCanBeNowPlayingForPlayer 【 􁊸 LOCL (Apple TV) ❯ 􀐥 app.ember.ember (11808) ❯ 􀽍 default 】 set to YES
+2026-10-29 16:44:12.247300+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=1
+2026-10-29 16:44:12.247505+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=2
+2026-10-29 16:44:12.247621+0000 0xa315     Default     0x0                  11808  0    Runner: (MediaExperience) [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=3
+2026-10-29 16:44:12.250631+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: app.ember.ember-default  persistentID: app.ember.ember-default
+2026-10-29 16:44:12.251036+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 12; deactivation reasons: 4128 -> 32; animating application lifecycle event: 1
+2026-10-29 16:44:12.251815+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 5; deactivation reasons: 32 -> 0; animating application lifecycle event: 0
+2026-10-29 16:44:12.254773+0000 0xa32f     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106240ef0] activating connection: mach=true listener=false peer=false name=com.apple.audio.SystemSoundServer-Sim
+2026-10-29 16:44:12.258632+0000 0xa315     Activity    0x33e49              11808  0    Runner: (GameController) Notify ApplicationDidBecomeActive
+2026-10-29 16:44:12.499408+0000 0xa315     Default     0x0                  11808  0    Runner: (FrontBoardServices) [com.apple.FrontBoard:SceneClient] [(FBSceneManager):app.ember.ember-default] Received action(s): UIResetFocusAction
+2026-10-29 16:44:12.499795+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: app.ember.ember-default  persistentID: app.ember.ember-default
+2026-10-29 16:44:12.500403+0000 0xa32f     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002610e40; display: PurpleTVOut; environment: keyboardFocus; token: 0x4BF460A7; status: target> was:none
+2026-10-29 16:44:12.500443+0000 0xa32f     Default     0x0                  11808  0    Runner: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x600002602160; environment: keyboardFocus; status: target> was:none
+2026-10-29 16:44:12.502965+0000 0xa315     Default     0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] Failed to update focus with context <UIFocusUpdateContext: 0x6000030013b0; previouslyFocusedItem: (nil); nextFocusedItem: (nil); focusHeading: None>. No additional info available.
+2026-10-29 16:44:13.197314+0000 0xa33d     Default     0x0                  11808  0    Runner: (libxpc.dylib) [com.apple.xpc:connection] [0x106231ed0] activating connection: mach=true listener=false peer=false name=com.apple.IOSurface.Remote
+2026-10-29 16:44:13.256252+0000 0xa315     Error       0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+2026-10-29 16:44:13.257005+0000 0xa315     Error       0x0                  11808  0    Runner: (UIKitCore) [com.apple.UIKit:UIFocus] FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+2026-10-29 16:44:13.266250+0000 0xa315     Default     0x0                  11808  0    Runner: (libAccessibility.dylib) [com.apple.Accessibility:AXCommon] Read Per-App on Init: Smart invert = (null)
+2026-10-29 16:44:13.371478+0000 0xa315     Default     0x0                  11808  0    Runner: (Network) [com.apple.network:activity] Unsetting the global parent activity (null)
+2026-10-29 16:44:13.371774+0000 0xa315     Default     0x0                  11808  0    Runner: (Network) [com.apple.network:activity] Unset the global parent activity
