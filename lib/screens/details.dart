@@ -327,7 +327,7 @@ class _DetailsBodyState extends State<_DetailsBody> {
           if (d.localTrailers.isEmpty && it.remoteTrailers.isNotEmpty)
             _ExtraTile(
               title: 'Official Trailer',
-              meta: app.trailerServiceOk ? 'Plays here' : 'Opens in YouTube',
+              meta: app.trailersInApp ? 'Plays here' : 'Opens in YouTube',
               imageUrl: jf.backdropImage(it, maxWidth: 640),
               onTap: _trailer,
             ),

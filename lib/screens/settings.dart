@@ -418,9 +418,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 line('Looking up the video', r['infoMs'] == null ? null : '${r['infoMs']} ms'),
                 line('First video data after', r['firstByteMs'] == null ? 'never' : '${r['firstByteMs']} ms'),
                 line('Received', r['bytes'] == null ? null : '${((r['bytes'] as num) / 1e6).toStringAsFixed(1)} MB at ${r['mbps']} Mbps'),
+                if (r['method'] != null) line('Streamed as', r['method']),
                 line('Format', r['container']),
                 line('Deno', r['deno'] == true ? 'yes' : 'no'),
+                if (r['ffmpeg'] != null) line('Jellyfin ffmpeg', r['ffmpeg'] == true ? 'found' : 'missing'),
                 if (r['error'] != null) line('Error', r['error']),
+                if (r['attempts'] is List && (r['attempts'] as List).isNotEmpty)
+                  'Tried first:\n${(r['attempts'] as List).map((a) => '  • $a').join('\n')}',
               ].join('\n'),
               style: body(ctx.px(21), color: C.muted, height: 1.6),
             ),
