@@ -449,6 +449,48 @@ class SeerrClient {
     }
   }
 
+  /// Where Seerr usually is, given the Jellyfin server's address: Seerr's own port (5055) on the
+  /// same machine, and the ports next to Jellyfin's (how HTTPS proxies such as Tailscale Serve
+  /// tend to be set up). Most likely first.
+  static List<String> guessesFrom(String jellyfinUrl) {
+    final j = Uri.tryParse(jellyfinUrl);
+    if (j == null || j.host.isEmpty) return [];
+    final other = j.scheme == 'https' ? 'http' : 'https';
+    final out = <String>[];
+    void add(String scheme, int port) {
+      final u = Uri(scheme: scheme, host: j.host, port: port).toString();
+      if (!out.contains(u)) out.add(u);
+    }
+
+    add(j.scheme, 5055);
+    add(other, 5055);
+    if (j.hasPort) {
+      for (final d in [1, -1, 2, -2]) {
+        if (j.port + d > 0) add(j.scheme, j.port + d);
+      }
+    }
+    return out;
+  }
+
+  /// Asks every address at once and returns the first in [candidates] order that is Seerr.
+  static Future<String?> find(List<String> candidates, {Duration timeout = const Duration(seconds: 4)}) async {
+    final checks = [
+      for (final c in candidates)
+        () async {
+          try {
+            final res = await http.get(Uri.parse('$c/api/v1/status')).timeout(timeout);
+            final json = res.statusCode == 200 ? jsonDecode(res.body) : null;
+            return json is Map && json['version'] != null;
+          } catch (_) {
+            return false;
+          }
+        }(),
+    ];
+    final ok = await Future.wait(checks);
+    final i = ok.indexOf(true);
+    return i < 0 ? null : candidates[i];
+  }
+
   /// Signs in with Jellyfin credentials. Stores the session cookie on success.
   Future<Map<String, dynamic>> signInWithJellyfin(String username, String password) async {
     _jar.remove('connect.sid');

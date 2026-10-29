@@ -480,6 +480,39 @@ class JellyfinClient {
     await _send('POST', '/QuickConnect/Authorize', query: {'code': code, 'userId': userId});
   }
 
+  /// Ember's settings kept on the server for this user (Jellyfin display preferences, client
+  /// "ember"), so every device signed in as them shares them. Empty if the server won't say.
+  Future<Map<String, String>> sharedSettings() async {
+    try {
+      final json = await _send('GET', '/DisplayPreferences/ember', query: {'userId': userId, 'client': 'ember'});
+      final prefs = json is Map ? json['CustomPrefs'] : null;
+      if (prefs is! Map) return {};
+      return {
+        for (final e in prefs.entries)
+          if (e.value != null) '${e.key}': '${e.value}',
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Saves one of [sharedSettings] (null removes it), keeping everything else that's there.
+  Future<void> saveSharedSetting(String key, String? value) async {
+    final q = {'userId': userId, 'client': 'ember'};
+    final current = await _send('GET', '/DisplayPreferences/ember', query: q);
+    final dto = current is Map
+        ? Map<String, dynamic>.from(current)
+        : <String, dynamic>{'Id': 'ember', 'Client': 'ember'};
+    final prefs = Map<String, dynamic>.from((dto['CustomPrefs'] as Map?) ?? const {});
+    if (value == null) {
+      prefs.remove(key);
+    } else {
+      prefs[key] = value;
+    }
+    dto['CustomPrefs'] = prefs;
+    await _send('POST', '/DisplayPreferences/ember', query: q, body: dto);
+  }
+
   Future<Map<String, dynamic>> me() async {
     final json = await _send('GET', '/Users/Me');
     return (json as Map).cast<String, dynamic>();
