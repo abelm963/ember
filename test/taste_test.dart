@@ -18,8 +18,21 @@ void main() {
       SeasonWatch(episodesWatched: 8, finished: true, first: ago(40), last: ago(30)),
     ],
   );
-  final ironMeridian = Watched(key: 'movie:2', title: 'Iron Meridian', mediaType: 'movie', lastPlayed: ago(426), fraction: 1, playCount: 2);
-  final copperSky = Watched(key: 'movie:3', title: 'Copper Sky', mediaType: 'movie', lastPlayed: ago(91), fraction: 0.3);
+  final ironMeridian = Watched(
+    key: 'movie:2',
+    title: 'Iron Meridian',
+    mediaType: 'movie',
+    lastPlayed: ago(426),
+    fraction: 1,
+    playCount: 2,
+  );
+  final copperSky = Watched(
+    key: 'movie:3',
+    title: 'Copper Sky',
+    mediaType: 'movie',
+    lastPlayed: ago(91),
+    fraction: 0.3,
+  );
   final seeds = [northbound, ironMeridian, copperSky];
   final tasteOf = {for (final w in seeds) w.key: taste(w, now)};
 
@@ -35,9 +48,21 @@ void main() {
     expect(recency(null, now), 1);
     final liked = Watched(key: 'movie:9', title: 'X', mediaType: 'movie', favourite: true);
     expect(tastePoints(liked, now), closeTo(0.7, 0.001));
-    final tried = Watched(key: 'tv:9', title: 'Y', mediaType: 'tv', lastPlayed: ago(5), seasons: [SeasonWatch(episodesWatched: 1)]);
+    final tried = Watched(
+      key: 'tv:9',
+      title: 'Y',
+      mediaType: 'tv',
+      lastPlayed: ago(5),
+      seasons: [SeasonWatch(episodesWatched: 1)],
+    );
     expect(tastePoints(tried, now), 0.2);
-    final dropped = Watched(key: 'tv:9', title: 'Y', mediaType: 'tv', lastPlayed: ago(60), seasons: [SeasonWatch(episodesWatched: 1)]);
+    final dropped = Watched(
+      key: 'tv:9',
+      title: 'Y',
+      mediaType: 'tv',
+      lastPlayed: ago(60),
+      seasons: [SeasonWatch(episodesWatched: 1)],
+    );
     expect(tastePoints(dropped, now), -0.2);
     expect(tastePoints(const Watched(key: 'w', title: 'W', mediaType: 'movie', watchlistOnly: true), now), 0.3);
   });
@@ -93,8 +118,14 @@ void main() {
     expect(x.links['tv:1']!.$2, LinkKind.related);
   });
 
-  Scored s(String key, double v, {bool onServer = true, String seed = 'a', String? genre, LinkKind kind = LinkKind.similar}) =>
-      Scored(onServer ? _OnServer(key, key, genre: genre) : cand(key, key, genre: genre), v, seed, kind);
+  Scored s(
+    String key,
+    double v, {
+    bool onServer = true,
+    String seed = 'a',
+    String? genre,
+    LinkKind kind = LinkKind.similar,
+  }) => Scored(onServer ? _OnServer(key, key, genre: genre) : cand(key, key, genre: genre), v, seed, kind);
 
   test('Top picks: variety, and enough on the server', () {
     final ranked = [
@@ -120,8 +151,20 @@ void main() {
       for (var i = 0; i < 30; i++) s('a$i', 5.0 - i * 0.01, seed: 'a', genre: 'g$i'),
       for (var i = 0; i < 30; i++) s('b$i', 4.0 - i * 0.01, seed: 'b', genre: 'h$i'),
     ];
-    final rows = buildRows(ranked: ranked, seeds: ws, tasteOf: t, popular: [for (var i = 0; i < 6; i++) _OnServer('p$i', 'P$i')], server: 'Hearth');
-    expect(rows.map((r) => r.title), ['Top picks for you', 'Next in the series', 'Because you watched Alpha', 'Because you watched Beta', 'Popular on Hearth']);
+    final rows = buildRows(
+      ranked: ranked,
+      seeds: ws,
+      tasteOf: t,
+      popular: [for (var i = 0; i < 6; i++) _OnServer('p$i', 'P$i')],
+      server: 'Hearth',
+    );
+    expect(rows.map((r) => r.title), [
+      'Top picks for you',
+      'Next in the series',
+      'Because you watched Alpha',
+      'Because you watched Beta',
+      'Popular on Hearth',
+    ]);
     final keys = [for (final r in rows) ...r.picks.map((p) => p.c.key)];
     expect(keys.toSet().length, keys.length);
     expect(rows[1].picks.single.c.key, 'n');
@@ -130,7 +173,8 @@ void main() {
 
 /// A candidate that counts as on the server without a real library item.
 class _OnServer extends Candidate {
-  _OnServer(String key, String title, {super.rating, super.genre}) : super(key: key, title: title, mediaType: 'tv', votes: 5000);
+  _OnServer(String key, String title, {super.rating, super.genre})
+    : super(key: key, title: title, mediaType: 'tv', votes: 5000);
   @override
   bool get onServer => true;
 }

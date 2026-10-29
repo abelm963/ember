@@ -88,8 +88,14 @@ void main() {
 
   test('with an English and a French version of a film, the English one is picked', () {
     final sources = <Map<String, dynamic>>[
-      {'Id': 'fr', 'MediaStreams': [audio(1, 'fra', 'ac3', def: true)]},
-      {'Id': 'en', 'MediaStreams': [audio(1, 'eng', 'ac3', def: true)]},
+      {
+        'Id': 'fr',
+        'MediaStreams': [audio(1, 'fra', 'ac3', def: true)],
+      },
+      {
+        'Id': 'en',
+        'MediaStreams': [audio(1, 'eng', 'ac3', def: true)],
+      },
     ];
     expect(pickMediaSource(sources, 'eng'), 'en');
     expect(pickMediaSource(sources, null), 'fr');
@@ -97,9 +103,15 @@ void main() {
   });
 
   test('menu labels read like a streaming app: language, channels, and what kind of track', () {
-    expect(audioLabel(audio(1, 'eng', 'eac3', ch: 6, title: 'English - Dolby Digital+ - 5.1 - Default')), 'English 5.1');
+    expect(
+      audioLabel(audio(1, 'eng', 'eac3', ch: 6, title: 'English - Dolby Digital+ - 5.1 - Default')),
+      'English 5.1',
+    );
     expect(audioLabel(audio(2, 'fre', 'aac', ch: 2, title: 'Français')), 'French');
-    expect(audioLabel(audio(3, 'eng', 'eac3', ch: 6, title: 'English Dolby Digital Plus Atmos 5.1')), 'English 5.1 Atmos');
+    expect(
+      audioLabel(audio(3, 'eng', 'eac3', ch: 6, title: 'English Dolby Digital Plus Atmos 5.1')),
+      'English 5.1 Atmos',
+    );
     expect(audioLabel(audio(4, 'eng', 'aac', ch: 2, title: 'Audio Description')), 'English – Audio Description');
     expect(audioLabel(audio(5, 'eng', 'ac3', ch: 2, title: "Director's Commentary")), 'English – Commentary');
     expect(audioLabel(audio(6, null, 'aac', ch: 2, title: 'Japanese')), 'Japanese');
@@ -111,8 +123,11 @@ void main() {
 
   test('repeated labels are told apart', () {
     final streams = [audio(1, 'eng', 'truehd', ch: 8), audio(2, 'eng', 'eac3', ch: 8), audio(3, 'eng', 'eac3', ch: 8)];
-    expect(distinctLabels([for (final s in streams) audioLabel(s)], streams),
-        ['English 7.1 · TRUEHD', 'English 7.1 · EAC3', 'English 7.1 · EAC3 · 2']);
+    expect(distinctLabels([for (final s in streams) audioLabel(s)], streams), [
+      'English 7.1 · TRUEHD',
+      'English 7.1 · EAC3',
+      'English 7.1 · EAC3 · 2',
+    ]);
   });
 
   test('subtitles picked in the player are remembered', () {
@@ -127,6 +142,9 @@ void main() {
     final streams = [audio(1, 'jpn', 'aac', ch: 2, def: true), sub(2, 'eng'), sub(3, 'spa')];
     expect(chooseTracks(streams, 'eng', 'foreign'), (null, 2));
     expect(chooseTracks(streams, 'eng', 'foreign', subtitleLanguage: 'spa'), (null, 3));
-    expect(chooseTracks([audio(1, 'eng', 'aac', def: true), sub(2, 'spa')], 'eng', 'foreign', subtitleLanguage: 'spa'), (null, null));
+    expect(
+      chooseTracks([audio(1, 'eng', 'aac', def: true), sub(2, 'spa')], 'eng', 'foreign', subtitleLanguage: 'spa'),
+      (null, null),
+    );
   });
 }

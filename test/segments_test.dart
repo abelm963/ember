@@ -8,8 +8,11 @@ const ep = Duration(minutes: 45);
 
 void main() {
   test('good times from the server are kept, in order', () {
-    expect(show(tidySegments([seg('Outro', 2580, 2700), seg('Intro', 60, 120), seg('Recap', 0, 50)], ep)),
-        ['Recap 0-50', 'Intro 60-120', 'Outro 2580-2700']);
+    expect(show(tidySegments([seg('Outro', 2580, 2700), seg('Intro', 60, 120), seg('Recap', 0, 50)], ep)), [
+      'Recap 0-50',
+      'Intro 60-120',
+      'Outro 2580-2700',
+    ]);
   });
 
   test('credits marked mid-episode are ignored, so Next Episode does not cut a scene short', () {
@@ -35,10 +38,17 @@ void main() {
     ];
     expect(show(tidySegments([], ep, chapters: chapters)), ['Recap 0-40', 'Intro 40-100', 'Outro 2610-2700']);
     // The server's own times win.
-    expect(show(tidySegments([seg('Intro', 45, 95)], ep, chapters: chapters)), ['Recap 0-40', 'Intro 45-95', 'Outro 2610-2700']);
+    expect(show(tidySegments([seg('Intro', 45, 95)], ep, chapters: chapters)), [
+      'Recap 0-40',
+      'Intro 45-95',
+      'Outro 2610-2700',
+    ]);
   });
 
   test('before the length is known, only basic checks apply', () {
-    expect(show(tidySegments([seg('Intro', 60, 120), seg('Outro', 1200, 1300)], Duration.zero)), ['Intro 60-120', 'Outro 1200-1300']);
+    expect(show(tidySegments([seg('Intro', 60, 120), seg('Outro', 1200, 1300)], Duration.zero)), [
+      'Intro 60-120',
+      'Outro 1200-1300',
+    ]);
   });
 }

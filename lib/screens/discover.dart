@@ -10,10 +10,9 @@ import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'coming_soon.dart';
-import 'home.dart' show posterEntry, seerrEntry;
 import 'nav.dart';
 import 'preview.dart' show showRequestDialog;
-import 'settings.dart' show pickOption;
+import 'shared/media_entries.dart';
 
 const _tabs = ['Recommended', 'Coming Soon', 'Explore'];
 
@@ -50,7 +49,11 @@ const discoverGenres = [
 enum DiscoverKind { all, movies, shows }
 
 extension on DiscoverKind {
-  List<String> get types => switch (this) { DiscoverKind.all => ['movie', 'tv'], DiscoverKind.movies => ['movie'], DiscoverKind.shows => ['tv'] };
+  List<String> get types => switch (this) {
+    DiscoverKind.all => ['movie', 'tv'],
+    DiscoverKind.movies => ['movie'],
+    DiscoverKind.shows => ['tv'],
+  };
 }
 
 /// One row of Discover: Recommended's picks (each with its reason) or Seerr titles (Explore).
@@ -58,7 +61,7 @@ class _Row {
   final String title;
   final List<RecPick> picks;
   _Row(this.title, {List<RecPick>? picks, List<SeerrMedia> seerr = const []})
-      : picks = picks ?? [for (final m in seerr) RecPick(media: m)];
+    : picks = picks ?? [for (final m in seerr) RecPick(media: m)];
   bool get isEmpty => picks.isEmpty;
 }
 
@@ -96,7 +99,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   /// Recommended: ranked from everything watched in the last 2 years, likes and the Seerr
   /// watchlist (`lib/api/recommend.dart`, numbers in `lib/api/taste.dart`).
   Future<List<_Row>> _loadRecommended(AppState app) async {
-    final rows = await recommend(app.jf!, app.seerrConfigured ? app.seerr : null, server: app.serverName ?? 'your server');
+    final rows = await recommend(
+      app.jf!,
+      app.seerrConfigured ? app.seerr : null,
+      server: app.serverName ?? 'your server',
+    );
     return [for (final r in rows) _Row(r.title, picks: r.picks)];
   }
 
@@ -106,14 +113,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final types = kind.types.where((t) => genre == null || genre.idFor(t) != null).toList();
     if (types.isEmpty) return [];
 
-    Future<List<SeerrMedia>> mixed({int? Function(String type)? genreOf, String sortBy = 'popularity.desc', DateTime? from, DateTime? to, int? minVotes, int page = 1}) async {
-      final lists = await Future.wait(types.map((t) => seerr
-          .discover(t, genre: genreOf?.call(t), sortBy: sortBy, from: from, to: to, minVotes: minVotes, page: page)
-          .catchError((_) => <SeerrMedia>[])));
+    Future<List<SeerrMedia>> mixed({
+      int? Function(String type)? genreOf,
+      String sortBy = 'popularity.desc',
+      DateTime? from,
+      DateTime? to,
+      int? minVotes,
+      int page = 1,
+    }) async {
+      final lists = await Future.wait(
+        types.map(
+          (t) => seerr
+              .discover(t, genre: genreOf?.call(t), sortBy: sortBy, from: from, to: to, minVotes: minVotes, page: page)
+              .catchError((_) => <SeerrMedia>[]),
+        ),
+      );
       return notOnServer(interleave(lists));
     }
 
-    final word = switch (kind) { DiscoverKind.all => '', DiscoverKind.movies => ' movies', DiscoverKind.shows => ' shows' };
+    final word = switch (kind) {
+      DiscoverKind.all => '',
+      DiscoverKind.movies => ' movies',
+      DiscoverKind.shows => ' shows',
+    };
     final recent = now.subtract(const Duration(days: 120));
     if (genre != null) {
       int? g(String t) => genre.idFor(t);
@@ -132,7 +154,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
     final picks = discoverGenres.where((x) => types.any((t) => x.idFor(t) != null)).take(8).toList();
     final r = await Future.wait([
-      seerr.trending().then((l) => notOnServer(l.where((m) => types.contains(m.mediaType)))).catchError((_) => <SeerrMedia>[]),
+      seerr
+          .trending()
+          .then((l) => notOnServer(l.where((m) => types.contains(m.mediaType))))
+          .catchError((_) => <SeerrMedia>[]),
       mixed(),
       mixed(from: recent, to: now),
       mixed(sortBy: 'vote_average.desc', minVotes: 1000),
@@ -164,20 +189,22 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     pickOption<DiscoverGenre?>(
       context,
       'Genres',
-      {null: 'All genres', for (final g in discoverGenres.where((g) => types.any((t) => g.idFor(t) != null))) g: g.name},
+      {
+        null: 'All genres',
+        for (final g in discoverGenres.where((g) => types.any((t) => g.idFor(t) != null))) g: g.name,
+      },
       _genre,
       (v) => setState(() => _genre = v),
     );
   }
 
   List<String> get _visibleTabs => [
-        _tabs[0],
-        _tabs[1],
-        if (context.read<AppState>().seerrConfigured) _tabs[2],
-      ];
+    _tabs[0],
+    _tabs[1],
+    if (context.read<AppState>().seerrConfigured) _tabs[2],
+  ];
 
-  Future<List<_Row>> _load(AppState app) =>
-      _tab == 2 ? _loadExplore(app, _kind, _genre) : _loadRecommended(app);
+  Future<List<_Row>> _load(AppState app) => _tab == 2 ? _loadExplore(app, _kind, _genre) : _loadRecommended(app);
 
   String get _deps => '$_tab-${_kind.name}-${_genre?.name}-$_reload';
 
@@ -192,20 +219,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   /// Movies or Shows on its own; choosing the chosen one again goes back to both.
   void _toggleKind(DiscoverKind k) => setState(() {
-        _kind = _kind == k ? DiscoverKind.all : k;
-        if (_genre != null && !_kind.types.any((t) => _genre!.idFor(t) != null)) _genre = null;
-      });
+    _kind = _kind == k ? DiscoverKind.all : k;
+    if (_genre != null && !_kind.types.any((t) => _genre!.idFor(t) != null)) _genre = null;
+  });
 
   String _soonFilter = 'All';
 
   List<FilterGroup> _soonFilters() => [
-        FilterGroup(
-          title: 'Show',
-          options: ComingSoonView.filters,
-          selected: ComingSoonView.filters.indexOf(_soonFilter),
-          onPick: (i) => setState(() => _soonFilter = ComingSoonView.filters[i]),
-        ),
-      ];
+    FilterGroup(
+      title: 'Show',
+      options: ComingSoonView.filters,
+      selected: ComingSoonView.filters.indexOf(_soonFilter),
+      onPick: (i) => setState(() => _soonFilter = ComingSoonView.filters[i]),
+    ),
+  ];
 
   List<FilterGroup> _exploreFilters() {
     final genres = discoverGenres.where((g) => _kind.types.any((t) => g.idFor(t) != null)).toList();
@@ -230,17 +257,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   /// The page header: Discover, its three tabs, and the filters of the open tab after them.
   Widget _tvHeader(BuildContext context) => PageHeader(
-        title: 'Discover',
-        tabs: [
-          for (final (i, t) in _visibleTabs.indexed)
-            PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
-        ],
-        filters: switch (_tab) {
-          1 => _soonFilters,
-          2 => _exploreFilters,
-          _ => null,
-        },
-      );
+    title: 'Discover',
+    tabs: [
+      for (final (i, t) in _visibleTabs.indexed)
+        PillButton(
+          label: t,
+          compact: true,
+          scrollIntoView: false,
+          selected: _tab == i,
+          onTap: () => setState(() => _tab = i),
+        ),
+    ],
+    filters: switch (_tab) {
+      1 => _soonFilters,
+      2 => _exploreFilters,
+      _ => null,
+    },
+  );
 
   Widget _tvBuild(BuildContext context, AppState app) {
     final jf = app.jf!;
@@ -252,28 +285,45 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         top: PageHeader.top,
         filter: _soonFilter,
         header: Padding(
-            padding: EdgeInsets.fromLTRB(context.px(gutter(context)), 0, context.px(gutter(context)), context.px(30)), child: header),
+          padding: EdgeInsets.fromLTRB(context.px(gutter(context)), 0, context.px(gutter(context)), context.px(30)),
+          child: header,
+        ),
       );
     }
-    PosterEntry libEntry(JfItem it) => posterEntry(context, jf, it,
-        onTap: () => it.isEpisode ? play(context, it) : openItem(context, it), resume: it.isEpisode);
+    PosterEntry libEntry(JfItem it) => posterEntry(
+      context,
+      jf,
+      it,
+      onTap: () => it.isEpisode ? play(context, it) : openItem(context, it),
+      resume: it.isEpisode,
+    );
     return Loader<List<_Row>>(
       key: ValueKey(_deps),
       deps: _deps,
       load: () => _load(app),
       builder: (context, rows) {
         if (rows.isEmpty) {
-          return Billboard(header: header, rows: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.px(60)),
-              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Watch a few things, or add some to My List, and recommendations show up here.',
-                  style: body(context.px(24), color: C.faint)),
-            ),
-          ]);
+          return Billboard(
+            header: header,
+            rows: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.px(60)),
+                child: Text(
+                  _tab == 2
+                      ? 'Nothing here that isn\'t on your server already.'
+                      : 'Watch a few things, or add some to My List, and recommendations show up here.',
+                  style: body(context.px(24), color: C.faint),
+                ),
+              ),
+            ],
+          );
         }
         final first = rows.first;
         final pick = first.picks
-            .where((p) => p.item != null ? p.item!.backdropTags.isNotEmpty && !p.item!.isEpisode : p.media?.backdropUrl != null)
+            .where(
+              (p) =>
+                  p.item != null ? p.item!.backdropTags.isNotEmpty && !p.item!.isEpisode : p.media?.backdropUrl != null,
+            )
             .firstOrNull;
         final libFeatured = pick?.item;
         final seerrFeatured = libFeatured == null ? pick?.media : null;
@@ -283,8 +333,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           featured: libFeatured != null
               ? libEntry(libFeatured).withReason(pick!.reason)
               : seerrFeatured != null
-                  ? seerrEntry(context, seerrFeatured).withReason(pick!.reason)
-                  : null,
+              ? seerrEntry(context, seerrFeatured).withReason(pick!.reason)
+              : null,
           actions: [
             if (libFeatured != null) ...[
               PillButton(
@@ -294,7 +344,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 scrollIntoView: false,
                 onTap: () => libFeatured.isSeries ? playSeries(context, jf, libFeatured) : play(context, libFeatured),
               ),
-              PillButton(label: 'More Info', icon: Icons.info_outline, scrollIntoView: false, onTap: () => openItem(context, libFeatured)),
+              PillButton(
+                label: 'More Info',
+                icon: Icons.info_outline,
+                scrollIntoView: false,
+                onTap: () => openItem(context, libFeatured),
+              ),
             ] else if (seerrFeatured != null) ...[
               PillButton(
                 label: seerrFeatured.isRequested ? 'Requested' : 'Request',
@@ -304,7 +359,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 onTap: () => _request(seerrFeatured),
               ),
               PillButton(
-                  label: 'More Info', icon: Icons.info_outline, scrollIntoView: false, onTap: () => openSeerr(context, seerrFeatured)),
+                label: 'More Info',
+                icon: Icons.info_outline,
+                scrollIntoView: false,
+                onTap: () => openSeerr(context, seerrFeatured),
+              ),
             ],
           ],
           rows: [
@@ -313,7 +372,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 title: r.title,
                 entries: [
                   for (final p in r.picks)
-                    if (p.item != null) libEntry(p.item!).withReason(p.reason) else if (p.media != null) seerrEntry(context, p.media!).withReason(p.reason),
+                    if (p.item != null)
+                      libEntry(p.item!).withReason(p.reason)
+                    else if (p.media != null)
+                      seerrEntry(context, p.media!).withReason(p.reason),
                 ],
               ),
           ],
@@ -329,24 +391,44 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final pad = context.px(gutter(context));
     final header = Padding(
       padding: EdgeInsets.symmetric(horizontal: pad),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Discover', style: display(context.px(72))),
-        SizedBox(height: context.px(22)),
-        FocusTraversalGroup(
-          child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-            for (final (i, t) in _visibleTabs.indexed) Chip2(label: t, selected: _tab == i, onTap: () => setState(() => _tab = i)),
-          ]),
-        ),
-        if (_tab == 2) ...[
-          SizedBox(height: context.px(12)),
-          Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-            Chip2(label: 'Movies', selected: _kind == DiscoverKind.movies, onTap: () => _toggleKind(DiscoverKind.movies)),
-            Chip2(label: 'Shows', selected: _kind == DiscoverKind.shows, onTap: () => _toggleKind(DiscoverKind.shows)),
-            Chip2(label: '${_genre?.name ?? 'Genres'} ▾', selected: _genre != null, onTap: _pickGenre),
-          ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Discover', style: display(context.px(72))),
+          SizedBox(height: context.px(22)),
+          FocusTraversalGroup(
+            child: Wrap(
+              spacing: context.px(12),
+              runSpacing: context.px(12),
+              children: [
+                for (final (i, t) in _visibleTabs.indexed)
+                  Chip2(label: t, selected: _tab == i, onTap: () => setState(() => _tab = i)),
+              ],
+            ),
+          ),
+          if (_tab == 2) ...[
+            SizedBox(height: context.px(12)),
+            Wrap(
+              spacing: context.px(12),
+              runSpacing: context.px(12),
+              children: [
+                Chip2(
+                  label: 'Movies',
+                  selected: _kind == DiscoverKind.movies,
+                  onTap: () => _toggleKind(DiscoverKind.movies),
+                ),
+                Chip2(
+                  label: 'Shows',
+                  selected: _kind == DiscoverKind.shows,
+                  onTap: () => _toggleKind(DiscoverKind.shows),
+                ),
+                Chip2(label: '${_genre?.name ?? 'Genres'} ▾', selected: _genre != null, onTap: _pickGenre),
+              ],
+            ),
+          ],
+          SizedBox(height: context.px(30)),
         ],
-        SizedBox(height: context.px(30)),
-      ]),
+      ),
     );
     if (_tab == 1) return ComingSoonView(key: const ValueKey('soon'), header: header);
     return Loader<List<_Row>>(
@@ -386,8 +468,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           if (rows.isEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: pad),
-              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Watch a few things, or add some to My List, and recommendations show up here.',
-                  style: body(context.px(22), color: C.faint)),
+              child: Text(
+                _tab == 2
+                    ? 'Nothing here that isn\'t on your server already.'
+                    : 'Watch a few things, or add some to My List, and recommendations show up here.',
+                style: body(context.px(22), color: C.faint),
+              ),
             ),
         ],
       ),

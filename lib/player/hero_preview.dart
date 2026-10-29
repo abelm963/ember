@@ -7,11 +7,12 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/youtube.dart';
-import '../screens/nav.dart' show findTrailer;
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'engine.dart';
+import 'trailers.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -68,7 +69,9 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       if (local.isNotEmpty) {
         try {
           return TrailerStream((await jf.playbackSource(local.first.id)).url);
-        } catch (_) {}
+        } catch (e) {
+          logWarning('local trailer preview', e);
+        }
       }
     }
     return (await findTrailer(app, item: widget.item)).$2;
@@ -82,17 +85,21 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
     final p = PlaybackEngine(title: 'Ember preview', bufferSize: 16 * 1024 * 1024);
     _player = p;
     await p.setVolume(_muted ? 0 : 100);
-    _subs.add(p.position.listen((pos) {
-      if (!_visible && pos > const Duration(milliseconds: 300) && mounted) setState(() => _visible = true);
-    }));
-    _subs.add(p.completed.listen((done) {
-      if (done && mounted) {
-        setState(() {
-          _visible = false;
-          _finished = true;
-        });
-      }
-    }));
+    _subs.add(
+      p.position.listen((pos) {
+        if (!_visible && pos > const Duration(milliseconds: 300) && mounted) setState(() => _visible = true);
+      }),
+    );
+    _subs.add(
+      p.completed.listen((done) {
+        if (done && mounted) {
+          setState(() {
+            _visible = false;
+            _finished = true;
+          });
+        }
+      }),
+    );
     try {
       await p.open(url, headers: trailer.headers);
       // Picture and sound in separate files: mpv joins them (Apple TV previews show the picture).
@@ -148,52 +155,69 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
   Widget build(BuildContext context) {
     final player = _player;
     if (player == null) return widget.overlay;
-    return Stack(fit: StackFit.expand, children: [
-      IgnorePointer(
-        child: AnimatedOpacity(
-          opacity: _visible ? 1 : 0,
-          duration: const Duration(milliseconds: 700),
-          child: ExcludeFocus(child: player.view(fit: BoxFit.cover, fill: Colors.transparent)),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: _visible ? 1 : 0,
+            duration: const Duration(milliseconds: 700),
+            child: ExcludeFocus(
+              child: player.view(fit: BoxFit.cover, fill: Colors.transparent),
+            ),
+          ),
         ),
-      ),
-      widget.overlay,
-      if (_visible)
-        Positioned(
-          right: context.px(80),
-          bottom: context.px(120),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: context.px(16), vertical: context.px(10)),
-              decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(999)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
+        widget.overlay,
+        if (_visible)
+          Positioned(
+            right: context.px(80),
+            bottom: context.px(120),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Container(
-                  width: context.px(10),
-                  height: context.px(10),
-                  decoration: const BoxDecoration(color: C.accent, shape: BoxShape.circle),
+                  padding: EdgeInsets.symmetric(horizontal: context.px(16), vertical: context.px(10)),
+                  decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(999)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: context.px(10),
+                        height: context.px(10),
+                        decoration: const BoxDecoration(color: C.accent, shape: BoxShape.circle),
+                      ),
+                      SizedBox(width: context.px(10)),
+                      Text(
+                        'Official trailer · preview',
+                        style: body(context.px(19), color: C.soft, weight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(width: context.px(10)),
-                Text('Official trailer · preview', style: body(context.px(19), color: C.soft, weight: FontWeight.w600)),
-              ]),
-            ),
-            SizedBox(width: context.px(14)),
-            Focusable(
-              onTap: _toggleMute,
-              semanticLabel: _muted ? 'Unmute preview' : 'Mute preview',
-              scrollIntoView: false,
-              builder: (context, active) => Container(
-                width: context.px(56),
-                height: context.px(56),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: active ? C.text : const Color(0x80000000),
-                  border: Border.all(color: const Color(0xB3F4F1EC), width: context.px(2)),
+                SizedBox(width: context.px(14)),
+                Focusable(
+                  onTap: _toggleMute,
+                  semanticLabel: _muted ? 'Unmute preview' : 'Mute preview',
+                  scrollIntoView: false,
+                  builder: (context, active) => Container(
+                    width: context.px(56),
+                    height: context.px(56),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: active ? C.text : const Color(0x80000000),
+                      border: Border.all(color: const Color(0xB3F4F1EC), width: context.px(2)),
+                    ),
+                    child: Icon(
+                      _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                      color: active ? const Color(0xFF111111) : C.text,
+                      size: context.px(28),
+                    ),
+                  ),
                 ),
-                child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    color: active ? const Color(0xFF111111) : C.text, size: context.px(28)),
-              ),
+              ],
             ),
-          ]),
-        ),
-    ]);
+          ),
+      ],
+    );
   }
 }

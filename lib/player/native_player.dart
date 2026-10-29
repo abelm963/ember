@@ -49,8 +49,12 @@ class NativePlayer {
   /// finds it another way when Apple's player can't open it. Returns false (with the player
   /// closed again) when nothing would play, so the caller can hand the trailer to the YouTube
   /// app instead.
-  static Future<bool> playTrailer(AppState app,
-      {required String title, String? artwork, required TrailerResolver resolve}) async {
+  static Future<bool> playTrailer(
+    AppState app, {
+    required String title,
+    String? artwork,
+    required TrailerResolver resolve,
+  }) async {
     final p = NativePlayer._(app, isTrailer: true)
       .._resolveTrailer = resolve
       .._trailerTitle = title
@@ -123,12 +127,12 @@ class NativePlayer {
   // ------------------------------------------------------------------ choosing what to play
 
   Future<PlaybackSource> _source(JfItem item) => _jf.playbackSource(
-        item.id,
-        maxBitrate: _maxBitrate,
-        audioStreamIndex: _audioIndex,
-        subtitleStreamIndex: _subIndex,
-        mediaSourceId: _mediaSourceId,
-      );
+    item.id,
+    maxBitrate: _maxBitrate,
+    audioStreamIndex: _audioIndex,
+    subtitleStreamIndex: _subIndex,
+    mediaSourceId: _mediaSourceId,
+  );
 
   String? _mediaSourceId;
   int? _maxBitrate;
@@ -170,8 +174,11 @@ class NativePlayer {
       ]);
       final full = results[3] as JfItem?;
       // Checked against the episode's length, with the file's chapter names when the server has none.
-      final segments = tidySegments(results[1] as List<MediaSegment>, (full ?? item).runtime ?? Duration.zero,
-          chapters: full == null ? const [] : chaptersOf(full));
+      final segments = tidySegments(
+        results[1] as List<MediaSegment>,
+        (full ?? item).runtime ?? Duration.zero,
+        chapters: full == null ? const [] : chaptersOf(full),
+      );
       _next = results[2] as JfItem?;
       final src = await _source(item);
       _src = src;

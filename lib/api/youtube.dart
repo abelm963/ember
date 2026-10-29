@@ -36,8 +36,14 @@ class TrailerStream {
   final String key;
   final TrailerSource source;
 
-  const TrailerStream(this.url,
-      {this.audioUrl, this.isHls = false, this.audioLanguage, this.key = '', this.source = TrailerSource.mp4});
+  const TrailerStream(
+    this.url, {
+    this.audioUrl,
+    this.isHls = false,
+    this.audioLanguage,
+    this.key = '',
+    this.source = TrailerSource.mp4,
+  });
 
   /// Sent with every request for the video itself. The iPhone app's playlist (and anything
   /// not from YouTube) plays as it is; the others are fetched the way a browser on youtube.com would.
@@ -104,7 +110,14 @@ class YouTubeTrailers {
     '3',
     '20.10.41',
     'com.google.android.youtube/20.10.41 (Linux; U; Android 11) gzip',
-    {'deviceMake': 'Google', 'deviceModel': 'Pixel 5', 'osName': 'Android', 'osVersion': '11', 'androidSdkVersion': 30, 'platform': 'MOBILE'},
+    {
+      'deviceMake': 'Google',
+      'deviceModel': 'Pixel 5',
+      'osName': 'Android',
+      'osVersion': '11',
+      'androidSdkVersion': 30,
+      'platform': 'MOBILE',
+    },
   );
 
   static const _requestTimeout = Duration(seconds: 6);
@@ -130,11 +143,14 @@ class YouTubeTrailers {
     final f = _resolve(key, const {});
     _cache[key] = (DateTime.now(), f);
     // A failure isn't kept: the next try asks again.
-    f.then((s) {
-      if (s == null) _cache.remove(key);
-    }, onError: (_) {
-      _cache.remove(key);
-    });
+    f.then(
+      (s) {
+        if (s == null) _cache.remove(key);
+      },
+      onError: (_) {
+        _cache.remove(key);
+      },
+    );
     return f;
   }
 
@@ -158,8 +174,9 @@ class YouTubeTrailers {
         [TrailerSource.mp4],
       ])
         if (stage.where(fine).isNotEmpty) stage.where(fine).toList(),
-      for (final x in TrailerSource.values.where((x) => !skip.contains(x) && !fine(x)).toList()
-        ..sort((a, b) => _failures[a]!.compareTo(_failures[b]!)))
+      for (final x
+          in TrailerSource.values.where((x) => !skip.contains(x) && !fine(x)).toList()
+            ..sort((a, b) => _failures[a]!.compareTo(_failures[b]!)))
         [x],
     ];
 
@@ -198,7 +215,13 @@ class YouTubeTrailers {
           final data = await _player(key, client);
           final hls = hlsOf(data);
           if (hls == null) return null;
-          final s = TrailerStream(hls, isHls: true, audioLanguage: originalAudioLanguage(data), key: key, source: source);
+          final s = TrailerStream(
+            hls,
+            isHls: true,
+            audioLanguage: originalAudioLanguage(data),
+            key: key,
+            source: source,
+          );
           return await _playlistOpens(s) ? s : null;
         case TrailerSource.android:
           final data = await _player(key, _android);
@@ -301,8 +324,7 @@ class YouTubeTrailers {
     final usable = formats.where((f) {
       final mime = (f['mimeType'] as String? ?? '').toLowerCase();
       return f['url'] is String && mime.startsWith('video/mp4') && mime.contains('avc1') && mime.contains('mp4a');
-    }).toList()
-      ..sort((a, b) => ((b['height'] as num?) ?? 0).compareTo((a['height'] as num?) ?? 0));
+    }).toList()..sort((a, b) => ((b['height'] as num?) ?? 0).compareTo((a['height'] as num?) ?? 0));
     return usable.isEmpty ? null : usable.first['url'] as String;
   }
 
@@ -338,7 +360,9 @@ class YouTubeTrailers {
   static Future<bool> _fileAnswers(TrailerStream s) async {
     final c = http.Client();
     try {
-      final r = await c.get(Uri.parse(s.url), headers: {...s.headers, 'Range': 'bytes=0-1023'}).timeout(_requestTimeout);
+      final r = await c
+          .get(Uri.parse(s.url), headers: {...s.headers, 'Range': 'bytes=0-1023'})
+          .timeout(_requestTimeout);
       return r.statusCode == 200 || r.statusCode == 206;
     } catch (_) {
       return false;
@@ -356,12 +380,17 @@ class YouTubeTrailers {
     return pickMp4(manifest.videoOnly.toList(), manifest.audioOnly.toList(), manifest.muxed.toList());
   }
 
-  static TrailerStream? pickMp4(List<VideoOnlyStreamInfo> video, List<AudioOnlyStreamInfo> audio, List<MuxedStreamInfo> muxed) {
+  static TrailerStream? pickMp4(
+    List<VideoOnlyStreamInfo> video,
+    List<AudioOnlyStreamInfo> audio,
+    List<MuxedStreamInfo> muxed,
+  ) {
     bool h264(String codec) => codec.toLowerCase().startsWith('avc1');
-    final pictures = video
-        .where((s) => s.container == StreamContainer.mp4 && h264(s.videoCodec) && s.videoResolution.height <= 1080)
-        .toList()
-      ..sort((a, b) => b.videoResolution.height.compareTo(a.videoResolution.height));
+    final pictures =
+        video
+            .where((s) => s.container == StreamContainer.mp4 && h264(s.videoCodec) && s.videoResolution.height <= 1080)
+            .toList()
+          ..sort((a, b) => b.videoResolution.height.compareTo(a.videoResolution.height));
     final sounds = audio.where((s) => s.container == StreamContainer.mp4).toList()
       ..sort((a, b) => b.bitrate.compareTo(a.bitrate));
     final both = muxed.where((s) => s.container == StreamContainer.mp4).toList()

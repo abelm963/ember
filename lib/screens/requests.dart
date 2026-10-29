@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import '../ui/browse.dart' show FilterGroup, PageHeader;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'nav.dart';
 import 'settings.dart';
 
@@ -32,14 +33,18 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   Future<List<_Row>> _load(AppState app) async {
     final reqs = await app.seerr!.requests(take: _take);
-    return Future.wait(reqs.map((r) async {
-      if (r.tmdbId == null) return _Row(r, null);
-      final key = '${r.mediaType}/${r.tmdbId}';
-      try {
-        _cache[key] ??= await app.seerr!.details(r.mediaType, r.tmdbId!);
-      } catch (_) {}
-      return _Row(r, _cache[key]);
-    }));
+    return Future.wait(
+      reqs.map((r) async {
+        if (r.tmdbId == null) return _Row(r, null);
+        final key = '${r.mediaType}/${r.tmdbId}';
+        try {
+          _cache[key] ??= await app.seerr!.details(r.mediaType, r.tmdbId!);
+        } catch (e) {
+          logWarning('Seerr details $key', e);
+        }
+        return _Row(r, _cache[key]);
+      }),
+    );
   }
 
   Future<void> _act(Future<void> Function() f) async {
@@ -58,28 +63,43 @@ class _RequestsScreenState extends State<RequestsScreen> {
     if (!app.seerrConfigured) {
       return Padding(
         padding: EdgeInsets.fromLTRB(pad, context.px(app.isTv || app.isDesktop ? 60 : 30), pad, 0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Requests', style: display(context.px(72))),
-          SizedBox(height: context.px(24)),
-          Text(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Requests', style: display(context.px(72))),
+            SizedBox(height: context.px(24)),
+            Text(
               app.seerrUrl == null
                   ? 'Connect Seerr to request movies and shows that are not on your server, and to see everyone\'s requests here.'
                   : 'Ember couldn\'t sign in to Seerr${app.seerrError != null ? ':\n${app.seerrError}' : '.'}',
-              style: body(context.px(25), color: C.muted, height: 1.5)),
-          SizedBox(height: context.px(28)),
-          if (app.seerrUrl != null) ...[
-            EmberButton(label: 'Try again', icon: Icons.refresh, kind: BtnKind.accent, autofocus: app.isTv, onTap: () => app.refreshSeerr()),
-            SizedBox(height: context.px(14)),
+              style: body(context.px(25), color: C.muted, height: 1.5),
+            ),
+            SizedBox(height: context.px(28)),
+            if (app.seerrUrl != null) ...[
+              EmberButton(
+                label: 'Try again',
+                icon: Icons.refresh,
+                kind: BtnKind.accent,
+                autofocus: app.isTv,
+                onTap: () => app.refreshSeerr(),
+              ),
+              SizedBox(height: context.px(14)),
+            ],
+            EmberButton(
+              label: app.seerrUrl == null ? 'Set up Seerr' : 'Seerr settings',
+              icon: Icons.settings_outlined,
+              kind: app.seerrUrl == null ? BtnKind.accent : BtnKind.ghost,
+              autofocus: app.isTv && app.seerrUrl == null,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const Scaffold(
+                    body: SafeArea(child: SettingsScreen(initialCategory: 'Seerr requests')),
+                  ),
+                ),
+              ),
+            ),
           ],
-          EmberButton(
-            label: app.seerrUrl == null ? 'Set up Seerr' : 'Seerr settings',
-            icon: Icons.settings_outlined,
-            kind: app.seerrUrl == null ? BtnKind.accent : BtnKind.ghost,
-            autofocus: app.isTv && app.seerrUrl == null,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const Scaffold(body: SafeArea(child: SettingsScreen(initialCategory: 'Seerr requests'))))),
-          ),
-        ]),
+        ),
       );
     }
     return Loader<List<_Row>>(
@@ -93,19 +113,30 @@ class _RequestsScreenState extends State<RequestsScreen> {
           padding: EdgeInsets.fromLTRB(pad, context.px(app.isPhone ? 30 : PageHeader.top - 100), pad, context.px(80)),
           children: [
             if (app.isPhone) ...[
-              Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(24), children: [
-                Text('Requests', style: display(context.px(72))),
-                Padding(
-                  padding: EdgeInsets.only(bottom: context.px(8)),
-                  child: Text(app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests',
-                      style: body(context.px(22), color: C.faint)),
-                ),
-              ]),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: context.px(24),
+                children: [
+                  Text('Requests', style: display(context.px(72))),
+                  Padding(
+                    padding: EdgeInsets.only(bottom: context.px(8)),
+                    child: Text(
+                      app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests',
+                      style: body(context.px(22), color: C.faint),
+                    ),
+                  ),
+                ],
+              ),
               SizedBox(height: context.px(24)),
               FocusTraversalGroup(
-                child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-                  for (final f in _filters) Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
-                ]),
+                child: Wrap(
+                  spacing: context.px(12),
+                  runSpacing: context.px(12),
+                  children: [
+                    for (final f in _filters)
+                      Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                  ],
+                ),
               ),
             ] else
               PageHeader(
@@ -126,7 +157,11 @@ class _RequestsScreenState extends State<RequestsScreen> {
               SizedBox(height: context.px(16)),
               Align(
                 alignment: Alignment.centerLeft,
-                child: EmberButton(label: 'Show older requests', kind: BtnKind.ghost, onTap: () => setState(() => _take += 50)),
+                child: EmberButton(
+                  label: 'Show older requests',
+                  kind: BtnKind.ghost,
+                  onTap: () => setState(() => _take += 50),
+                ),
               ),
             ],
           ],
@@ -143,12 +178,12 @@ class _RequestRow extends StatelessWidget {
   const _RequestRow({required this.row, required this.canManage, required this.onAct});
 
   (Color, Color) _colors(String label) => switch (label) {
-        'Pending approval' => (const Color(0xFF3A3016), C.warn),
-        'Downloading' => (C.accentDark, const Color(0xFFFF9A5C)),
-        'Available' || 'Partly available' => (const Color(0xFF1B3322), C.good),
-        'Declined' || 'Failed' => (const Color(0xFF3A1C1C), C.bad),
-        _ => (const Color(0xFF1B2B40), C.blue),
-      };
+    'Pending approval' => (const Color(0xFF3A3016), C.warn),
+    'Downloading' => (C.accentDark, const Color(0xFFFF9A5C)),
+    'Available' || 'Partly available' => (const Color(0xFF1B3322), C.good),
+    'Declined' || 'Failed' => (const Color(0xFF3A1C1C), C.bad),
+    _ => (const Color(0xFF1B2B40), C.blue),
+  };
 
   static String _left(DateTime eta) {
     final d = eta.difference(DateTime.now());
@@ -184,52 +219,76 @@ class _RequestRow extends StatelessWidget {
       ),
     );
 
-    final status = Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        height: context.px(40),
-        padding: EdgeInsets.symmetric(horizontal: context.px(16)),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-        child: Text(r.label, style: body(context.px(19), color: fg, weight: FontWeight.w700)),
-      ),
-      if (progress != null) ...[
-        SizedBox(height: context.px(12)),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(
-            width: context.px(app.isPhone ? 200 : 360),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(context.px(4)),
-              child: LinearProgressIndicator(
-                  value: progress, minHeight: context.px(8), backgroundColor: C.surface3, color: C.accent),
-            ),
+    final status = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: context.px(40),
+          padding: EdgeInsets.symmetric(horizontal: context.px(16)),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+          child: Text(
+            r.label,
+            style: body(context.px(19), color: fg, weight: FontWeight.w700),
           ),
-          SizedBox(width: context.px(16)),
-          Flexible(
-            child: Text('${(progress * 100).round()}%${eta != null ? ' · ${_left(eta)}' : ''}',
-                overflow: TextOverflow.ellipsis, style: body(context.px(20), color: C.muted)),
+        ),
+        if (progress != null) ...[
+          SizedBox(height: context.px(12)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: context.px(app.isPhone ? 200 : 360),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(context.px(4)),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: context.px(8),
+                    backgroundColor: C.surface3,
+                    color: C.accent,
+                  ),
+                ),
+              ),
+              SizedBox(width: context.px(16)),
+              Flexible(
+                child: Text(
+                  '${(progress * 100).round()}%${eta != null ? ' · ${_left(eta)}' : ''}',
+                  overflow: TextOverflow.ellipsis,
+                  style: body(context.px(20), color: C.muted),
+                ),
+              ),
+            ],
           ),
-        ]),
+        ],
       ],
-    ]);
+    );
 
     final info = Focusable(
       onTap: m == null ? null : () => openSeerr(context, m),
       semanticLabel: m?.title ?? 'Request',
-      builder: (context, active) => Row(children: [
-        thumb,
-        SizedBox(width: context.px(30)),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(m?.title ?? 'Unknown title',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: body(context.px(30), weight: FontWeight.w700, color: active ? C.accent : C.text)),
-            SizedBox(height: context.px(8)),
-            Text(what, maxLines: 2, style: body(context.px(21), color: C.faint)),
-            if (app.isPhone) ...[SizedBox(height: context.px(12)), status],
-          ]),
-        ),
-      ]),
+      builder: (context, active) => Row(
+        children: [
+          thumb,
+          SizedBox(width: context.px(30)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  m?.title ?? 'Unknown title',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: body(context.px(30), weight: FontWeight.w700, color: active ? C.accent : C.text),
+                ),
+                SizedBox(height: context.px(8)),
+                Text(what, maxLines: 2, style: body(context.px(21), color: C.faint)),
+                if (app.isPhone) ...[SizedBox(height: context.px(12)), status],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
 
     return Container(
@@ -239,12 +298,16 @@ class _RequestRow extends StatelessWidget {
       child: FocusTraversalGroup(
         child: app.isPhone
             ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [info, _actions(context)])
-            : Row(children: [
-                SizedBox(width: context.px(192 + 30 + 520), child: info),
-                SizedBox(width: context.px(30)),
-                Expanded(child: Align(alignment: Alignment.centerLeft, child: status)),
-                _actions(context),
-              ]),
+            : Row(
+                children: [
+                  SizedBox(width: context.px(192 + 30 + 520), child: info),
+                  SizedBox(width: context.px(30)),
+                  Expanded(
+                    child: Align(alignment: Alignment.centerLeft, child: status),
+                  ),
+                  _actions(context),
+                ],
+              ),
       ),
     );
   }
@@ -262,8 +325,18 @@ class _RequestRow extends StatelessWidget {
     final playable = r.playable;
     final buttons = <Widget>[
       if (canManage && r.status == 1) ...[
-        EmberButton(label: 'Approve', kind: BtnKind.accent, compact: true, onTap: () => onAct(() => app.seerr!.approve(r.id))),
-        EmberButton(label: 'Decline', kind: BtnKind.secondary, compact: true, onTap: () => onAct(() => app.seerr!.decline(r.id))),
+        EmberButton(
+          label: 'Approve',
+          kind: BtnKind.accent,
+          compact: true,
+          onTap: () => onAct(() => app.seerr!.approve(r.id)),
+        ),
+        EmberButton(
+          label: 'Decline',
+          kind: BtnKind.secondary,
+          compact: true,
+          onTap: () => onAct(() => app.seerr!.decline(r.id)),
+        ),
       ],
       if (playable)
         EmberButton(

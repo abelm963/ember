@@ -48,9 +48,11 @@ class MyListScreen extends StatelessWidget {
           (q.mediaType, q.tmdbId!),
     ];
     Future<List<SeerrMedia>> details(List<(String, int)> ids) async => [
-          for (final m in await Future.wait(ids.map((x) => seerr.details(x.$1, x.$2).then<SeerrMedia?>((m) => m).catchError((_) => null))))
-            ?m,
-        ];
+      for (final m in await Future.wait(
+        ids.map((x) => seerr.details(x.$1, x.$2).then<SeerrMedia?>((m) => m).catchError((_) => null)),
+      ))
+        ?m,
+    ];
     final both = await Future.wait([details(listed), details(mine)]);
     d.watchlist = both[0];
     d.arriving = both[1];
@@ -63,24 +65,27 @@ class MyListScreen extends StatelessWidget {
     final jf = app.jf!;
     final pad = context.px(gutter(context));
     String? badge(SeerrMedia m) => switch (m.status) {
-          MediaStatus.available => 'Ready to watch',
-          MediaStatus.partiallyAvailable => 'Partly here',
-          MediaStatus.processing => 'Arriving',
-          MediaStatus.pending => 'Requested',
-          _ => null,
-        };
+      MediaStatus.available => 'Ready to watch',
+      MediaStatus.partiallyAvailable => 'Partly here',
+      MediaStatus.processing => 'Arriving',
+      MediaStatus.pending => 'Requested',
+      _ => null,
+    };
     Widget section(String title, String? note, List<Widget> tiles) => Padding(
-          padding: EdgeInsets.only(bottom: context.px(44)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: display(context.px(32))),
-            if (note != null) ...[
-              SizedBox(height: context.px(6)),
-              Text(note, style: body(context.px(20), color: C.faint)),
-            ],
-            SizedBox(height: context.px(20)),
-            Wrap(spacing: context.px(24), runSpacing: context.px(36), children: tiles),
-          ]),
-        );
+      padding: EdgeInsets.only(bottom: context.px(44)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: display(context.px(32))),
+          if (note != null) ...[
+            SizedBox(height: context.px(6)),
+            Text(note, style: body(context.px(20), color: C.faint)),
+          ],
+          SizedBox(height: context.px(20)),
+          Wrap(spacing: context.px(24), runSpacing: context.px(36), children: tiles),
+        ],
+      ),
+    );
     return Loader<_ListData>(
       deps: app.revision,
       load: () => _load(app),
@@ -110,17 +115,21 @@ class MyListScreen extends StatelessWidget {
                 ),
             ]),
           if (d.watchlist.isNotEmpty)
-            section('Watchlist', 'From Seerr, including titles that aren\'t on ${app.serverName ?? 'your server'} yet', [
-              for (final m in d.watchlist)
-                MediaTile(
-                  title: m.title,
-                  imageUrl: m.backdropUrl,
-                  width: 384,
-                  autofocus: app.isTv && d.favorites.isEmpty && m == d.watchlist.first,
-                  badge: badge(m),
-                  onTap: () => openSeerr(context, m),
-                ),
-            ]),
+            section(
+              'Watchlist',
+              'From Seerr, including titles that aren\'t on ${app.serverName ?? 'your server'} yet',
+              [
+                for (final m in d.watchlist)
+                  MediaTile(
+                    title: m.title,
+                    imageUrl: m.backdropUrl,
+                    width: 384,
+                    autofocus: app.isTv && d.favorites.isEmpty && m == d.watchlist.first,
+                    badge: badge(m),
+                    onTap: () => openSeerr(context, m),
+                  ),
+              ],
+            ),
           if (d.arriving.isNotEmpty)
             section('Requested', 'Added here when you request something', [
               for (final m in d.arriving)

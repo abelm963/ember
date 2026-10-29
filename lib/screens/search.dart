@@ -52,7 +52,9 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
     final lib = app.jf!.search(term).catchError((_) => <JfItem>[]);
-    final ext = app.seerrConfigured ? app.seerr!.search(term).catchError((_) => <SeerrMedia>[]) : Future.value(<SeerrMedia>[]);
+    final ext = app.seerrConfigured
+        ? app.seerr!.search(term).catchError((_) => <SeerrMedia>[])
+        : Future.value(<SeerrMedia>[]);
     final r = await Future.wait<Object>([lib, ext]);
     if (seq != _seq || !mounted) return;
     final libItems = r[0] as List<JfItem>;
@@ -67,7 +69,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void _key(String k) {
     final t = _q.text;
     final next = k == '⌫' ? (t.isEmpty ? t : t.substring(0, t.length - 1)) : t + k;
-    _q.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: next.length));
+    _q.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
     _changed(next);
   }
 
@@ -94,68 +99,86 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _textField(BuildContext context, AppState app) => FieldFocusEscape(
-        child: TextField(
-          controller: _q,
-          autofocus: !app.isTv,
-          onChanged: _changed,
-          onSubmitted: (v) => _run(v.trim()),
-          textInputAction: TextInputAction.search,
-          style: body(context.px(44), weight: FontWeight.w700),
-          decoration: InputDecoration(
-            hintText: app.isPhone ? 'Titles, people, genres' : 'Search',
-            hintStyle: body(context.px(40), color: C.faint, weight: FontWeight.w600),
-            prefixIcon: app.isPhone ? Icon(Icons.search, color: C.faint, size: context.px(44)) : null,
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: C.surface3, width: context.px(3))),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: C.accent, width: context.px(3))),
-          ),
+    child: TextField(
+      controller: _q,
+      autofocus: !app.isTv,
+      onChanged: _changed,
+      onSubmitted: (v) => _run(v.trim()),
+      textInputAction: TextInputAction.search,
+      style: body(context.px(44), weight: FontWeight.w700),
+      decoration: InputDecoration(
+        hintText: app.isPhone ? 'Titles, people, genres' : 'Search',
+        hintStyle: body(context.px(40), color: C.faint, weight: FontWeight.w600),
+        prefixIcon: app.isPhone ? Icon(Icons.search, color: C.faint, size: context.px(44)) : null,
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: C.surface3, width: context.px(3)),
         ),
-      );
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: C.accent, width: context.px(3)),
+        ),
+      ),
+    ),
+  );
 
   /// The on-screen keyboard from the design, so a remote can type without the system keyboard.
   Widget _keyboard(BuildContext context, AppState app) {
     const keys = 'abcdefghijklmnopqrstuvwxyz1234567890';
     Widget key(String label, String value, {bool wide = false, bool first = false}) => Focusable(
-          onTap: () => _key(value),
-          autofocus: first && app.isTv,
-          semanticLabel: label,
-          scrollIntoView: false,
-          builder: (context, active) => Container(
-            height: context.px(60),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: active ? C.text : (wide ? C.surface : Colors.transparent),
-              borderRadius: BorderRadius.circular(context.px(10)),
-            ),
-            child: Text(label, style: body(context.px(28), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.muted)),
-          ),
-        );
-    return FocusTraversalGroup(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        GridView.count(
-          crossAxisCount: 6,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: context.px(6),
-          crossAxisSpacing: context.px(6),
-          childAspectRatio: 1.25,
-          children: [for (var i = 0; i < keys.length; i++) key(keys[i], keys[i], first: i == 0)],
+      onTap: () => _key(value),
+      autofocus: first && app.isTv,
+      semanticLabel: label,
+      scrollIntoView: false,
+      builder: (context, active) => Container(
+        height: context.px(60),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? C.text : (wide ? C.surface : Colors.transparent),
+          borderRadius: BorderRadius.circular(context.px(10)),
         ),
-        SizedBox(height: context.px(10)),
-        Row(children: [
-          Expanded(child: key('Space', ' ', wide: true)),
-          SizedBox(width: context.px(10)),
-          Expanded(child: key('Delete', '⌫', wide: true)),
-        ]),
-        SizedBox(height: context.px(22)),
-        Row(children: [
-          Icon(app.isTv ? Icons.mic_none : Icons.keyboard_outlined, color: C.faint, size: context.px(28)),
-          SizedBox(width: context.px(12)),
-          Expanded(
-            child: Text(app.isTv ? 'Hold the voice button on your remote to dictate' : 'You can also just type on your keyboard',
-                style: body(context.px(21), color: C.faint)),
+        child: Text(
+          label,
+          style: body(context.px(28), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.muted),
+        ),
+      ),
+    );
+    return FocusTraversalGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GridView.count(
+            crossAxisCount: 6,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: context.px(6),
+            crossAxisSpacing: context.px(6),
+            childAspectRatio: 1.25,
+            children: [for (var i = 0; i < keys.length; i++) key(keys[i], keys[i], first: i == 0)],
           ),
-        ]),
-      ]),
+          SizedBox(height: context.px(10)),
+          Row(
+            children: [
+              Expanded(child: key('Space', ' ', wide: true)),
+              SizedBox(width: context.px(10)),
+              Expanded(child: key('Delete', '⌫', wide: true)),
+            ],
+          ),
+          SizedBox(height: context.px(22)),
+          Row(
+            children: [
+              Icon(app.isTv ? Icons.mic_none : Icons.keyboard_outlined, color: C.faint, size: context.px(28)),
+              SizedBox(width: context.px(12)),
+              Expanded(
+                child: Text(
+                  app.isTv
+                      ? 'Hold the voice button on your remote to dictate'
+                      : 'You can also just type on your keyboard',
+                  style: body(context.px(21), color: C.faint),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -166,39 +189,62 @@ class _SearchScreenState extends State<SearchScreen> {
       if (!_busy && _term.isNotEmpty && _lib.isEmpty && _ext.isEmpty)
         Text('Nothing found for "$_term".', style: body(context.px(26), color: C.muted)),
       if (_term.isEmpty && !_busy)
-        Text(app.seerrConfigured ? 'Find anything in your library, or anything to request.' : 'Find anything in your library.',
-            style: body(context.px(24), color: C.faint)),
+        Text(
+          app.seerrConfigured
+              ? 'Find anything in your library, or anything to request.'
+              : 'Find anything in your library.',
+          style: body(context.px(24), color: C.faint),
+        ),
       if (_lib.isNotEmpty) ...[
         Text('In your library', style: body(context.px(30), weight: FontWeight.w700)),
         SizedBox(height: context.px(20)),
-        Wrap(spacing: context.px(24), runSpacing: context.px(28), children: [
-          for (final it in _lib)
-            MediaTile(title: it.name, imageUrl: jf.landscapeImage(it), width: tileW, onTap: () => openItem(context, it)),
-        ]),
+        Wrap(
+          spacing: context.px(24),
+          runSpacing: context.px(28),
+          children: [
+            for (final it in _lib)
+              MediaTile(
+                title: it.name,
+                imageUrl: jf.landscapeImage(it),
+                width: tileW,
+                onTap: () => openItem(context, it),
+              ),
+          ],
+        ),
         SizedBox(height: context.px(44)),
       ],
       if (_ext.isNotEmpty) ...[
-        Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(16), children: [
-          Text('Not in your library', style: body(context.px(30), weight: FontWeight.w700)),
-          Text('Open one to preview it, then request', style: body(context.px(21), color: C.faint)),
-        ]),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: context.px(16),
+          children: [
+            Text('Not in your library', style: body(context.px(30), weight: FontWeight.w700)),
+            Text('Open one to preview it, then request', style: body(context.px(21), color: C.faint)),
+          ],
+        ),
         SizedBox(height: context.px(20)),
-        Wrap(spacing: context.px(24), runSpacing: context.px(28), children: [
-          for (final m in _ext)
-            MediaTile(
-              title: m.title,
-              imageUrl: m.backdropUrl ?? m.posterUrl,
-              width: tileW,
-              badge: m.isRequested ? 'Requested' : 'Not on server',
-              badgeAlt: m.isRequested,
-              onTap: () => openSeerr(context, m),
-            ),
-        ]),
+        Wrap(
+          spacing: context.px(24),
+          runSpacing: context.px(28),
+          children: [
+            for (final m in _ext)
+              MediaTile(
+                title: m.title,
+                imageUrl: m.backdropUrl ?? m.posterUrl,
+                width: tileW,
+                badge: m.isRequested ? 'Requested' : 'Not on server',
+                badgeAlt: m.isRequested,
+                onTap: () => openSeerr(context, m),
+              ),
+          ],
+        ),
       ],
       if (_term.isEmpty && !app.seerrConfigured) ...[
         SizedBox(height: context.px(20)),
-        Text('Connect Seerr in Settings to also find titles that are not on your server.',
-            style: body(context.px(22), color: C.faint)),
+        Text(
+          'Connect Seerr in Settings to also find titles that are not on your server.',
+          style: body(context.px(22), color: C.faint),
+        ),
       ],
     ];
   }
@@ -211,33 +257,46 @@ class _SearchScreenState extends State<SearchScreen> {
       return ListView(
         scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
         padding: EdgeInsets.fromLTRB(pad, context.px(30), pad, context.px(80)),
-        children: [_field(context, app), SizedBox(height: context.px(36)), ..._results(context, app, 420)],
+        children: [
+          _field(context, app),
+          SizedBox(height: context.px(36)),
+          ..._results(context, app, 420),
+        ],
       );
     }
     return Padding(
       padding: EdgeInsets.fromLTRB(pad, context.px(60), 0, 0),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-          width: context.px(460),
-          child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('Search titles, people, genres', style: body(context.px(22), color: C.faint, weight: FontWeight.w600)),
-              SizedBox(height: context.px(10)),
-              _field(context, app),
-              SizedBox(height: context.px(24)),
-              _keyboard(context, app),
-            ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: context.px(460),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Search titles, people, genres',
+                    style: body(context.px(22), color: C.faint, weight: FontWeight.w600),
+                  ),
+                  SizedBox(height: context.px(10)),
+                  _field(context, app),
+                  SizedBox(height: context.px(24)),
+                  _keyboard(context, app),
+                ],
+              ),
+            ),
           ),
-        ),
-        SizedBox(width: context.px(80)),
-        Expanded(
-          child: ListView(
-            scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
-            padding: EdgeInsets.only(right: pad, bottom: context.px(80)),
-            children: _results(context, app, 300),
+          SizedBox(width: context.px(80)),
+          Expanded(
+            child: ListView(
+              scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
+              padding: EdgeInsets.only(right: pad, bottom: context.px(80)),
+              children: _results(context, app, 300),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

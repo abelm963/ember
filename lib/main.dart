@@ -59,16 +59,20 @@ class EmberApp extends StatelessWidget {
       },
       actions: {
         ...WidgetsApp.defaultActions,
-        BackIntent: CallbackAction<BackIntent>(onInvoke: (_) {
-          navigatorKey.currentState?.maybePop();
-          return null;
-        }),
+        BackIntent: CallbackAction<BackIntent>(
+          onInvoke: (_) {
+            navigatorKey.currentState?.maybePop();
+            return null;
+          },
+        ),
         // Esc is mapped to DismissIntent by Flutter's default shortcuts; outside dialogs
         // (which handle it themselves) it means "go back".
-        DismissIntent: CallbackAction<DismissIntent>(onInvoke: (_) {
-          navigatorKey.currentState?.maybePop();
-          return null;
-        }),
+        DismissIntent: CallbackAction<DismissIntent>(
+          onInvoke: (_) {
+            navigatorKey.currentState?.maybePop();
+            return null;
+          },
+        ),
       },
       // Every Back key (Esc, the remote's Back/Menu button) that no screen handled itself
       // goes back one screen. The player handles Back first (hides its menus, then leaves).

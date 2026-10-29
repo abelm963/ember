@@ -115,14 +115,14 @@ enum LinkKind { next, newSeason, related, recommended, people, similar, genre }
 
 /// The link strengths, strongest first.
 double linkStrength(LinkKind k, {int rank = 0}) => switch (k) {
-      LinkKind.next || LinkKind.newSeason => 1.0,
-      LinkKind.related => 0.6,
-      // TMDB's first pick counts 0.5, its tenth about 0.25.
-      LinkKind.recommended => 0.5 / (1 + rank / 9),
-      LinkKind.people => 0.4,
-      LinkKind.similar => 0.3,
-      LinkKind.genre => 0.1,
-    };
+  LinkKind.next || LinkKind.newSeason => 1.0,
+  LinkKind.related => 0.6,
+  // TMDB's first pick counts 0.5, its tenth about 0.25.
+  LinkKind.recommended => 0.5 / (1 + rank / 9),
+  LinkKind.people => 0.4,
+  LinkKind.similar => 0.3,
+  LinkKind.genre => 0.1,
+};
 
 /// Something Recommended may show: on the server ([item]), or on Seerr only ([media]).
 class Candidate {

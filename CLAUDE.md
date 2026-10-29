@@ -10,9 +10,12 @@ say what to click or run to see it.
 ## Build, run, test
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
-- `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 47 tests, all should pass. They use a mock server through `http.runWithClient`
-  (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
+- `dart format .` (120 columns, set in `analysis_options.yaml`), `flutter analyze` → "No issues found",
+  `flutter test` → 71 tests, all pass. GitHub runs all three on every push (`checks.yml`).
+  Tests use a mock server through `http.runWithClient` (see `test/screens_test.dart`); add routes
+  there when a screen calls a new endpoint.
+- How the code fits together, and the layering rules: `docs/ARCHITECTURE.md`. Working rules:
+  `CONTRIBUTING.md`. `player/`, `api/` and `ui/` never import `screens/`.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
 - Pinned: `media_kit` (mpv) for playback. There is no `google_fonts`: the fonts are bundled under
@@ -33,17 +36,18 @@ say what to click or run to see it.
 | Path | What |
 | --- | --- |
 | `lib/api/jellyfin.dart` | Jellyfin: sign-in (password + Quick Connect), library, playback (direct play or HLS transcode), progress, intro segments, trickplay, bitrate test, the optional plugin's release calendar |
-| `lib/api/youtube.dart` | Trailers, found on the device itself (Moonfin's approach, made sturdier): YouTube is asked as its Vision Pro app (with a visitor id) and iPhone app at once for an HLS playlist, then as its Android app (360p MP4), then youtube_explode_dart. Each answer is checked before playing; a stream that won't play makes the player ask for the next way (`nextAfter`), and that way goes last for the session. Keeps the original soundtrack, not YouTube's dubs. Tested in `test/youtube_test.dart`. Nothing on the server. `nav.dart` `findTrailer` picks the title's trailer (Jellyfin's RemoteTrailers, then Seerr) and caches it; `tool/trailer_probe.dart <ids>` checks it works |
+| `lib/api/youtube.dart` | Trailers, found on the device itself (Moonfin's approach, made sturdier): YouTube is asked as its Vision Pro app (with a visitor id) and iPhone app at once for an HLS playlist, then as its Android app (360p MP4), then youtube_explode_dart. Each answer is checked before playing; a stream that won't play makes the player ask for the next way (`nextAfter`), and that way goes last for the session. Keeps the original soundtrack, not YouTube's dubs. Tested in `test/youtube_test.dart`. Nothing on the server. `player/trailers.dart` `findTrailer` picks the title's trailer (Jellyfin's RemoteTrailers, then Seerr) and caches it; `tool/trailer_probe.dart <ids>` checks it works |
 | `lib/api/seerr.dart` | Seerr: cookie jar with `connect.sid` and the CSRF tokens, automatic re-sign-in, Quick Connect sign-in, discover/search/details/requests, `allMedia()` for status lookups |
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic set-up: `findSeerr` tries the address another Ember device saved on Jellyfin for this user (display preferences, client `ember`, key `seerrUrl`), then `SeerrClient.guessesFrom` the Jellyfin address (port 5055, ports next to Jellyfin's), and signs in with the Jellyfin profile (Quick Connect). No typing on the TV |
-| `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
-| `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
+| `lib/ui/` | `widgets.dart` re-exports the building blocks, one file each: `focusable.dart` (`Focusable`: remote focus + mouse hover + touch in one), `buttons.dart` (`EmberButton`, chips, badges), `media_tiles.dart` (`MediaRow`/`MediaTile`), `images.dart` (`NetImage` with `loading:` vs `fallback:`, `warmImages`), `feedback.dart` (`Loader` with `placeholder:`, `toast`), `skeletons.dart` (`TitlePageSkeleton`, `Bone`), `dialogs.dart` (`EmberDialog`, `pickOption`), `scale.dart` (`context.px`). `browse.dart`: Billboard, poster rows, filters |
+| `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `warmPlayback`); `shared/media_entries.dart` the poster-row entries and meta line several screens use |
 | `lib/screens/discover.dart` | Discover (menu): Recommended, Coming Soon and Explore (Seerr's movies and shows not on the server; Type and Genre in the filter panel; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
 | `lib/api/recommend.dart`, `lib/api/taste.dart` | Recommended's ranking, run each time the tab opens. `recommend.dart` gathers 2 years of history from Jellyfin (movies: how far and how often; shows: episodes per season, seasons finished, caught up), likes and the Seerr watchlist, then links (Jellyfin Similar, TMDB recommendations/similar via Seerr, the next film in a series, shows by the same creators, a new season, same director/leads); Seerr answers are kept for a day (`rec1.*` in shared preferences). `taste.dart` has every number: taste points, fading (half every 9 months, never below 15%), link strengths, quality, the 30% variety cost and at least 12 of 20 Top picks on the server, rows, and each pick's reason (shown with its details). Tested in `test/taste_test.dart` with the worked example from the design doc |
 | `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside Discover) |
-| `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), `segments.dart` (checks the server's intro/recap/credits times against the episode's length and falls back to chapter names; tested in `test/segments_test.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
+| `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed; its buttons, menus and scrubber in `player_controls.dart`), `trailers.dart` (trailer lookup and cache), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), `segments.dart` (checks the server's intro/recap/credits times against the episode's length and falls back to chapter names; tested in `test/segments_test.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
-| `server-plugin/` | Older copies of the Jellyfin plugin. **Current source and releases live in github.com/abelm963/ember-trailers** |
+| `lib/util/log.dart` | `logWarning()` / `redact()`: device log with tokens, cookies and API keys removed. Use it instead of an empty `catch` when a failure matters |
+| Jellyfin plugin | Not in this repo. **Source and releases live in github.com/abelm963/ember-trailers** |
 
 Player layout (TV and desktop) follows the big streaming apps: everything along the bottom (title,
 progress bar with the time left, then Episodes / Next Episode / Audio & Subtitles / Restart / Quality).
@@ -120,7 +124,8 @@ Smaller known issues:
   (Dart: asks Jellyfin, picks audio/subtitles, reports progress) talks over the `ember/player` channel
   to `tvos/Runner/NativePlayer.swift` (AVPlayerViewController: true HDR10/Dolby Vision/Atmos, Match
   Content, Skip Intro, Next Episode countdown, audio/subtitle menus, "Are you still watching?").
-  `nav.dart` `play()`/`playTrailer()` route there when `isAppleTv`; `PlayerScreen` is for the other platforms.
+  `nav.dart` `play()` routes there on Apple TV only when `useApplePlayer` is on, and `playTrailer()` always
+  does on Apple TV; otherwise `PlayerScreen` plays.
 - `JellyfinClient.playbackSource` sends an Apple TV device profile: direct play for MP4/MOV with
   H.264/HEVC and AAC/AC3/EAC3/ALAC/FLAC; everything else comes back as fMP4 HLS with the picture and
   sound copied when possible. CodecProfiles declare HDR10/HDR10+/HLG/Dolby Vision so they pass through.

@@ -165,8 +165,7 @@ class TrickplayInfo {
     final res = (source.value as Map).cast<String, dynamic>();
     if (res.isEmpty) return null;
     // Pick the smallest resolution at least 300 px wide (or the largest available).
-    final sizes = res.entries.toList()
-      ..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
+    final sizes = res.entries.toList()..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
     final pick = sizes.firstWhere((e) => int.parse(e.key) >= 300, orElse: () => sizes.last);
     final m = (pick.value as Map).cast<String, dynamic>();
     return TrickplayInfo(
@@ -200,13 +199,19 @@ class JellyfinClient {
   String? token;
   String? userId;
 
+  /// Asks for streams Apple TV's player can open (see [playbackSource]). Defaults to whether
+  /// this is an Apple TV; tests set it to check the Apple TV requests on any machine.
+  final bool appleTv;
+
   JellyfinClient({
     required String baseUrl,
     required this.deviceId,
     required this.deviceName,
     this.token,
     this.userId,
-  }) : baseUrl = normalizeUrl(baseUrl);
+    bool? appleTv,
+  }) : baseUrl = normalizeUrl(baseUrl),
+       appleTv = appleTv ?? isAppleTv;
 
   /// Accepts whatever people paste — `hearth:8096`, a full web-app link like
   /// `https://host/web/#/home` — and returns the server's base address.
@@ -245,10 +250,10 @@ class JellyfinClient {
   }
 
   Map<String, String> get _headers => {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Authorization': authHeader,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final q = <String, String>{};
@@ -264,8 +269,13 @@ class JellyfinClient {
     return Uri.parse('$baseUrl$path').replace(queryParameters: q.isEmpty ? null : q);
   }
 
-  Future<dynamic> _send(String method, String path,
-      {Map<String, dynamic>? query, Object? body, Duration timeout = const Duration(seconds: 20)}) async {
+  Future<dynamic> _send(
+    String method,
+    String path, {
+    Map<String, dynamic>? query,
+    Object? body,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
     final uri = _uri(path, query);
     late http.Response res;
     final encoded = body == null ? null : jsonEncode(body);
@@ -356,7 +366,11 @@ class JellyfinClient {
           final m = jsonDecode(utf8.decode(dg.data)) as Map;
           var address = m['Address'] as String? ?? '';
           final parsed = Uri.tryParse(address);
-          if (parsed == null || parsed.host.isEmpty || parsed.host == '127.0.0.1' || parsed.host == 'localhost' || parsed.host == '0.0.0.0') {
+          if (parsed == null ||
+              parsed.host.isEmpty ||
+              parsed.host == '127.0.0.1' ||
+              parsed.host == 'localhost' ||
+              parsed.host == '0.0.0.0') {
             final port = (parsed != null && parsed.hasPort) ? parsed.port : 8096;
             address = 'http://${dg.address.address}:$port';
           }
@@ -473,7 +487,10 @@ class JellyfinClient {
       final json = await _send('GET', '/DisplayPreferences/ember', query: {'userId': userId, 'client': 'ember'});
       final prefs = json is Map ? json['CustomPrefs'] : null;
       if (prefs is! Map) return {};
-      return {for (final e in prefs.entries) if (e.value != null) '${e.key}': '${e.value}'};
+      return {
+        for (final e in prefs.entries)
+          if (e.value != null) '${e.key}': '${e.value}',
+      };
     } catch (_) {
       return {};
     }
@@ -483,7 +500,9 @@ class JellyfinClient {
   Future<void> saveSharedSetting(String key, String? value) async {
     final q = {'userId': userId, 'client': 'ember'};
     final current = await _send('GET', '/DisplayPreferences/ember', query: q);
-    final dto = current is Map ? Map<String, dynamic>.from(current) : <String, dynamic>{'Id': 'ember', 'Client': 'ember'};
+    final dto = current is Map
+        ? Map<String, dynamic>.from(current)
+        : <String, dynamic>{'Id': 'ember', 'Client': 'ember'};
     final prefs = Map<String, dynamic>.from((dto['CustomPrefs'] as Map?) ?? const {});
     if (value == null) {
       prefs.remove(key);
@@ -509,37 +528,60 @@ class JellyfinClient {
 
   Future<List<JfItem>> views() async => _items(await _send('GET', '/UserViews', query: {'userId': userId}));
 
-  Future<List<JfItem>> resume({int limit = 16}) async => _items(await _send('GET', '/UserItems/Resume', query: {
+  Future<List<JfItem>> resume({int limit = 16}) async => _items(
+    await _send(
+      'GET',
+      '/UserItems/Resume',
+      query: {
         'userId': userId,
         'limit': limit,
         'mediaTypes': 'Video',
         'fields': _fields,
         'enableImageTypes': 'Primary,Backdrop,Thumb,Logo',
-      }));
+      },
+    ),
+  );
 
   /// Episodes of shows in the library that haven't aired yet.
-  Future<List<JfItem>> upcomingEpisodes({int limit = 60}) async => _items(await _send('GET', '/Shows/Upcoming', query: {
+  Future<List<JfItem>> upcomingEpisodes({int limit = 60}) async => _items(
+    await _send(
+      'GET',
+      '/Shows/Upcoming',
+      query: {
         'userId': userId,
         'limit': limit,
         'fields': _fields,
         'enableImageTypes': 'Primary,Backdrop,Thumb',
-      }));
+      },
+    ),
+  );
 
-  Future<List<JfItem>> nextUp({int limit = 16}) async => _items(await _send('GET', '/Shows/NextUp', query: {
+  Future<List<JfItem>> nextUp({int limit = 16}) async => _items(
+    await _send(
+      'GET',
+      '/Shows/NextUp',
+      query: {
         'userId': userId,
         'limit': limit,
         'fields': _fields,
         'enableResumable': false,
-      }));
+      },
+    ),
+  );
 
-  Future<List<JfItem>> latest({String? parentId, List<String>? types, int limit = 20}) async =>
-      _items(await _send('GET', '/Items/Latest', query: {
+  Future<List<JfItem>> latest({String? parentId, List<String>? types, int limit = 20}) async => _items(
+    await _send(
+      'GET',
+      '/Items/Latest',
+      query: {
         'userId': userId,
         'parentId': parentId,
         'includeItemTypes': types,
         'limit': limit,
         'fields': _fields,
-      }));
+      },
+    ),
+  );
 
   Future<List<JfItem>> items({
     String? parentId,
@@ -555,8 +597,11 @@ class JellyfinClient {
     String? fields,
     List<String>? personIds,
     bool images = true,
-  }) async =>
-      _items(await _send('GET', '/Items', query: {
+  }) async => _items(
+    await _send(
+      'GET',
+      '/Items',
+      query: {
         'userId': userId,
         'parentId': parentId,
         'includeItemTypes': types,
@@ -571,26 +616,36 @@ class JellyfinClient {
         'personIds': personIds,
         'fields': fields ?? _fields,
         if (images) 'enableImageTypes': 'Primary,Backdrop,Thumb,Logo' else 'enableImages': false,
-      }));
+      },
+    ),
+  );
 
   /// How many items of these types the library holds.
   Future<int> count(List<String> types) async {
-    final json = await _send('GET', '/Items', query: {
-      'userId': userId,
-      'includeItemTypes': types,
-      'recursive': true,
-      'limit': 0,
-    });
+    final json = await _send(
+      'GET',
+      '/Items',
+      query: {
+        'userId': userId,
+        'includeItemTypes': types,
+        'recursive': true,
+        'limit': 0,
+      },
+    );
     return ((json as Map)['TotalRecordCount'] as num?)?.toInt() ?? 0;
   }
 
   Future<List<String>> genres({String? parentId, List<String>? types}) async {
-    final json = await _send('GET', '/Genres', query: {
-      'userId': userId,
-      'parentId': parentId,
-      'includeItemTypes': types,
-      'sortBy': 'SortName',
-    });
+    final json = await _send(
+      'GET',
+      '/Genres',
+      query: {
+        'userId': userId,
+        'parentId': parentId,
+        'includeItemTypes': types,
+        'sortBy': 'SortName',
+      },
+    );
     return _items(json).map((e) => e.name).toList();
   }
 
@@ -602,14 +657,19 @@ class JellyfinClient {
   Future<List<JfItem>> seasons(String seriesId) async =>
       _items(await _send('GET', '/Shows/$seriesId/Seasons', query: {'userId': userId, 'fields': _fields}));
 
-  Future<List<JfItem>> episodes(String seriesId, {String? seasonId, String? startItemId, int? limit}) async =>
-      _items(await _send('GET', '/Shows/$seriesId/Episodes', query: {
+  Future<List<JfItem>> episodes(String seriesId, {String? seasonId, String? startItemId, int? limit}) async => _items(
+    await _send(
+      'GET',
+      '/Shows/$seriesId/Episodes',
+      query: {
         'userId': userId,
         'seasonId': seasonId,
         'startItemId': startItemId,
         'limit': limit,
         'fields': '$_fields,MediaSources',
-      }));
+      },
+    ),
+  );
 
   /// The episode after [episode] in the series, or null at the end.
   Future<JfItem?> nextEpisode(JfItem episode) async {
@@ -640,27 +700,34 @@ class JellyfinClient {
   }
 
   Future<List<JfItem>> search(String term, {int limit = 24}) => items(
-        searchTerm: term,
-        types: const ['Movie', 'Series'],
-        sortBy: null,
-        limit: limit,
-      );
+    searchTerm: term,
+    types: const ['Movie', 'Series'],
+    sortBy: null,
+    limit: limit,
+  );
 
-  Future<List<JfItem>> favorites() => items(filters: 'IsFavorite', types: const ['Movie', 'Series'], sortBy: 'SortName');
+  Future<List<JfItem>> favorites() =>
+      items(filters: 'IsFavorite', types: const ['Movie', 'Series'], sortBy: 'SortName');
 
   /// The movie or series in the library with this TMDB id, or null.
   /// Newer Jellyfin ignores the old provider-id filter, so every candidate is checked by its
   /// TMDB id; [title] narrows the search when it's known.
   Future<JfItem?> findByTmdb(String tmdbId, String mediaType, {String? title}) async {
     Future<JfItem?> look(Map<String, dynamic> extra) async {
-      final list = _items(await _send('GET', '/Items', query: {
-        'userId': userId,
-        'recursive': true,
-        'includeItemTypes': mediaType == 'tv' ? 'Series' : 'Movie',
-        'limit': 50,
-        'fields': _fields,
-        ...extra,
-      }));
+      final list = _items(
+        await _send(
+          'GET',
+          '/Items',
+          query: {
+            'userId': userId,
+            'recursive': true,
+            'includeItemTypes': mediaType == 'tv' ? 'Series' : 'Movie',
+            'limit': 50,
+            'fields': _fields,
+            ...extra,
+          },
+        ),
+      );
       for (final it in list) {
         if (it.tmdbId == tmdbId) return it;
       }
@@ -687,7 +754,7 @@ class JellyfinClient {
   String imageUrl(String itemId, String type, {String? tag, int? maxWidth, int? maxHeight, int index = 0}) {
     final q = <String, String>{
       'quality': '90',
-      if (tag != null) 'tag': tag,
+      'tag': ?tag,
       if (maxWidth != null) 'maxWidth': '$maxWidth',
       if (maxHeight != null) 'maxHeight': '$maxHeight',
     };
@@ -708,7 +775,9 @@ class JellyfinClient {
     if (it.parentBackdropItemId != null && it.parentBackdropTags.isNotEmpty) {
       return imageUrl(it.parentBackdropItemId!, 'Backdrop', tag: it.parentBackdropTags.first, maxWidth: maxWidth);
     }
-    if (it.imageTags['Primary'] != null) return imageUrl(it.id, 'Primary', tag: it.imageTags['Primary'], maxWidth: maxWidth);
+    if (it.imageTags['Primary'] != null) {
+      return imageUrl(it.id, 'Primary', tag: it.imageTags['Primary'], maxWidth: maxWidth);
+    }
     return null;
   }
 
@@ -745,7 +814,9 @@ class JellyfinClient {
   }
 
   String userImage(String userId, String tag) =>
-      Uri.parse('$baseUrl/Users/$userId/Images/Primary').replace(queryParameters: {'tag': tag, 'maxHeight': '300'}).toString();
+      Uri.parse('$baseUrl/Users/$userId/Images/Primary')
+          .replace(queryParameters: {'tag': tag, 'maxHeight': '300'})
+          .toString();
 
   // ---------------------------------------------------------------- playback
 
@@ -766,13 +837,15 @@ class JellyfinClient {
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
-    if (isAppleTv) {
-      return _appleTvSource(itemId,
-          maxBitrate: maxBitrate,
-          audioStreamIndex: audioStreamIndex,
-          subtitleStreamIndex: subtitleStreamIndex,
-          mediaSourceId: mediaSourceId,
-          start: start);
+    if (appleTv) {
+      return _appleTvSource(
+        itemId,
+        maxBitrate: maxBitrate,
+        audioStreamIndex: audioStreamIndex,
+        subtitleStreamIndex: subtitleStreamIndex,
+        mediaSourceId: mediaSourceId,
+        start: start,
+      );
     }
     final body = <String, dynamic>{
       'UserId': userId,
@@ -805,7 +878,7 @@ class JellyfinClient {
             'MaxAudioChannels': '6',
             'MinSegments': 1,
             'BreakOnNonKeyFrames': true,
-          }
+          },
         ],
         'ContainerProfiles': [],
         'CodecProfiles': [],
@@ -859,67 +932,78 @@ class JellyfinClient {
   /// and sound untouched when it can (so HDR, Dolby Vision and Atmos survive) and converting only
   /// what Apple TV can't play. [transcode] (a lower quality picked in Settings) converts everything.
   static Map<String, dynamic> _appleTvProfile(int maxBitrate, {required bool transcode}) => {
-        'Name': 'Ember Apple TV',
-        'MaxStreamingBitrate': maxBitrate,
-        'MaxStaticBitrate': maxBitrate,
-        'DirectPlayProfiles': transcode
-            ? []
-            : [
-                {'Container': 'mp4,m4v,mov', 'Type': 'Video', 'VideoCodec': 'h264,hevc', 'AudioCodec': 'aac,ac3,eac3,alac,flac,mp3'},
-                {'Container': 'mp3,aac,m4a,m4b,flac,alac', 'Type': 'Audio'},
-              ],
-        'TranscodingProfiles': [
+    'Name': 'Ember Apple TV',
+    'MaxStreamingBitrate': maxBitrate,
+    'MaxStaticBitrate': maxBitrate,
+    'DirectPlayProfiles': transcode
+        ? []
+        : [
+            {
+              'Container': 'mp4,m4v,mov',
+              'Type': 'Video',
+              'VideoCodec': 'h264,hevc',
+              'AudioCodec': 'aac,ac3,eac3,alac,flac,mp3',
+            },
+            {'Container': 'mp3,aac,m4a,m4b,flac,alac', 'Type': 'Audio'},
+          ],
+    'TranscodingProfiles': [
+      {
+        'Container': 'mp4',
+        'Type': 'Video',
+        'VideoCodec': transcode ? 'h264' : 'hevc,h264',
+        // Dolby Digital Plus first: it carries Atmos, and it's what the server converts
+        // DTS and TrueHD into, keeping 5.1 / 7.1.
+        'AudioCodec': 'eac3,ac3,aac,flac,alac',
+        'Protocol': 'hls',
+        'Context': 'Streaming',
+        'MaxAudioChannels': '8',
+        // Start as soon as the first piece is ready instead of waiting for two.
+        'MinSegments': 1,
+        'BreakOnNonKeyFrames': true,
+      },
+      {
+        'Container': 'aac',
+        'Type': 'Audio',
+        'AudioCodec': 'aac',
+        'Protocol': 'hls',
+        'Context': 'Streaming',
+        'MaxAudioChannels': '6',
+      },
+    ],
+    'ContainerProfiles': [],
+    // Tell the server outright which kinds of picture Apple TV 4K shows, so HDR and Dolby
+    // Vision are passed through instead of being converted to SDR.
+    'CodecProfiles': [
+      {
+        'Type': 'Video',
+        'Codec': 'hevc',
+        'Conditions': [
           {
-            'Container': 'mp4',
-            'Type': 'Video',
-            'VideoCodec': transcode ? 'h264' : 'hevc,h264',
-            // Dolby Digital Plus first: it carries Atmos, and it's what the server converts
-            // DTS and TrueHD into, keeping 5.1 / 7.1.
-            'AudioCodec': 'eac3,ac3,aac,flac,alac',
-            'Protocol': 'hls',
-            'Context': 'Streaming',
-            'MaxAudioChannels': '8',
-            // Start as soon as the first piece is ready instead of waiting for two.
-            'MinSegments': 1,
-            'BreakOnNonKeyFrames': true,
-          },
-          {'Container': 'aac', 'Type': 'Audio', 'AudioCodec': 'aac', 'Protocol': 'hls', 'Context': 'Streaming', 'MaxAudioChannels': '6'},
-        ],
-        'ContainerProfiles': [],
-        // Tell the server outright which kinds of picture Apple TV 4K shows, so HDR and Dolby
-        // Vision are passed through instead of being converted to SDR.
-        'CodecProfiles': [
-          {
-            'Type': 'Video',
-            'Codec': 'hevc',
-            'Conditions': [
-              {
-                'Condition': 'EqualsAny',
-                'Property': 'VideoRangeType',
-                'Value': 'SDR|HDR10|HDR10Plus|HLG|DOVI|DOVIWithHDR10|DOVIWithHDR10Plus|DOVIWithHLG|DOVIWithSDR',
-                'IsRequired': false,
-              },
-            ],
-          },
-          {
-            'Type': 'Video',
-            'Codec': 'h264',
-            'Conditions': [
-              {'Condition': 'EqualsAny', 'Property': 'VideoRangeType', 'Value': 'SDR', 'IsRequired': false},
-              {'Condition': 'LessThanEqual', 'Property': 'VideoBitDepth', 'Value': '8', 'IsRequired': false},
-            ],
+            'Condition': 'EqualsAny',
+            'Property': 'VideoRangeType',
+            'Value': 'SDR|HDR10|HDR10Plus|HLG|DOVI|DOVIWithHDR10|DOVIWithHDR10Plus|DOVIWithHLG|DOVIWithSDR',
+            'IsRequired': false,
           },
         ],
-        // Text subtitles go inside the stream as WebVTT, so Apple's player shows them; picture
-        // subtitles (PGS, DVD) have to be burned into the picture.
-        'SubtitleProfiles': [
-          {'Format': 'vtt', 'Method': 'Hls'},
-          {'Format': 'webvtt', 'Method': 'Hls'},
-          {'Format': 'mov_text', 'Method': 'Embed'},
-          for (final f in ['pgssub', 'pgs', 'dvdsub', 'dvbsub', 'vobsub'])
-            {'Format': f, 'Method': 'Encode'},
+      },
+      {
+        'Type': 'Video',
+        'Codec': 'h264',
+        'Conditions': [
+          {'Condition': 'EqualsAny', 'Property': 'VideoRangeType', 'Value': 'SDR', 'IsRequired': false},
+          {'Condition': 'LessThanEqual', 'Property': 'VideoBitDepth', 'Value': '8', 'IsRequired': false},
         ],
-      };
+      },
+    ],
+    // Text subtitles go inside the stream as WebVTT, so Apple's player shows them; picture
+    // subtitles (PGS, DVD) have to be burned into the picture.
+    'SubtitleProfiles': [
+      {'Format': 'vtt', 'Method': 'Hls'},
+      {'Format': 'webvtt', 'Method': 'Hls'},
+      {'Format': 'mov_text', 'Method': 'Embed'},
+      for (final f in ['pgssub', 'pgs', 'dvdsub', 'dvbsub', 'vobsub']) {'Format': f, 'Method': 'Encode'},
+    ],
+  };
 
   Future<PlaybackSource> _appleTvSource(
     String itemId, {
@@ -989,7 +1073,13 @@ class JellyfinClient {
       return delivery.contains('api_key') ? '$baseUrl$delivery' : '$baseUrl$delivery${sep}api_key=$token';
     }
     final codec = (stream['Codec'] as String? ?? 'srt').toLowerCase();
-    final ext = format ?? switch (codec) { 'ass' || 'ssa' => 'ass', 'webvtt' || 'vtt' => 'vtt', _ => 'srt' };
+    final ext =
+        format ??
+        switch (codec) {
+          'ass' || 'ssa' => 'ass',
+          'webvtt' || 'vtt' => 'vtt',
+          _ => 'srt',
+        };
     final index = stream['Index'];
     return '$baseUrl/Videos/$itemId/$mediaSourceId/Subtitles/$index/0/Stream.$ext?api_key=$token';
   }
@@ -997,45 +1087,63 @@ class JellyfinClient {
   Future<void> reportStart(String itemId, String msid, String playSessionId, Duration position, bool transcoding) =>
       _report('/Sessions/Playing', itemId, msid, playSessionId, position, false, transcoding);
 
-  Future<void> reportProgress(String itemId, String msid, String playSessionId, Duration position, bool paused,
-          bool transcoding) =>
-      _report('/Sessions/Playing/Progress', itemId, msid, playSessionId, position, paused, transcoding);
+  Future<void> reportProgress(
+    String itemId,
+    String msid,
+    String playSessionId,
+    Duration position,
+    bool paused,
+    bool transcoding,
+  ) => _report('/Sessions/Playing/Progress', itemId, msid, playSessionId, position, paused, transcoding);
 
   Future<void> reportStopped(String itemId, String msid, String playSessionId, Duration position) =>
       _report('/Sessions/Playing/Stopped', itemId, msid, playSessionId, position, false, false);
 
-  Future<void> _report(String path, String itemId, String msid, String playSessionId, Duration position, bool paused,
-      bool transcoding) async {
+  Future<void> _report(
+    String path,
+    String itemId,
+    String msid,
+    String playSessionId,
+    Duration position,
+    bool paused,
+    bool transcoding,
+  ) async {
     try {
-      await _send('POST', path, body: {
-        'ItemId': itemId,
-        'MediaSourceId': msid,
-        'PlaySessionId': playSessionId,
-        'PositionTicks': durationToTicks(position),
-        'IsPaused': paused,
-        'CanSeek': true,
-        'PlayMethod': transcoding ? 'Transcode' : 'DirectStream',
-      });
+      await _send(
+        'POST',
+        path,
+        body: {
+          'ItemId': itemId,
+          'MediaSourceId': msid,
+          'PlaySessionId': playSessionId,
+          'PositionTicks': durationToTicks(position),
+          'IsPaused': paused,
+          'CanSeek': true,
+          'PlayMethod': transcoding ? 'Transcode' : 'DirectStream',
+        },
+      );
     } catch (_) {
       // Progress reporting should never interrupt playback.
     }
   }
 
   String trickplaySheetUrl(TrickplayInfo t, int sheet) => _uri('/Videos/${t.itemId}/Trickplay/${t.width}/$sheet.jpg', {
-        'mediaSourceId': t.mediaSourceId,
-        'api_key': token,
-      }).toString();
+    'mediaSourceId': t.mediaSourceId,
+    'api_key': token,
+  }).toString();
 
   /// Intro / outro markers (Jellyfin 10.10+ media segments, filled by e.g. Intro Skipper).
   Future<List<MediaSegment>> mediaSegments(String itemId) async {
     try {
       final json = await _send('GET', '/MediaSegments/$itemId');
       return _items(json)
-          .map((e) => MediaSegment(
-                e.raw['Type'] as String? ?? '',
-                ticksToDuration((e.raw['StartTicks'] as num).toInt()),
-                ticksToDuration((e.raw['EndTicks'] as num).toInt()),
-              ))
+          .map(
+            (e) => MediaSegment(
+              e.raw['Type'] as String? ?? '',
+              ticksToDuration((e.raw['StartTicks'] as num).toInt()),
+              ticksToDuration((e.raw['EndTicks'] as num).toInt()),
+            ),
+          )
           .toList();
     } catch (_) {
       return [];
@@ -1060,8 +1168,12 @@ class JellyfinClient {
   /// Null when the plugin is missing or too old to have one.
   Future<List<Map<String, dynamic>>?> releaseCalendar({required String region, int days = 120}) async {
     try {
-      final json = await _send('GET', '/EmberTrailers/Calendar',
-          query: {'region': region, 'days': days}, timeout: const Duration(seconds: 90));
+      final json = await _send(
+        'GET',
+        '/EmberTrailers/Calendar',
+        query: {'region': region, 'days': days},
+        timeout: const Duration(seconds: 90),
+      );
       final items = (json as Map)['items'] as List?;
       return items?.map((e) => (e as Map).cast<String, dynamic>()).toList();
     } on ApiException catch (e) {
@@ -1076,14 +1188,21 @@ class JellyfinClient {
 
   /// TMDB ids of every movie and series in the library, as "movie:123" / "tv:456".
   Future<Map<String, JfItem>> libraryByTmdb() async {
-    final list = _items(await _send('GET', '/Items', query: {
-      'userId': userId,
-      'recursive': true,
-      'includeItemTypes': 'Movie,Series',
-      'fields': 'ProviderIds',
-      'enableImages': false,
-      'enableUserData': false,
-    }, timeout: const Duration(seconds: 60)));
+    final list = _items(
+      await _send(
+        'GET',
+        '/Items',
+        query: {
+          'userId': userId,
+          'recursive': true,
+          'includeItemTypes': 'Movie,Series',
+          'fields': 'ProviderIds',
+          'enableImages': false,
+          'enableUserData': false,
+        },
+        timeout: const Duration(seconds: 60),
+      ),
+    );
     return {
       for (final it in list)
         if (it.tmdbId != null) '${it.isSeries ? 'tv' : 'movie'}:${it.tmdbId}': it,

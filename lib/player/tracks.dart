@@ -7,6 +7,7 @@ library;
 
 import '../api/jellyfin.dart';
 import '../state/app_state.dart';
+import '../util/log.dart';
 
 /// Languages with two three-letter codes (files use either; Settings stores the first), and the
 /// two-letter codes some files carry instead.
@@ -83,7 +84,8 @@ bool langMatch(String? a, String? b) {
   return x != null && y != null && x == y;
 }
 
-String _describe(Map<String, dynamic> s) => '${s['Profile'] ?? ''} ${s['DisplayTitle'] ?? ''} ${s['Title'] ?? ''}'.toLowerCase();
+String _describe(Map<String, dynamic> s) =>
+    '${s['Profile'] ?? ''} ${s['DisplayTitle'] ?? ''} ${s['Title'] ?? ''}'.toLowerCase();
 
 /// The language of a stream: its code, or failing that a language named in its title.
 String? trackLanguage(Map<String, dynamic> s) {
@@ -122,7 +124,12 @@ int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
 /// Subtitles follow Settings › Subtitles ('off', 'foreign', 'always'): null means none.
 /// Subtitles are in [subtitleLanguage] when given (the last language picked in the player),
 /// otherwise in the preferred audio language, otherwise English.
-(int?, int?) chooseTracks(List<Map<String, dynamic>> streams, String? preferredLanguage, String subtitleMode, {String? subtitleLanguage}) {
+(int?, int?) chooseTracks(
+  List<Map<String, dynamic>> streams,
+  String? preferredLanguage,
+  String subtitleMode, {
+  String? subtitleLanguage,
+}) {
   final audio = streams.where((s) => s['Type'] == 'Audio').toList();
   if (audio.isEmpty) return (null, null);
   final defaultAudio = audio.firstWhere((s) => s['IsDefault'] == true, orElse: () => audio.first);
@@ -131,7 +138,9 @@ int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
     lang = _canonical(preferredLanguage);
   }
   // Tracks in that language; when the language isn't known, the other tracks of unknown language.
-  final sameLang = audio.where((s) => lang == null ? trackLanguage(s) == null : langMatch(trackLanguage(s), lang)).toList();
+  final sameLang = audio
+      .where((s) => lang == null ? trackLanguage(s) == null : langMatch(trackLanguage(s), lang))
+      .toList();
   final candidates = sameLang.where((s) => !_isCommentary(s)).toList();
   final pool = candidates.isNotEmpty ? candidates : sameLang;
   var chosen = pool.contains(defaultAudio) ? defaultAudio : pool.first;
@@ -147,7 +156,9 @@ int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
     _ => chosenLang != null && !langMatch(chosenLang, preferredLanguage ?? subLang),
   };
   final subs = wantSubs
-      ? streams.where((s) => s['Type'] == 'Subtitle' && langMatch(trackLanguage(s), subLang) && s['IsForced'] != true).toList()
+      ? streams
+            .where((s) => s['Type'] == 'Subtitle' && langMatch(trackLanguage(s), subLang) && s['IsForced'] != true)
+            .toList()
       : const <Map<String, dynamic>>[];
 
   return (audio.length > 1 ? _indexOf(chosen) : null, subs.isEmpty ? null : _indexOf(subs.first));
@@ -182,7 +193,13 @@ class PlaybackPlan {
   final int? subtitleIndex;
   final int? maxBitrate;
   final List<Map<String, dynamic>> streams;
-  const PlaybackPlan({this.mediaSourceId, this.audioIndex, this.subtitleIndex, this.maxBitrate, this.streams = const []});
+  const PlaybackPlan({
+    this.mediaSourceId,
+    this.audioIndex,
+    this.subtitleIndex,
+    this.maxBitrate,
+    this.streams = const [],
+  });
 }
 
 /// Picks the version, soundtrack, subtitles and bitrate for [item] before anything is asked of
@@ -196,14 +213,27 @@ Future<PlaybackPlan> planPlayback(AppState app, JfItem item, {String? qualityKey
   if (sources.isEmpty) {
     try {
       sources = (await jf.item(item.id)).mediaSources;
-    } catch (_) {}
+    } catch (e) {
+      logWarning('versions of ${item.id}', e);
+    }
   }
   final msid = pickMediaSource(sources, app.preferredAudioLanguage);
   final streams = streamsOf(sources, msid);
-  final (audio, sub) = chooseTracks(streams, app.preferredAudioLanguage, app.subtitleMode, subtitleLanguage: app.preferredSubtitleLanguage);
+  final (audio, sub) = chooseTracks(
+    streams,
+    app.preferredAudioLanguage,
+    app.subtitleMode,
+    subtitleLanguage: app.preferredSubtitleLanguage,
+  );
   final src = sources.where((s) => s['Id'] == msid).firstOrNull;
   final bitrate = await app.maxBitrateFor((src?['Bitrate'] as num?)?.toInt(), qualityKey: key);
-  return PlaybackPlan(mediaSourceId: msid, audioIndex: audio, subtitleIndex: sub, maxBitrate: bitrate, streams: streams);
+  return PlaybackPlan(
+    mediaSourceId: msid,
+    audioIndex: audio,
+    subtitleIndex: sub,
+    maxBitrate: bitrate,
+    streams: streams,
+  );
 }
 
 /// The code Settings › Preferred audio language uses for [lang] ('fre' rather than 'fra').

@@ -27,10 +27,10 @@ Future<({String text, bool submitted})?> editOnAppleTv(
       'keyboard': keyboard == TextInputType.url
           ? 'url'
           : keyboard == TextInputType.number
-              ? 'number'
-              : keyboard == TextInputType.emailAddress
-                  ? 'email'
-                  : 'text',
+          ? 'number'
+          : keyboard == TextInputType.emailAddress
+          ? 'email'
+          : 'text',
     });
     if (r == null) return null;
     final newText = r['text'] as String? ?? text;
@@ -127,7 +127,10 @@ class _TvKeyboardState extends State<_TvKeyboard> {
 
     Widget row(List<Widget> children) => Row(
       children: [
-        for (var i = 0; i < children.length; i++) ...[if (i > 0) SizedBox(width: context.px(8)), Expanded(child: children[i])],
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) SizedBox(width: context.px(8)),
+          Expanded(child: children[i]),
+        ],
       ],
     );
 
@@ -166,7 +169,9 @@ class _TvKeyboardState extends State<_TvKeyboard> {
                       mainAxisSpacing: context.px(8),
                       crossAxisSpacing: context.px(8),
                       childAspectRatio: 1.45,
-                      children: [for (var i = 0; i < keys.length; i++) key(keys[i], () => _type(keys[i]), first: i == 0)],
+                      children: [
+                        for (var i = 0; i < keys.length; i++) key(keys[i], () => _type(keys[i]), first: i == 0),
+                      ],
                     ),
                     SizedBox(height: context.px(8)),
                     if (_isUrl) ...[
@@ -206,7 +211,11 @@ class _TvKeyboardState extends State<_TvKeyboard> {
                     SizedBox(height: context.px(20)),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: EmberButton(label: 'Done', kind: BtnKind.primary, onTap: () => Navigator.of(context).pop(_text)),
+                      child: EmberButton(
+                        label: 'Done',
+                        kind: BtnKind.primary,
+                        onTap: () => Navigator.of(context).pop(_text),
+                      ),
                     ),
                   ],
                 ),
