@@ -156,6 +156,35 @@ void main() {
       'This has already been requested.',
     );
   });
+
+  test('because you watched: picks that are not on the server, each title once', () async {
+    final asked = <String>[];
+    final mock = MockClient((r) async {
+      asked.add(r.url.path);
+      final base = r.url.path.contains('/movie/1/') ? 10 : 12;
+      return http.Response(
+          jsonEncode({
+            'results': [
+              for (var i = base; i < base + 5; i++) {'id': i, 'title': 'T$i'},
+              {'id': 99, 'title': 'On the server', 'mediaInfo': {'status': 5}},
+              {'id': 2, 'title': 'Watched already'},
+            ]
+          }),
+          200);
+    });
+    final rows = await http.runWithClient(() {
+      final s = SeerrClient(baseUrl: 'http://seerr.test', apiKey: 'k');
+      return becauseYouWatched(s, [
+        (title: 'First', mediaType: 'movie', tmdbId: 1),
+        (title: 'Second', mediaType: 'movie', tmdbId: 2),
+      ], skip: {'movie:11'});
+    }, () => mock);
+    expect(asked, ['/api/v1/movie/1/recommendations', '/api/v1/movie/2/recommendations']);
+    // 11 is skipped, 99 is on the server, 2 was watched. The second row would only have 15 and 16
+    // (12–14 are in the first), too few to show.
+    expect(rows.map((r) => r.$1), ['Because you watched First']);
+    expect(rows[0].$2.map((m) => m.id), [10, 12, 13, 14]);
+  });
 }
 
 ApiException _api(int status, String message) => ApiException(status, message);

@@ -36,6 +36,37 @@ String requestErrorText(Object e) {
   return text;
 }
 
+/// A title the person watched lately, to base "Because you watched" picks on.
+typedef WatchedTitle = ({String title, String mediaType, int tmdbId});
+
+/// "Because you watched …" rows: for each recently watched title (newest first), Seerr's
+/// recommendations that aren't on the server yet. No title shows twice, nor anything in [skip]
+/// ("movie:123" keys); a row with fewer than [minPerRow] picks is left out.
+Future<List<(String, List<SeerrMedia>)>> becauseYouWatched(
+  SeerrClient seerr,
+  List<WatchedTitle> watched, {
+  int rows = 3,
+  int perRow = 15,
+  int minPerRow = 4,
+  Set<String> skip = const {},
+}) async {
+  final seen = {...skip, for (final w in watched) '${w.mediaType}:${w.tmdbId}'};
+  final lists = await Future.wait(watched.take(rows + 2).map(
+      (w) => seerr.recommendations(w.mediaType, w.tmdbId).catchError((_) => <SeerrMedia>[])));
+  final out = <(String, List<SeerrMedia>)>[];
+  for (var i = 0; i < lists.length && out.length < rows; i++) {
+    final picks = <SeerrMedia>[];
+    for (final m in lists[i]) {
+      if (picks.length >= perRow) break;
+      if (m.isAvailable || m.status == MediaStatus.partiallyAvailable) continue;
+      if (!seen.add('${m.mediaType}:${m.id}')) continue;
+      picks.add(m);
+    }
+    if (picks.length >= minPerRow) out.add(('Because you watched ${watched[i].title}', picks));
+  }
+  return out;
+}
+
 /// A movie or series as Seerr describes it (from TMDB).
 class SeerrMedia {
   final Map<String, dynamic> raw;
@@ -461,6 +492,15 @@ class SeerrClient {
 
   Future<List<SeerrMedia>> similar(String mediaType, int tmdbId) async {
     final json = await _send('GET', mediaType == 'tv' ? '/tv/$tmdbId/similar' : '/movie/$tmdbId/similar');
+    return _results(json).map((m) {
+      m.raw['mediaType'] ??= mediaType;
+      return m;
+    }).toList();
+  }
+
+  /// TMDB's "if you liked this, try…" picks for a title.
+  Future<List<SeerrMedia>> recommendations(String mediaType, int tmdbId) async {
+    final json = await _send('GET', mediaType == 'tv' ? '/tv/$tmdbId/recommendations' : '/movie/$tmdbId/recommendations');
     return _results(json).map((m) {
       m.raw['mediaType'] ??= mediaType;
       return m;

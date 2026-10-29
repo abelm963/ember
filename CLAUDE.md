@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `flutter analyze` → only 2 known info-level lints are expected.
-- `flutter test` → 33 tests, all should pass. They use a mock server through `http.runWithClient`
+- `flutter test` → 34 tests, all should pass. They use a mock server through `http.runWithClient`
   (see `test/screens_test.dart`); add routes there when a screen calls a new endpoint.
 - **Update Ember.bat** = kill `ember.exe` → `flutter build windows --release` → start
   `build\windows\x64\runner\Release\ember.exe`. This is how the owner runs the app.
@@ -82,6 +82,9 @@ Working:
   `seerr.dart`, tested in `test/seerr_test.dart`) puts approval first (Pending/Declined/Failed), then follows the
   copy it asked for: the 4K copy for 4K requests, only the requested seasons for series. 4K is offered only when
   Seerr has 4K set up and the account may ask for it (`AppState.canRequest4k`).
+- Home: "Because you watched …" rows (up to 3) of Seerr titles that aren't on the server yet, from TMDB's
+  recommendations for the titles watched most recently (`becauseYouWatched` in `seerr.dart`,
+  `_recentlyWatched` in `home.dart`; Settings › Seerr can turn them off).
 - The Coming Soon calendar (from Seerr, or the optional plugin when a server has it).
 - Skeleton loading on title pages.
 

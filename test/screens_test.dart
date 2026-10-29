@@ -121,6 +121,13 @@ http.Client mockClient() => MockClient((req) async {
             {'id': 6, 'mediaType': 'movie', 'title': 'Ashfall', 'mediaInfo': {'status': 2}},
           ]
         };
+      } else if (p.endsWith('/recommendations')) {
+        body = {
+          'results': [
+            for (var i = 0; i < 5; i++) {'id': 40 + i, 'title': 'Pick $i', 'backdropPath': '/p$i.jpg'},
+            {'id': 49, 'title': 'Already Here', 'mediaInfo': {'status': 5}},
+          ]
+        };
       } else if (p.endsWith('/api/v1/auth/me')) {
         body = {'id': 1, 'displayName': 'Alex', 'permissions': 2};
       } else if (p.endsWith('/api/v1/tv/5')) {
@@ -196,6 +203,7 @@ void main() {
         }
         expect(find.text('Continue Watching'), findsOneWidget);
         expect(find.text('Trending — not in your library yet', skipOffstage: false), findsOneWidget);
+        expect(find.text('Because you watched The Quiet Orbit', skipOffstage: false), findsOneWidget);
 
         // Each section of the menu.
         for (final label in ['Shows', 'Movies', 'New & Hot', 'My List', 'Requests', 'Search', 'Settings']) {

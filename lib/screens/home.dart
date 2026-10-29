@@ -21,6 +21,7 @@ class _HomeData {
   List<JfItem> nextUp = [];
   List<(String, List<JfItem>)> latest = [];
   List<SeerrMedia> trending = [];
+  List<(String, List<SeerrMedia>)> becauseYouWatched = [];
   List<JfItem> favorites = [];
 }
 
@@ -61,6 +62,12 @@ class _HomeScreenState extends State<HomeScreen> {
     d.favorites = results[2] as List<JfItem>;
     d.trending = (results[3] as List<SeerrMedia>).where((m) => !m.isAvailable).toList();
 
+    // "Because you watched …": runs while the library rows and the hero load.
+    final picks = app.seerrConfigured && app.showRecommendations
+        ? _recentlyWatched(jf, d.resume).then((w) => becauseYouWatched(app.seerr!, w,
+            skip: {for (final m in d.trending) '${m.mediaType}:${m.id}'})).catchError((_) => <(String, List<SeerrMedia>)>[])
+        : Future.value(<(String, List<SeerrMedia>)>[]);
+
     final libs = views.where((v) => v.collectionType == 'movies' || v.collectionType == 'tvshows').toList();
     final latest = await Future.wait(libs.map((v) => jf.latest(parentId: v.id).catchError((_) => <JfItem>[])));
     for (var i = 0; i < libs.length; i++) {
@@ -77,7 +84,29 @@ class _HomeScreenState extends State<HomeScreen> {
       d.hero = await jf.item(pick.id).catchError((_) => pick);
       if (mounted) await warmImages(context, [jf.logoImage(d.hero!), jf.backdropImage(d.hero!)]);
     }
+    d.becauseYouWatched = await picks;
     return d;
+  }
+
+  /// The movies and shows watched most recently (in progress first, then finished), as TMDB ids.
+  static Future<List<WatchedTitle>> _recentlyWatched(JellyfinClient jf, List<JfItem> resume) async {
+    final played = await jf
+        .items(types: const ['Movie', 'Episode'], sortBy: 'DatePlayed', sortOrder: 'Descending', filters: 'IsPlayed', limit: 40)
+        .catchError((_) => <JfItem>[]);
+    final out = <WatchedTitle>[];
+    final seen = <String>{};
+    for (final it in [...resume, ...played]) {
+      if (out.length >= 5) break;
+      if (!it.isMovie && !it.isEpisode) continue;
+      final id = it.isEpisode ? it.seriesId : it.id;
+      if (id == null || !seen.add(id)) continue;
+      // An episode's TMDB id is the episode's; the show's is on the series.
+      final title = it.isEpisode ? await jf.item(id).catchError((_) => it) : it;
+      final tmdb = int.tryParse(title.tmdbId ?? '');
+      if (tmdb == null || !(title.isMovie || title.isSeries)) continue;
+      out.add((title: title.name, mediaType: title.isSeries ? 'tv' : 'movie', tmdbId: tmdb));
+    }
+    return out;
   }
 
   @override
@@ -127,6 +156,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
+          for (final (title, picks) in d.becauseYouWatched)
+            MediaRow(
+              title: title,
+              note: 'from Seerr',
+              tileHeight: 216,
+              children: [
+                for (final m in picks)
+                  MediaTile(
+                    title: m.title,
+                    imageUrl: m.backdropUrl,
+                    badge: m.isRequested ? 'Requested' : 'Not on server',
+                    badgeAlt: m.isRequested,
+                    onTap: () => openSeerr(context, m),
+                  ),
+              ],
+            ),
           if (d.trending.isNotEmpty)
             MediaRow(
               title: 'Trending — not in your library yet',
@@ -204,23 +249,12 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'Next Up',
         entries: [for (final it in d.nextUp) posterEntry(context, jf, it, onTap: () => play(context, it), resume: true)],
       ),
+      for (final (title, picks) in d.becauseYouWatched)
+        PosterRow(title: title, entries: [for (final m in picks) seerrEntry(context, m)]),
       if (d.trending.isNotEmpty)
         PosterRow(
           title: 'Trending — not in your library yet',
-          entries: [
-            for (final m in d.trending)
-              PosterEntry(
-                title: m.title,
-                poster: m.posterUrl,
-                wide: m.backdropUrl,
-                backdrop: m.backdropUrl,
-                badge: m.isRequested ? 'Requested' : null,
-                badgeAlt: true,
-                overview: m.overview,
-                meta: [if (m.year != null) '${m.year}'],
-                onTap: () => openSeerr(context, m),
-              ),
-          ],
+          entries: [for (final m in d.trending) seerrEntry(context, m)],
         ),
       for (final (title, items) in d.latest)
         PosterRow(title: title, entries: [for (final it in items) posterEntry(context, jf, it, onTap: () => openItem(context, it))]),
@@ -382,6 +416,19 @@ PosterEntry posterEntry(BuildContext context, JellyfinClient jf, JfItem it, {req
     onTap: onTap,
   );
 }
+
+/// The poster-row entry for a Seerr title that isn't on the server: opening it offers Request.
+PosterEntry seerrEntry(BuildContext context, SeerrMedia m) => PosterEntry(
+      title: m.title,
+      poster: m.posterUrl,
+      wide: m.backdropUrl,
+      backdrop: m.backdropUrl,
+      badge: m.isRequested ? 'Requested' : null,
+      badgeAlt: true,
+      overview: m.overview,
+      meta: [m.isTv ? 'Series' : 'Film', if (m.year != null) '${m.year}', 'Not on your server yet'],
+      onTap: () => openSeerr(context, m),
+    );
 
 /// "Series · Drama · 2026 · 5 Seasons" for a movie or series.
 List<String> metaParts(JfItem it) => [

@@ -217,6 +217,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: (v) => app.update((s) => s.showTrendingRow = v),
       ),
       ToggleRow(
+        label: 'Show "Because you watched…" picks from Seerr on Home',
+        value: app.showRecommendations,
+        onChanged: (v) => app.update((s) => s.showRecommendations = v),
+      ),
+      ToggleRow(
         label: 'Show my requests in My List',
         value: app.addRequestsToMyList,
         onChanged: (v) => app.update((s) => s.addRequestsToMyList = v),

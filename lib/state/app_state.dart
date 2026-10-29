@@ -122,6 +122,9 @@ class AppState extends ChangeNotifier {
   /// of Ember's player.
   bool useApplePlayer = false;
   bool showTrendingRow = true;
+
+  /// Home shows "Because you watched …" rows of Seerr titles that aren't on the server yet.
+  bool showRecommendations = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
   String? preferredAudioLanguage;
@@ -204,6 +207,7 @@ class AppState extends ChangeNotifier {
     stillWatchingEpisodes = _prefs.getInt('stillWatchingEpisodes') ?? 3;
     useApplePlayer = _prefs.getBool('useApplePlayer') ?? false;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
+    showRecommendations = _prefs.getBool('showRecommendations') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
     preferredAudioLanguage = _prefs.getString('preferredAudioLanguage');
@@ -297,6 +301,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setInt('stillWatchingEpisodes', stillWatchingEpisodes);
     await _prefs.setBool('useApplePlayer', useApplePlayer);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
+    await _prefs.setBool('showRecommendations', showRecommendations);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);
     await _prefs.setString('subtitleMode', subtitleMode);
