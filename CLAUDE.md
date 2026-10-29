@@ -60,6 +60,11 @@ Play / More Info and its muted preview. `PosterRow`s inside it report focus thro
 Movies and Shows have a Genres picker and Sort at the top and a Top 10 row with big numbers
 (`PosterEntry.rank`).
 
+Page headers (TV and desktop): every top-level page uses `PageHeader` (`lib/ui/browse.dart`): the title,
+then one fixed line of tabs | filters (pills) | a short note, always at `PageHeader.top`. Discover's tabs,
+Coming Soon's filters, Explore's Movies/Shows/Genres, Movies/Shows' Genres/Sort, Requests and My List all
+sit there, so switching tabs never moves the heading.
+
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
 uses a bottom tab bar. Every interactive element goes through `Focusable`, so the remote, the mouse
 and touch all work.

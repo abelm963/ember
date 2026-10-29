@@ -8,6 +8,53 @@ import 'widgets.dart';
 // The TV / desktop browsing pieces: pill buttons, the vertical action list on title pages, and
 // poster rows whose focused poster widens into a picture with its details underneath.
 
+/// The top of a page on TV and desktop: its name, then one line with its tabs and its filters
+/// (split by a thin bar). Every page uses it in the same place ([PageHeader.top] below the top of
+/// the screen, the page gutter from the left), so the name and the pills never move when
+/// switching pages or tabs. The line is there even when empty.
+class PageHeader extends StatelessWidget {
+  final String title;
+  final List<Widget> tabs;
+  final List<Widget> filters;
+  final String? note;
+  const PageHeader({super.key, required this.title, this.tabs = const [], this.filters = const [], this.note});
+
+  /// Where the page name starts, from the top of the screen (the menu bar is 100 high).
+  static const top = 110.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final gap = SizedBox(width: context.px(12));
+    return FocusTraversalGroup(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text(title, maxLines: 1, style: display(context.px(52), height: 1.1)),
+        SizedBox(height: context.px(14)),
+        SizedBox(
+          height: context.px(48),
+          child: Row(children: [
+            for (final t in tabs) ...[t, gap],
+            if (tabs.isNotEmpty && filters.isNotEmpty)
+              Container(
+                width: context.px(2),
+                height: context.px(28),
+                margin: EdgeInsets.symmetric(horizontal: context.px(12)),
+                color: const Color(0x33FFFFFF),
+              ),
+            for (final f in filters) ...[f, gap],
+            if (note != null)
+              Flexible(
+                child: Padding(
+                  padding: EdgeInsets.only(left: context.px(8)),
+                  child: Text(note!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(20), color: C.faint)),
+                ),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
 /// A rounded button: translucent when idle, white when focused or hovered.
 class PillButton extends StatelessWidget {
   final String label;
@@ -640,12 +687,22 @@ class _BillboardState extends State<Billboard> {
           top: 0,
           height: topH,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(pad, context.px(110), pad, context.px(20)),
+            padding: EdgeInsets.fromLTRB(pad, context.px(PageHeader.top), pad, context.px(20)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (widget.header != null) widget.header!,
-                const Spacer(),
+                // The details shrink a little rather than overflow when the header is taller.
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.bottomLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                 if (e != null)
                   SizedBox(
                     width: context.px(820),
@@ -677,6 +734,11 @@ class _BillboardState extends State<Billboard> {
                     ),
                   ),
                 ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

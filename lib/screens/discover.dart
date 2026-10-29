@@ -204,21 +204,22 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         if (_genre != null && !_kind.types.any((t) => _genre!.idFor(t) != null)) _genre = null;
       });
 
-  /// "Discover" with the tabs along the top. On Explore a second line holds the filters, as on
-  /// the big streaming apps: Movies and Shows toggles, and Genres, which opens a list to pick one.
-  Widget _tvHeader(BuildContext context) => FocusTraversalGroup(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(14), runSpacing: context.px(10), children: [
-            Padding(
-              padding: EdgeInsets.only(right: context.px(10)),
-              child: Text('Discover', style: display(context.px(52))),
-            ),
-            for (final (i, t) in _visibleTabs.indexed)
-              PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
-          ]),
-          if (_tab == 2) ...[
-            SizedBox(height: context.px(16)),
-            Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(14), runSpacing: context.px(10), children: [
+  String _soonFilter = 'All';
+
+  /// The page header: Discover, its three tabs, and the filters of the open tab after them.
+  Widget _tvHeader(BuildContext context) => PageHeader(
+        title: 'Discover',
+        tabs: [
+          for (final (i, t) in _visibleTabs.indexed)
+            PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
+        ],
+        filters: switch (_tab) {
+          1 => [
+              for (final f in ComingSoonView.filters)
+                PillButton(
+                    label: f, compact: true, scrollIntoView: false, selected: _soonFilter == f, onTap: () => setState(() => _soonFilter = f)),
+            ],
+          2 => [
               PillButton(
                   label: 'Movies',
                   compact: true,
@@ -238,24 +239,22 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   scrollIntoView: false,
                   selected: _genre != null,
                   onTap: _pickGenre),
-              Text('Not on your server yet', style: body(context.px(20), color: C.faint)),
-            ]),
-          ],
-        ]),
+            ],
+          _ => const [],
+        },
       );
 
   Widget _tvBuild(BuildContext context, AppState app) {
     final jf = app.jf!;
     final header = _tvHeader(context);
     if (_tab == 1) {
-      // The calendar is a list of its own; it starts below the menu bar.
-      return Padding(
-        padding: EdgeInsets.only(top: context.px(100)),
-        child: ComingSoonView(
-          key: const ValueKey('soon'),
-          header: Padding(
-              padding: EdgeInsets.fromLTRB(context.px(gutter(context)), 0, context.px(gutter(context)), context.px(30)), child: header),
-        ),
+      // The calendar is a list of its own, with the same header in the same place.
+      return ComingSoonView(
+        key: const ValueKey('soon'),
+        top: PageHeader.top,
+        filter: _soonFilter,
+        header: Padding(
+            padding: EdgeInsets.fromLTRB(context.px(gutter(context)), 0, context.px(gutter(context)), context.px(30)), child: header),
       );
     }
     PosterEntry libEntry(JfItem it) => posterEntry(context, jf, it,

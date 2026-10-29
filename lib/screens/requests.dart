@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../api/seerr.dart';
 import '../state/app_state.dart';
+import '../ui/browse.dart' show PageHeader, PillButton;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
@@ -24,6 +25,7 @@ class RequestsScreen extends StatefulWidget {
 
 class _RequestsScreenState extends State<RequestsScreen> {
   String _filter = 'All';
+  static const _filters = ['All', 'Pending', 'Approved', 'Available', 'Declined'];
   int _reload = 0;
   int _take = 50;
   static final Map<String, SeerrMedia> _cache = {};
@@ -87,22 +89,33 @@ class _RequestsScreenState extends State<RequestsScreen> {
         final shown = rows.where((r) => _filter == 'All' || r.req.filterKey == _filter).toList();
         return ListView(
           scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
-          padding: EdgeInsets.fromLTRB(pad, context.px(app.isTv ? 60 : 30), pad, context.px(80)),
+          // TV and desktop: the page header sits where every page has it (just under the menu bar).
+          padding: EdgeInsets.fromLTRB(pad, context.px(app.isPhone ? 30 : PageHeader.top - 100), pad, context.px(80)),
           children: [
-            Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(24), children: [
-              Text('Requests', style: display(context.px(72))),
-              Padding(
-                padding: EdgeInsets.only(bottom: context.px(8)),
-                child: Text(app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests', style: body(context.px(22), color: C.faint)),
-              ),
-            ]),
-            SizedBox(height: context.px(24)),
-            FocusTraversalGroup(
-              child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-                for (final f in const ['All', 'Pending', 'Approved', 'Available', 'Declined'])
-                  Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+            if (app.isPhone) ...[
+              Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(24), children: [
+                Text('Requests', style: display(context.px(72))),
+                Padding(
+                  padding: EdgeInsets.only(bottom: context.px(8)),
+                  child: Text(app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests',
+                      style: body(context.px(22), color: C.faint)),
+                ),
               ]),
-            ),
+              SizedBox(height: context.px(24)),
+              FocusTraversalGroup(
+                child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
+                  for (final f in _filters) Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                ]),
+              ),
+            ] else
+              PageHeader(
+                title: 'Requests',
+                filters: [
+                  for (final f in _filters)
+                    PillButton(label: f, compact: true, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                ],
+                note: app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests',
+              ),
             SizedBox(height: context.px(28)),
             if (shown.isEmpty) Text('No requests here.', style: body(context.px(24), color: C.faint)),
             for (final r in shown) _RequestRow(row: r, canManage: app.canManageRequests, onAct: _act),

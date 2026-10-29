@@ -85,14 +85,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final jf = app.jf!;
     final s = _sorts[_sort];
     final title = widget.kind == LibraryKind.movies ? 'Movies' : 'Shows';
-    final header = FocusTraversalGroup(
-      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(18), runSpacing: context.px(10), children: [
-        Text(title, style: display(context.px(52))),
+    final header = PageHeader(
+      title: title,
+      filters: [
         PillButton(
-            label: _genre ?? 'All genres', icon: Icons.keyboard_arrow_down_rounded, compact: true, scrollIntoView: false, onTap: _pickGenre),
+            label: _genre ?? 'Genres',
+            icon: Icons.keyboard_arrow_down_rounded,
+            compact: true,
+            scrollIntoView: false,
+            selected: _genre != null,
+            onTap: _pickGenre),
         PillButton(label: 'Sort: ${s.label}', compact: true, scrollIntoView: false, onTap: _pickSort),
-        if (_count != null) Text('$_count in your library', style: body(context.px(20), color: C.faint)),
-      ]),
+      ],
+      note: _count != null ? '$_count in your library' : null,
     );
     PosterEntry entry(JfItem it, {int? rank}) {
       final e = posterEntry(context, jf, it, onTap: () => openItem(context, it));

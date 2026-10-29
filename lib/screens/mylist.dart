@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
 import '../state/app_state.dart';
+import '../ui/browse.dart' show PageHeader;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
@@ -47,18 +48,25 @@ class MyListScreen extends StatelessWidget {
       load: () => _load(app),
       builder: (context, d) => ListView(
         scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
-        padding: EdgeInsets.fromLTRB(pad, context.px(app.isPhone ? 30 : 60), pad, context.px(80)),
+        // TV and desktop: the page header sits where every page has it (just under the menu bar).
+        padding: EdgeInsets.fromLTRB(pad, context.px(app.isPhone ? 30 : PageHeader.top - 100), pad, context.px(80)),
         children: [
-          Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(28), children: [
-            Text('My List', style: display(context.px(72))),
-            Padding(
-              padding: EdgeInsets.only(bottom: context.px(10)),
-              child: Text(
-                '${d.favorites.length + d.arriving.length} titles · requests you make are added here automatically',
-                style: body(context.px(24), color: C.faint),
+          if (app.isPhone)
+            Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: context.px(28), children: [
+              Text('My List', style: display(context.px(72))),
+              Padding(
+                padding: EdgeInsets.only(bottom: context.px(10)),
+                child: Text(
+                  '${d.favorites.length + d.arriving.length} titles · requests you make are added here automatically',
+                  style: body(context.px(24), color: C.faint),
+                ),
               ),
+            ])
+          else
+            PageHeader(
+              title: 'My List',
+              note: '${d.favorites.length + d.arriving.length} titles · requests you make are added here automatically',
             ),
-          ]),
           SizedBox(height: context.px(30)),
           if (d.favorites.isEmpty && d.arriving.isEmpty)
             Text('Nothing here yet. Use "My List" on any title to add it.', style: body(context.px(24), color: C.muted)),

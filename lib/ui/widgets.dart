@@ -648,7 +648,8 @@ class _MediaRowState extends State<MediaRow> {
 /// Left/right page margin in design units, per form factor.
 double gutter(BuildContext context) {
   final app = context.read<AppState>();
-  return switch (app.formFactor) { FormFactor.tv => 160, FormFactor.desktop => 160, FormFactor.phone => 40 };
+  // TV and desktop line up with the menu bar and the billboard pages.
+  return switch (app.formFactor) { FormFactor.tv => 60, FormFactor.desktop => 60, FormFactor.phone => 40 };
 }
 
 // ======================================================================

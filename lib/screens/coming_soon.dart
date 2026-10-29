@@ -97,9 +97,18 @@ String _when(DateTime day) {
 /// The "Coming Soon" release calendar: everything releasing in the next few months, day by day,
 /// with Request on titles that aren't on the server so they arrive the day they're out.
 class ComingSoonView extends StatefulWidget {
-  /// Shown above the calendar (the New & Hot title and tabs), so it scrolls with the list.
+  /// Shown above the calendar (the Discover title and tabs), so it scrolls with the list.
   final Widget header;
-  const ComingSoonView({super.key, required this.header});
+
+  /// All, Movies, Shows or Your shows, when the header holds the filters; otherwise the
+  /// calendar shows its own filter chips.
+  final String? filter;
+
+  /// Space above the header, in design units (TV and desktop: where [PageHeader] sits).
+  final double? top;
+  const ComingSoonView({super.key, required this.header, this.filter, this.top});
+
+  static const filters = ['All', 'Movies', 'Shows', 'Your shows'];
   @override
   State<ComingSoonView> createState() => _ComingSoonViewState();
 }
@@ -218,7 +227,7 @@ class _ComingSoonViewState extends State<ComingSoonView> {
     return Loader<List<_Release>>(
       deps: '${app.revision}-$_reload',
       load: () => _load(app),
-      placeholder: ListView(padding: EdgeInsets.only(top: context.px(app.isPhone ? 30 : 60)), children: [
+      placeholder: ListView(padding: EdgeInsets.only(top: context.px(widget.top ?? (app.isPhone ? 30 : 60))), children: [
         widget.header,
         SkeletonPulse(
           child: Padding(
@@ -253,8 +262,9 @@ class _ComingSoonViewState extends State<ComingSoonView> {
         ),
       ]),
       builder: (context, all) {
-        final filters = ['All', 'Movies', 'Shows', 'Your shows'];
-        final shown = all.where((r) => r.matches(_filter)).toList();
+        const filters = ComingSoonView.filters;
+        final filter = widget.filter ?? _filter;
+        final shown = all.where((r) => r.matches(filter)).toList();
         // Group by day.
         final days = <DateTime, List<_Release>>{};
         for (final r in shown) {
@@ -263,7 +273,7 @@ class _ComingSoonViewState extends State<ComingSoonView> {
         final entries = days.entries.toList();
         return ListView.builder(
           scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
-          padding: EdgeInsets.only(top: context.px(app.isPhone ? 30 : 60), bottom: context.px(80)),
+          padding: EdgeInsets.only(top: context.px(widget.top ?? (app.isPhone ? 30 : 60)), bottom: context.px(80)),
           itemCount: entries.length + 1,
           itemBuilder: (context, i) {
             if (i == 0) {
@@ -278,13 +288,15 @@ class _ComingSoonViewState extends State<ComingSoonView> {
                           : 'What\'s coming in the next four months. Connect Seerr in Settings to request titles ahead of time.',
                       style: body(context.px(23), color: C.faint),
                     ),
-                    SizedBox(height: context.px(24)),
-                    FocusTraversalGroup(
-                      child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-                        for (final f in filters)
-                          Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
-                      ]),
-                    ),
+                    if (widget.filter == null) ...[
+                      SizedBox(height: context.px(24)),
+                      FocusTraversalGroup(
+                        child: Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
+                          for (final f in filters)
+                            Chip2(label: f, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                        ]),
+                      ),
+                    ],
                     SizedBox(height: context.px(36)),
                     if (entries.isEmpty) Text('Nothing scheduled here yet.', style: body(context.px(24), color: C.faint)),
                   ]),
