@@ -150,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: body(context.px(25), weight: FontWeight.w600, color: active ? const Color(0xFF111111) : C.text)),
                 ),
                 Text(a.userId == app.currentUserId ? 'Watching now' : (a.isAdmin ? 'Admin' : 'Switch'),
-                    style: body(context.px(21), color: active ? const Color(0xFF444444) : C.faint)),
+                    style: body(context.px(21), weight: FontWeight.w600, color: active ? const Color(0xFF2E2E2E) : C.faint)),
               ]),
             ),
           ),
@@ -180,32 +180,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
                 ok
                     ? 'Connected to Seerr'
-                    : app.seerrUrl == null
-                        ? 'Seerr is not set up'
-                        : 'Seerr address saved, not signed in',
+                    : app.seerrSearching
+                        ? 'Looking for Seerr…'
+                        : app.seerrUrl == null
+                            ? 'Seerr is not set up'
+                            : 'Seerr found, not signed in',
                 style: body(context.px(28), weight: FontWeight.w700)),
             Text(
               ok
                   ? '${app.seerrUrl} · signed in as ${user['displayName'] ?? user['jellyfinUsername'] ?? 'you'}${app.canManageRequests ? ' · can approve requests' : ''}'
-                  : app.seerrUrl == null
-                      ? 'Add the address you open Seerr with. Ember signs you in with your Jellyfin profile.'
-                      : (app.seerrError ?? 'Signing in…'),
+                  : app.seerrSearching
+                      ? 'Ember is finding Seerr on your server and will sign you in with your Jellyfin profile.'
+                      : (app.seerrError ??
+                          (app.seerrUrl == null
+                              ? 'Ember finds Seerr on your server and signs you in with your Jellyfin profile.'
+                              : 'Signing in with your Jellyfin profile…')),
               style: body(context.px(21), color: !ok && app.seerrError != null ? C.bad : C.faint),
             ),
           ]),
         ),
       ]),
+      if (!ok)
+        SettingRow(
+          label: app.seerrUrl == null ? 'Set up Seerr automatically' : 'Sign in with my Jellyfin profile',
+          value: app.seerrSearching ? 'Looking…' : 'Start',
+          onTap: app.seerrSearching ? () {} : () => _seerrSetUp(context, app),
+        ),
       SettingRow(label: 'Seerr address', value: app.seerrUrl ?? 'Not set', onTap: () => _editSeerr(context, app)),
-      SettingRow(
-        label: 'Sign in to Seerr',
-        value: ok ? 'Signed in' : 'Sign in',
-        onTap: app.seerrUrl == null ? () => toast(context, 'Add the Seerr address first.') : () => _seerrSignIn(context, app),
-      ),
-      SettingRow(
-        label: 'Check connection',
-        value: 'Run test',
-        onTap: app.seerrUrl == null ? () => toast(context, 'Add the Seerr address first.') : () => _seerrCheck(context, app),
-      ),
+      if (app.seerrUrl != null) ...[
+        if (!ok)
+          SettingRow(label: 'Sign in with a password instead', value: 'Jellyfin password', onTap: () => _seerrSignIn(context, app)),
+        SettingRow(label: 'Check connection', value: 'Run test', onTap: () => _seerrCheck(context, app)),
+      ],
       SettingRow(
         label: 'API key (optional)',
         value: app.seerrApiKey == null ? 'Not set' : 'Saved',
@@ -527,12 +533,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final url = TextEditingController(text: app.seerrUrl ?? '');
     final key = TextEditingController(text: app.seerrApiKey ?? '');
     String? error;
+    Future<void> Function()? save;
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => _EmberDialog(title: apiKeyOnly ? 'Seerr API key' : 'Seerr address', children: [
           if (!apiKeyOnly) ...[
-            EmberField(label: 'Address', controller: url, autofocus: true, hint: 'http://192.168.1.20:5055', keyboard: TextInputType.url),
+            Text('Only needed if Ember can\'t find Seerr by itself.', style: body(ctx.px(21), color: C.faint, height: 1.4)),
+            SizedBox(height: ctx.px(20)),
+            EmberField(
+              label: 'Address',
+              controller: url,
+              autofocus: true,
+              hint: 'http://192.168.1.20:5055',
+              keyboard: TextInputType.url,
+              onSubmitted: (_) => save?.call(),
+            ),
             SizedBox(height: ctx.px(20)),
           ],
           if (apiKeyOnly) ...[
@@ -551,7 +567,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             EmberButton(
               label: 'Save',
               kind: BtnKind.accent,
-              onTap: () async {
+              onTap: save = () async {
                 var u = apiKeyOnly ? (app.seerrUrl ?? '') : SeerrClient.normalize(url.text);
                 if (u.isNotEmpty && !apiKeyOnly && !await SeerrClient(baseUrl: u).ping()) {
                   // Try the bare server address too, in case a page path was left on the link.
@@ -637,16 +653,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     refresh = null;
   }
 
-  Future<void> _seerrSignIn(BuildContext context, AppState app) async {
-    // First try without a password (Jellyfin Quick Connect, approved by this profile).
+  /// Finds Seerr (if this device doesn't know it yet) and signs in with the Jellyfin profile.
+  Future<void> _seerrSetUp(BuildContext context, AppState app) async {
+    if (app.seerrUrl == null && !await app.findSeerr()) return;
     if (await app.seerrAutoSignIn(force: true)) {
       await app.refreshSeerr();
-      if (context.mounted && app.seerrUser != null) {
-        toast(context, 'Signed in to Seerr');
-        return;
-      }
+      if (context.mounted && app.seerrUser != null) toast(context, 'Signed in to Seerr');
     }
-    if (!context.mounted) return;
+  }
+
+  Future<void> _seerrSignIn(BuildContext context, AppState app) async {
     final user = TextEditingController(text: app.account?.name ?? '');
     final pass = TextEditingController();
     String? error;
@@ -655,7 +671,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => _EmberDialog(title: 'Sign in to Seerr', children: [
-          Text('Ember couldn\'t sign in automatically${app.seerrError != null ? ' (${app.seerrError})' : ''}. Use your Jellyfin username and password instead.',
+          Text('${app.seerrError ?? 'Ember couldn\'t sign in with your profile.'} You can use your Jellyfin username and password instead.',
               style: body(ctx.px(22), color: C.muted, height: 1.4)),
           SizedBox(height: ctx.px(22)),
           EmberField(label: 'Username', controller: user, width: 560),
@@ -790,7 +806,7 @@ class SettingRow extends StatelessWidget {
                     textAlign: TextAlign.right,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: body(context.px(21), color: active ? const Color(0xFF444444) : C.faint)),
+                    style: body(context.px(21), weight: FontWeight.w600, color: active ? const Color(0xFF2E2E2E) : C.faint)),
               ),
             ]),
           ),

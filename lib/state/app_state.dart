@@ -102,6 +102,10 @@ class AppState extends ChangeNotifier {
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
+  /// True while Ember looks for Seerr by itself ([findSeerr]).
+  bool seerrSearching = false;
+  bool _seerrSearched = false;
+  String? _seerrShared;
 
   // Preferences
   bool autoSkipIntro = false;
@@ -435,13 +439,68 @@ class AppState extends ChangeNotifier {
         await _save();
         return true;
       } catch (e) {
-        seerrError = 'Automatic Seerr sign-in failed: $e';
+        seerrError = _seerrSignInProblem(e);
         return false;
       } finally {
         _seerrSigningIn = null;
         notifyListeners();
       }
     }();
+  }
+
+  /// Says in plain words why signing in to Seerr with the Jellyfin profile didn't work.
+  static String _seerrSignInProblem(Object e) {
+    final m = '$e'.toLowerCase();
+    if (m.contains('initiate quick connect') || m.contains('quick connect is') || m.contains('quickconnect')) {
+      return 'Turn on Quick Connect in Jellyfin (Dashboard › General) so Ember can sign you in to Seerr with your profile.';
+    }
+    if (m.contains('access denied')) {
+      return 'Seerr doesn\'t know this Jellyfin user yet. In Seerr, import them (Users › Import Jellyfin Users) '
+          'or turn on "Enable New Jellyfin Sign-In" (Settings › Users).';
+    }
+    return 'Couldn\'t sign in to Seerr with your Jellyfin profile: $e';
+  }
+
+  /// Finds Seerr without anyone typing its address: first the address another Ember device saved
+  /// on the Jellyfin server for this person, then Seerr's usual spots next to the Jellyfin
+  /// server. Saves the first that answers; signing in then happens with the Jellyfin profile.
+  Future<bool> findSeerr() async {
+    final j = jf, url = serverUrl;
+    if (j == null || url == null || account == null || seerrSearching) return false;
+    seerrSearching = true;
+    seerrError = null;
+    notifyListeners();
+    try {
+      final shared = (await j.sharedSettings())['seerrUrl'];
+      final found = await SeerrClient.find(<String>{
+        if (shared != null && shared.isNotEmpty) shared,
+        ...SeerrClient.guessesFrom(url),
+        for (final a in accounts) ...SeerrClient.guessesFrom(a.serverUrl),
+      }.toList());
+      if (found == null) {
+        seerrError = "Ember couldn't find Seerr next to your Jellyfin server. Add its address below.";
+        return false;
+      }
+      if (shared == found) _seerrShared = '${account?.userId}|$shared';
+      await setSeerr(url: found, apiKey: seerrApiKey);
+      return true;
+    } finally {
+      seerrSearching = false;
+      notifyListeners();
+    }
+  }
+
+  /// Keeps the working Seerr address on the Jellyfin server, so the person's other devices find it.
+  Future<void> _shareSeerrAddress() async {
+    final j = jf, url = seerrUrl;
+    final key = '${account?.userId}|$url';
+    if (j == null || url == null || _seerrShared == key) return;
+    _seerrShared = key;
+    try {
+      if ((await j.sharedSettings())['seerrUrl'] != url) await j.saveSharedSetting('seerrUrl', url);
+    } catch (_) {
+      _seerrShared = null;
+    }
   }
 
   /// The optional Ember Trailers plugin, if the server happens to have it: only its release
@@ -462,6 +521,11 @@ class AppState extends ChangeNotifier {
     final wasConnected = seerrUser != null;
     if (s == null || account == null) {
       seerrUser = null;
+      // Not set up on this device yet: look for it once, without asking.
+      if (s == null && account != null && !_seerrSearched) {
+        _seerrSearched = true;
+        findSeerr();
+      }
       return;
     }
     // No session yet (signed in to Ember with a saved session or Quick Connect): sign in now.
@@ -483,6 +547,7 @@ class AppState extends ChangeNotifier {
         }
       }
       if (seerr == s) seerrError = null;
+      _shareSeerrAddress();
       try {
         seerrSettings = await s.publicSettings();
       } catch (_) {}
