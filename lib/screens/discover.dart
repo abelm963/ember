@@ -206,6 +206,36 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   String _soonFilter = 'All';
 
+  List<FilterGroup> _soonFilters() => [
+        FilterGroup(
+          title: 'Show',
+          options: ComingSoonView.filters,
+          selected: ComingSoonView.filters.indexOf(_soonFilter),
+          onPick: (i) => setState(() => _soonFilter = ComingSoonView.filters[i]),
+        ),
+      ];
+
+  List<FilterGroup> _exploreFilters() {
+    final genres = discoverGenres.where((g) => _kind.types.any((t) => g.idFor(t) != null)).toList();
+    return [
+      FilterGroup(
+        title: 'Type',
+        options: const ['Movies and shows', 'Movies', 'Shows'],
+        selected: _kind.index,
+        onPick: (i) => setState(() {
+          _kind = DiscoverKind.values[i];
+          if (_genre != null && !_kind.types.any((t) => _genre!.idFor(t) != null)) _genre = null;
+        }),
+      ),
+      FilterGroup(
+        title: 'Genre',
+        options: ['All genres', for (final g in genres) g.name],
+        selected: _genre == null ? 0 : genres.indexOf(_genre!) + 1,
+        onPick: (i) => setState(() => _genre = i == 0 ? null : genres[i - 1]),
+      ),
+    ];
+  }
+
   /// The page header: Discover, its three tabs, and the filters of the open tab after them.
   Widget _tvHeader(BuildContext context) => PageHeader(
         title: 'Discover',
@@ -214,33 +244,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
         ],
         filters: switch (_tab) {
-          1 => [
-              for (final f in ComingSoonView.filters)
-                PillButton(
-                    label: f, compact: true, scrollIntoView: false, selected: _soonFilter == f, onTap: () => setState(() => _soonFilter = f)),
-            ],
-          2 => [
-              PillButton(
-                  label: 'Movies',
-                  compact: true,
-                  scrollIntoView: false,
-                  selected: _kind == DiscoverKind.movies,
-                  onTap: () => _toggleKind(DiscoverKind.movies)),
-              PillButton(
-                  label: 'Shows',
-                  compact: true,
-                  scrollIntoView: false,
-                  selected: _kind == DiscoverKind.shows,
-                  onTap: () => _toggleKind(DiscoverKind.shows)),
-              PillButton(
-                  label: _genre?.name ?? 'Genres',
-                  icon: Icons.keyboard_arrow_down_rounded,
-                  compact: true,
-                  scrollIntoView: false,
-                  selected: _genre != null,
-                  onTap: _pickGenre),
-            ],
-          _ => const [],
+          1 => _soonFilters,
+          2 => _exploreFilters,
+          _ => null,
         },
       );
 

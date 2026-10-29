@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ember/main.dart';
+import 'package:ember/ui/browse.dart' show FilterButton;
 import 'package:ember/screens/details.dart';
 import 'package:ember/screens/discover.dart';
 import 'package:ember/screens/preview.dart';
@@ -229,6 +230,24 @@ void main() {
           }
           expect(find.text('Trending now', skipOffstage: false), findsOneWidget);
           expect(find.text('Popular', skipOffstage: false), findsOneWidget);
+          // TV and desktop: Explore's filters live in the filter panel at the right of the header.
+          if (find.byType(FilterButton).evaluate().isNotEmpty) {
+            await tester.tap(find.byType(FilterButton));
+            for (var i = 0; i < 4; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('GENRE'), findsOneWidget);
+            await tester.tap(find.text('Shows').last);
+            for (var i = 0; i < 6; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('Popular shows', skipOffstage: false), findsOneWidget);
+            Navigator.of(tester.element(find.text('GENRE'))).pop();
+            for (var i = 0; i < 4; i++) {
+              await tester.pump(const Duration(milliseconds: 100));
+            }
+            expect(find.text('GENRE'), findsNothing);
+          }
           await tester.tap(find.text('Coming Soon').first, warnIfMissed: false);
           for (var i = 0; i < 10; i++) {
             await tester.pump(const Duration(milliseconds: 100));

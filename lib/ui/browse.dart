@@ -8,16 +8,17 @@ import 'widgets.dart';
 // The TV / desktop browsing pieces: pill buttons, the vertical action list on title pages, and
 // poster rows whose focused poster widens into a picture with its details underneath.
 
-/// The top of a page on TV and desktop: its name, then one line with its tabs and its filters
-/// (split by a thin bar). Every page uses it in the same place ([PageHeader.top] below the top of
-/// the screen, the page gutter from the left), so the name and the pills never move when
-/// switching pages or tabs. The line is there even when empty.
+/// The top of a page on TV and desktop: its name, then one line with its tabs on the left and a
+/// filter button on the right that opens all of the page's filters. Every page uses it in the same
+/// place ([PageHeader.top] below the top of the screen, the page gutter from the left), so the name
+/// and the tabs never move when switching pages or tabs. The line is there even when empty.
 class PageHeader extends StatelessWidget {
   final String title;
   final List<Widget> tabs;
-  final List<Widget> filters;
+  /// The page's filters, read again after each pick so the panel shows what the page now has.
+  final List<FilterGroup> Function()? filters;
   final String? note;
-  const PageHeader({super.key, required this.title, this.tabs = const [], this.filters = const [], this.note});
+  const PageHeader({super.key, required this.title, this.tabs = const [], this.filters, this.note});
 
   /// Where the page name starts, from the top of the screen (the menu bar is 100 high).
   static const top = 110.0;
@@ -33,26 +34,155 @@ class PageHeader extends StatelessWidget {
           height: context.px(48),
           child: Row(children: [
             for (final t in tabs) ...[t, gap],
-            if (tabs.isNotEmpty && filters.isNotEmpty)
-              Container(
-                width: context.px(2),
-                height: context.px(28),
-                margin: EdgeInsets.symmetric(horizontal: context.px(12)),
-                color: const Color(0x33FFFFFF),
-              ),
-            for (final f in filters) ...[f, gap],
             if (note != null)
               Flexible(
-                child: Padding(
-                  padding: EdgeInsets.only(left: context.px(8)),
-                  child: Text(note!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(20), color: C.faint)),
-                ),
+                child: Text(note!, maxLines: 1, overflow: TextOverflow.ellipsis, style: body(context.px(20), color: C.faint)),
               ),
+            const Spacer(),
+            if (filters != null) FilterButton(groups: filters!),
           ]),
         ),
       ]),
     );
   }
+}
+
+/// One set of choices in a page's filter panel, picked one at a time. The first option is the
+/// unfiltered one ("All", "All genres"), so the button shows the filter as on when another is picked.
+class FilterGroup {
+  final String title;
+  final List<String> options;
+  final int selected;
+  final ValueChanged<int> onPick;
+  const FilterGroup({required this.title, required this.options, required this.selected, required this.onPick});
+}
+
+/// The filter button (three lines) at the right of a page header. With a filter on it also names
+/// what is picked, so the page says what it is showing.
+class FilterButton extends StatelessWidget {
+  final List<FilterGroup> Function() groups;
+  const FilterButton({super.key, required this.groups});
+
+  @override
+  Widget build(BuildContext context) {
+    final on = [for (final g in groups()) if (g.selected > 0) g.options[g.selected]];
+    return Focusable(
+      onTap: () => showFilterPanel(context, groups),
+      semanticLabel: on.isEmpty ? 'Filters' : 'Filters: ${on.join(', ')}',
+      scrollIntoView: false,
+      builder: (context, active) {
+        final fg = active ? const Color(0xFF111111) : Colors.white;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: context.px(48),
+          constraints: BoxConstraints(minWidth: context.px(48)),
+          padding: EdgeInsets.symmetric(horizontal: context.px(on.isEmpty ? 0 : 18)),
+          decoration: BoxDecoration(
+            color: active ? C.text : const Color(0x40FFFFFF),
+            borderRadius: BorderRadius.circular(999),
+            border: on.isNotEmpty && !active ? Border.all(color: Colors.white, width: context.px(2)) : null,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (on.isNotEmpty) ...[
+              Text(on.join(' · '), style: body(context.px(19), color: fg, weight: FontWeight.w600)),
+              SizedBox(width: context.px(10)),
+            ],
+            Icon(Icons.filter_list_rounded, color: fg, size: context.px(26)),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+/// The page's filters in a panel that slides in from the right. A pick applies straight away
+/// (the page changes behind the panel); Back, Done or a click outside closes it.
+Future<void> showFilterPanel(BuildContext context, List<FilterGroup> Function() read) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Close filters',
+    barrierColor: const Color(0x99000000),
+    transitionDuration: const Duration(milliseconds: 200),
+    transitionBuilder: (context, anim, _, child) => SlideTransition(
+      position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      child: child,
+    ),
+    pageBuilder: (ctx, _, _) => Align(
+      alignment: Alignment.centerRight,
+      child: StatefulBuilder(builder: (ctx, setPanel) {
+        final groups = read();
+        final picked = [for (final g in groups) g.selected];
+        return Material(
+          color: C.surface,
+          child: SizedBox(
+            width: ctx.px(560),
+            height: double.infinity,
+            child: FocusTraversalGroup(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(ctx.px(44), ctx.px(60), ctx.px(44), ctx.px(60)),
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('Filters', style: display(ctx.px(46)))),
+                    if (picked.any((p) => p > 0))
+                      PillButton(
+                        label: 'Clear',
+                        compact: true,
+                        onTap: () => setPanel(() {
+                          for (var i = 0; i < groups.length; i++) {
+                            if (picked[i] > 0) groups[i].onPick(0);
+                          }
+                        }),
+                      ),
+                  ]),
+                  for (var gi = 0; gi < groups.length; gi++) ...[
+                    SizedBox(height: ctx.px(34)),
+                    Text(groups[gi].title.toUpperCase(),
+                        style: body(ctx.px(18), color: C.faint, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
+                    SizedBox(height: ctx.px(12)),
+                    for (var oi = 0; oi < groups[gi].options.length; oi++)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: ctx.px(6)),
+                        child: Focusable(
+                          autofocus: gi == 0 && oi == picked[0],
+                          semanticLabel: groups[gi].options[oi],
+                          onTap: () => setPanel(() {
+                            if (picked[gi] != oi) groups[gi].onPick(oi);
+                          }),
+                          builder: (context, active) => Container(
+                            height: context.px(58),
+                            padding: EdgeInsets.symmetric(horizontal: context.px(18)),
+                            decoration: BoxDecoration(
+                              color: active ? C.text : Colors.transparent,
+                              borderRadius: BorderRadius.circular(context.px(12)),
+                            ),
+                            child: Row(children: [
+                              Expanded(
+                                child: Text(groups[gi].options[oi],
+                                    style: body(context.px(23),
+                                        weight: picked[gi] == oi ? FontWeight.w700 : FontWeight.w500,
+                                        color: active ? const Color(0xFF111111) : (picked[gi] == oi ? C.text : C.muted))),
+                              ),
+                              if (picked[gi] == oi)
+                                Icon(Icons.check_rounded, color: active ? const Color(0xFF111111) : C.accent, size: context.px(28)),
+                            ]),
+                          ),
+                        ),
+                      ),
+                  ],
+                  SizedBox(height: ctx.px(30)),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: EmberButton(label: 'Done', onTap: () => Navigator.pop(ctx)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
+    ),
+  );
 }
 
 /// A rounded button: translucent when idle, white when focused or hovered.

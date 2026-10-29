@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../api/seerr.dart';
 import '../state/app_state.dart';
-import '../ui/browse.dart' show PageHeader, PillButton;
+import '../ui/browse.dart' show FilterGroup, PageHeader;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
@@ -110,11 +110,14 @@ class _RequestsScreenState extends State<RequestsScreen> {
             ] else
               PageHeader(
                 title: 'Requests',
-                filters: [
-                  for (final f in _filters)
-                    PillButton(label: f, compact: true, selected: _filter == f, onTap: () => setState(() => _filter = f)),
+                filters: () => [
+                  FilterGroup(
+                    title: 'Status',
+                    options: _filters,
+                    selected: _filters.indexOf(_filter),
+                    onPick: (i) => setState(() => _filter = _filters[i]),
+                  ),
                 ],
-                note: app.canManageRequests ? 'From Seerr · everyone on this server' : 'From Seerr · your requests',
               ),
             SizedBox(height: context.px(28)),
             if (shown.isEmpty) Text('No requests here.', style: body(context.px(24), color: C.faint)),

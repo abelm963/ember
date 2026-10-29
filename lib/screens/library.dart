@@ -67,17 +67,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onTap: () => openItem(context, it),
       );
 
-  void _pickGenre() => pickOption<String?>(
-        context,
-        'Genres',
-        {null: 'All genres', for (final g in _genres ?? const <String>[]) g: g},
-        _genre,
-        (v) => setState(() => _genre = v),
-      );
-
-  void _pickSort() => pickOption<int>(
-      context, 'Sort by', {for (var i = 0; i < _sorts.length; i++) i: _sorts[i].label}, _sort, (v) => setState(() => _sort = v));
-
   /// TV and desktop: a billboard like Home. The page name with Genres and Sort at the top, a
   /// featured title from the Top 10, then a Top 10 row and a row per genre (or every title in the
   /// chosen genre, a row at a time).
@@ -87,17 +76,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final title = widget.kind == LibraryKind.movies ? 'Movies' : 'Shows';
     final header = PageHeader(
       title: title,
-      filters: [
-        PillButton(
-            label: _genre ?? 'Genres',
-            icon: Icons.keyboard_arrow_down_rounded,
-            compact: true,
-            scrollIntoView: false,
-            selected: _genre != null,
-            onTap: _pickGenre),
-        PillButton(label: 'Sort: ${s.label}', compact: true, scrollIntoView: false, onTap: _pickSort),
+      filters: () => [
+        FilterGroup(
+          title: 'Genre',
+          options: ['All genres', ...?_genres],
+          selected: _genre == null ? 0 : (_genres?.indexOf(_genre!) ?? -1) + 1,
+          onPick: (i) => setState(() => _genre = i == 0 ? null : _genres![i - 1]),
+        ),
+        FilterGroup(
+          title: 'Sort by',
+          options: [for (final s in _sorts) s.label],
+          selected: _sort,
+          onPick: (i) => setState(() => _sort = i),
+        ),
       ],
-      note: _count != null ? '$_count in your library' : null,
     );
     PosterEntry entry(JfItem it, {int? rank}) {
       final e = posterEntry(context, jf, it, onTap: () => openItem(context, it));

@@ -38,7 +38,7 @@ say what to click or run to see it.
 | `lib/state/app_state.dart` | Accounts, settings, form factor, Seerr automatic sign-in |
 | `lib/ui/widgets.dart` | `Focusable` (remote focus + mouse hover + touch in one), `EmberButton`, `MediaRow`/`MediaTile`, `NetImage` (`loading:` vs `fallback:`), `Loader` (`placeholder:`), skeletons (`TitlePageSkeleton`, `Bone`), `warmImages` |
 | `lib/screens/` | One file per screen. `nav.dart` holds the navigation helpers (`openItem`, `openSeerr`, `play`, `playTrailer`, `prefetchTrailer`) |
-| `lib/screens/discover.dart` | Discover (menu): New & Hot (what just arrived on the server), Coming Soon and Explore (Seerr's movies and shows not on the server; Movies / Shows toggles and a single-choice Genres list on a line under the tabs; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
+| `lib/screens/discover.dart` | Discover (menu): New & Hot (what just arrived on the server), Coming Soon and Explore (Seerr's movies and shows not on the server; Type and Genre in the filter panel; TMDB genre ids in `discoverGenres`). Billboard on TV and desktop |
 | `lib/screens/coming_soon.dart` | The Coming Soon release calendar (a tab inside Discover) |
 | `lib/player/` | The player screen (`player_screen.dart`, the player the owner designed), `tracks.dart` (picks the version, soundtrack, subtitles and quality before the server is asked; tested in `test/tracks_test.dart`), the muted hero trailer previews (`hero_preview.dart`), and `engine.dart`: `PlaybackEngine` with `MpvEngine` (media_kit) and `AvEngine` (video_player → AVPlayer, Apple TV only) |
 | `lib/platform.dart` | `isAppleTv`. `Platform.isIOS` is also true on Apple TV, so check `isAppleTv` first |
@@ -57,13 +57,14 @@ Home, Movies and Shows on TV and desktop are a `Billboard` (`lib/ui/browse.dart`
 title's picture fills the top of the screen (running under the menu bar) with its logo, details and
 story; the rows sit underneath, one at a time; until a row has focus the featured title shows with
 Play / More Info and its muted preview. `PosterRow`s inside it report focus through `BillboardScope`.
-Movies and Shows have a Genres picker and Sort at the top and a Top 10 row with big numbers
+Movies and Shows have Genre and Sort in the filter panel and a Top 10 row with big numbers
 (`PosterEntry.rank`).
 
 Page headers (TV and desktop): every top-level page uses `PageHeader` (`lib/ui/browse.dart`): the title,
-then one fixed line of tabs | filters (pills) | a short note, always at `PageHeader.top`. Discover's tabs,
-Coming Soon's filters, Explore's Movies/Shows/Genres, Movies/Shows' Genres/Sort, Requests and My List all
-sit there, so switching tabs never moves the heading.
+then one fixed line with the page's tabs on the left and a filter button (three lines) on the right, always at
+`PageHeader.top`, so switching tabs never moves the heading. All of a page's filters (`FilterGroup`s: Coming
+Soon's Show, Explore's Type and Genre, Movies/Shows' Genre and Sort, Requests' Status) are in the panel that
+button opens from the right; with a filter on, the button names it. Phone keeps its chips.
 
 Layouts: TV and desktop share the side-rail design (on desktop the rail also opens on hover); phone
 uses a bottom tab bar. Every interactive element goes through `Focusable`, so the remote, the mouse
