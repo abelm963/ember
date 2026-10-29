@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../platform.dart';
+
 const String kClientName = 'Ember';
 const String kClientVersion = '0.1.0';
 
@@ -47,6 +49,8 @@ class JfItem {
   bool get isFavorite => userData['IsFavorite'] == true;
   double? get playedPercentage => (userData['PlayedPercentage'] as num?)?.toDouble();
   int? get unplayedCount => (userData['UnplayedItemCount'] as num?)?.toInt();
+  int get playCount => (userData['PlayCount'] as num?)?.toInt() ?? 0;
+  DateTime? get lastPlayed => DateTime.tryParse(userData['LastPlayedDate'] as String? ?? '')?.toLocal();
 
   String? get seriesId => raw['SeriesId'] as String?;
   String? get seriesName => raw['SeriesName'] as String?;
@@ -319,15 +323,26 @@ class JellyfinClient {
   static Future<List<DiscoveredServer>> discover({Duration wait = const Duration(seconds: 3)}) async {
     final found = <String, DiscoveredServer>{};
     final targets = <InternetAddress>{InternetAddress('255.255.255.255')};
+    final subnets = <List<int>>[];
     try {
       for (final nic in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
         for (final a in nic.addresses) {
           final b = a.rawAddress;
           if (a.isLoopback || b[0] == 169) continue;
           targets.add(InternetAddress.fromRawAddress(Uint8List.fromList([b[0], b[1], b[2], 255])));
+          subnets.add([b[0], b[1], b[2]]);
         }
       }
     } catch (_) {}
+    // Apple only lets apps broadcast with an entitlement a free Apple ID can't get, so on Apple TV
+    // also ask every address on the local network one by one.
+    if (isAppleTv) {
+      for (final s in subnets) {
+        for (var i = 1; i < 255; i++) {
+          targets.add(InternetAddress.fromRawAddress(Uint8List.fromList([...s, i])));
+        }
+      }
+    }
 
     RawDatagramSocket? socket;
     try {
@@ -363,7 +378,41 @@ class JellyfinClient {
     } finally {
       socket?.close();
     }
+    if (found.isEmpty && isAppleTv) {
+      for (final s in await _probeSubnets(subnets)) {
+        found[s.id] = s;
+      }
+    }
     return found.values.toList();
+  }
+
+  /// Last resort for [discover]: looks for Jellyfin's web port (8096) on every address of the
+  /// local networks, 64 at a time.
+  static Future<List<DiscoveredServer>> _probeSubnets(List<List<int>> subnets) async {
+    final found = <DiscoveredServer>[];
+    final client = HttpClient()..connectionTimeout = const Duration(milliseconds: 700);
+    Future<void> probe(String host) async {
+      try {
+        final req = await client.getUrl(Uri.parse('http://$host:8096/System/Info/Public'));
+        final res = await req.close().timeout(const Duration(seconds: 2));
+        if (res.statusCode != 200) return;
+        final m = jsonDecode(await utf8.decodeStream(res).timeout(const Duration(seconds: 2))) as Map;
+        if (m['Id'] == null) return;
+        found.add(DiscoveredServer(m['ServerName'] as String? ?? 'Jellyfin', 'http://$host:8096', m['Id'] as String));
+      } catch (_) {}
+    }
+
+    try {
+      for (final s in subnets) {
+        final hosts = [for (var i = 1; i < 255; i++) '${s[0]}.${s[1]}.${s[2]}.$i'];
+        for (var i = 0; i < hosts.length; i += 64) {
+          await Future.wait(hosts.skip(i).take(64).map(probe));
+        }
+      }
+    } finally {
+      client.close(force: true);
+    }
+    return found;
   }
 
   // ---------------------------------------------------------------- auth
@@ -475,6 +524,9 @@ class JellyfinClient {
     int? limit,
     int? startIndex,
     bool recursive = true,
+    String? fields,
+    List<String>? personIds,
+    bool images = true,
   }) async =>
       _items(await _send('GET', '/Items', query: {
         'userId': userId,
@@ -488,8 +540,9 @@ class JellyfinClient {
         'limit': limit,
         'startIndex': startIndex,
         'recursive': recursive,
-        'fields': _fields,
-        'enableImageTypes': 'Primary,Backdrop,Thumb,Logo',
+        'personIds': personIds,
+        'fields': fields ?? _fields,
+        if (images) 'enableImageTypes': 'Primary,Backdrop,Thumb,Logo' else 'enableImages': false,
       }));
 
   /// How many items of these types the library holds.
@@ -673,20 +726,33 @@ class JellyfinClient {
   /// With [maxBitrate] null the original file is streamed untouched (mpv plays every codec,
   /// container, audio track and subtitle format itself). With a bitrate the server is asked
   /// to transcode to H.264/AAC HLS at that rate, for slow connections.
+  ///
+  /// On Apple TV the request describes what Apple's player can open instead (see
+  /// [_appleTvProfile]), and the server repackages or converts anything else.
   Future<PlaybackSource> playbackSource(
     String itemId, {
     int? maxBitrate,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    String? mediaSourceId,
     Duration? start,
   }) async {
     final transcode = maxBitrate != null;
+    if (isAppleTv) {
+      return _appleTvSource(itemId,
+          maxBitrate: maxBitrate,
+          audioStreamIndex: audioStreamIndex,
+          subtitleStreamIndex: subtitleStreamIndex,
+          mediaSourceId: mediaSourceId,
+          start: start);
+    }
     final body = <String, dynamic>{
       'UserId': userId,
       'MaxStreamingBitrate': maxBitrate ?? 200000000,
       'StartTimeTicks': start == null ? 0 : durationToTicks(start),
       'AudioStreamIndex': audioStreamIndex,
       'SubtitleStreamIndex': subtitleStreamIndex,
+      'MediaSourceId': mediaSourceId,
       'EnableDirectPlay': !transcode,
       'EnableDirectStream': !transcode,
       'EnableTranscoding': transcode,
@@ -759,17 +825,145 @@ class JellyfinClient {
     );
   }
 
-  /// URL of a subtitle stream, converted by the server to a text format mpv understands.
-  String subtitleUrl(String itemId, String mediaSourceId, Map<String, dynamic> stream) {
+  /// What Apple TV's player (AVPlayer) opens itself: MP4/MOV with H.264 or HEVC (including
+  /// HDR10, HDR10+, HLG and Dolby Vision) and AAC, Dolby Digital(+) incl. Atmos, ALAC or FLAC audio.
+  /// Anything else (MKV, DTS, TrueHD…) is repackaged by the server into HLS, copying the picture
+  /// and sound untouched when it can (so HDR, Dolby Vision and Atmos survive) and converting only
+  /// what Apple TV can't play. [transcode] (a lower quality picked in Settings) converts everything.
+  static Map<String, dynamic> _appleTvProfile(int maxBitrate, {required bool transcode}) => {
+        'Name': 'Ember Apple TV',
+        'MaxStreamingBitrate': maxBitrate,
+        'MaxStaticBitrate': maxBitrate,
+        'DirectPlayProfiles': transcode
+            ? []
+            : [
+                {'Container': 'mp4,m4v,mov', 'Type': 'Video', 'VideoCodec': 'h264,hevc', 'AudioCodec': 'aac,ac3,eac3,alac,flac,mp3'},
+                {'Container': 'mp3,aac,m4a,m4b,flac,alac', 'Type': 'Audio'},
+              ],
+        'TranscodingProfiles': [
+          {
+            'Container': 'mp4',
+            'Type': 'Video',
+            'VideoCodec': transcode ? 'h264' : 'hevc,h264',
+            // Dolby Digital Plus first: it carries Atmos, and it's what the server converts
+            // DTS and TrueHD into, keeping 5.1 / 7.1.
+            'AudioCodec': 'eac3,ac3,aac,flac,alac',
+            'Protocol': 'hls',
+            'Context': 'Streaming',
+            'MaxAudioChannels': '8',
+            // Start as soon as the first piece is ready instead of waiting for two.
+            'MinSegments': 1,
+            'BreakOnNonKeyFrames': true,
+          },
+          {'Container': 'aac', 'Type': 'Audio', 'AudioCodec': 'aac', 'Protocol': 'hls', 'Context': 'Streaming', 'MaxAudioChannels': '6'},
+        ],
+        'ContainerProfiles': [],
+        // Tell the server outright which kinds of picture Apple TV 4K shows, so HDR and Dolby
+        // Vision are passed through instead of being converted to SDR.
+        'CodecProfiles': [
+          {
+            'Type': 'Video',
+            'Codec': 'hevc',
+            'Conditions': [
+              {
+                'Condition': 'EqualsAny',
+                'Property': 'VideoRangeType',
+                'Value': 'SDR|HDR10|HDR10Plus|HLG|DOVI|DOVIWithHDR10|DOVIWithHDR10Plus|DOVIWithHLG|DOVIWithSDR',
+                'IsRequired': false,
+              },
+            ],
+          },
+          {
+            'Type': 'Video',
+            'Codec': 'h264',
+            'Conditions': [
+              {'Condition': 'EqualsAny', 'Property': 'VideoRangeType', 'Value': 'SDR', 'IsRequired': false},
+              {'Condition': 'LessThanEqual', 'Property': 'VideoBitDepth', 'Value': '8', 'IsRequired': false},
+            ],
+          },
+        ],
+        // Text subtitles go inside the stream as WebVTT, so Apple's player shows them; picture
+        // subtitles (PGS, DVD) have to be burned into the picture.
+        'SubtitleProfiles': [
+          {'Format': 'vtt', 'Method': 'Hls'},
+          {'Format': 'webvtt', 'Method': 'Hls'},
+          {'Format': 'mov_text', 'Method': 'Embed'},
+          for (final f in ['pgssub', 'pgs', 'dvdsub', 'dvbsub', 'vobsub'])
+            {'Format': f, 'Method': 'Encode'},
+        ],
+      };
+
+  Future<PlaybackSource> _appleTvSource(
+    String itemId, {
+    int? maxBitrate,
+    int? audioStreamIndex,
+    int? subtitleStreamIndex,
+    String? mediaSourceId,
+    Duration? start,
+  }) async {
+    final transcode = maxBitrate != null;
+    final bitrate = maxBitrate ?? 200000000;
+    final body = <String, dynamic>{
+      'UserId': userId,
+      'MaxStreamingBitrate': bitrate,
+      'StartTimeTicks': start == null ? 0 : durationToTicks(start),
+      'AudioStreamIndex': audioStreamIndex,
+      'SubtitleStreamIndex': subtitleStreamIndex,
+      'MediaSourceId': mediaSourceId,
+      // A subtitle or a chosen soundtrack (files with several) means the server builds the
+      // stream, with only that soundtrack in it: Apple's player can't be trusted to pick it.
+      'EnableDirectPlay': !transcode && subtitleStreamIndex == null && audioStreamIndex == null,
+      'EnableDirectStream': !transcode,
+      'EnableTranscoding': true,
+      'AutoOpenLiveStream': true,
+      'DeviceProfile': _appleTvProfile(bitrate, transcode: transcode),
+    }..removeWhere((k, v) => v == null);
+
+    final json = await _send('POST', '/Items/$itemId/PlaybackInfo', query: {'userId': userId}, body: body);
+    final m = (json as Map).cast<String, dynamic>();
+    final sources = (m['MediaSources'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+    if (sources.isEmpty) throw ApiException(500, 'The server has no playable version of this title.');
+    final src = sources.firstWhere((s) => s['Id'] == mediaSourceId, orElse: () => sources.first);
+    final playSessionId = m['PlaySessionId'] as String? ?? '';
+    final msid = src['Id'] as String;
+    final streams = (src['MediaStreams'] as List? ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+
+    final direct = src['SupportsDirectPlay'] == true && body['EnableDirectPlay'] == true;
+    final transcodingUrl = src['TranscodingUrl'] as String?;
+    if (!direct && transcodingUrl == null) {
+      throw ApiException(500, 'The server couldn\'t prepare a version of this title that Apple TV can play.');
+    }
+    final url = direct
+        ? _uri('/Videos/$itemId/stream', {
+            'static': 'true',
+            'mediaSourceId': msid,
+            'playSessionId': playSessionId,
+            'deviceId': deviceId,
+            'api_key': token,
+          }).toString()
+        : '$baseUrl$transcodingUrl';
+    return PlaybackSource(
+      url: url,
+      mediaSourceId: msid,
+      playSessionId: playSessionId,
+      transcoding: !direct,
+      streams: streams,
+      bitrate: (src['Bitrate'] as num?)?.toInt(),
+    );
+  }
+
+  /// URL of a subtitle stream, converted by the server to a text format mpv understands,
+  /// or to [format] (such as 'vtt' for Apple TV) when given.
+  String subtitleUrl(String itemId, String mediaSourceId, Map<String, dynamic> stream, {String? format}) {
     final delivery = stream['DeliveryUrl'] as String?;
-    if (delivery != null && delivery.isNotEmpty) {
+    if (delivery != null && delivery.isNotEmpty && (format == null || delivery.split('?').first.endsWith('.$format'))) {
       final sep = delivery.contains('?') ? '&' : '?';
       return delivery.contains('api_key') ? '$baseUrl$delivery' : '$baseUrl$delivery${sep}api_key=$token';
     }
     final codec = (stream['Codec'] as String? ?? 'srt').toLowerCase();
-    final format = switch (codec) { 'ass' || 'ssa' => 'ass', 'webvtt' || 'vtt' => 'vtt', _ => 'srt' };
+    final ext = format ?? switch (codec) { 'ass' || 'ssa' => 'ass', 'webvtt' || 'vtt' => 'vtt', _ => 'srt' };
     final index = stream['Index'];
-    return '$baseUrl/Videos/$itemId/$mediaSourceId/Subtitles/$index/0/Stream.$format?api_key=$token';
+    return '$baseUrl/Videos/$itemId/$mediaSourceId/Subtitles/$index/0/Stream.$ext?api_key=$token';
   }
 
   Future<void> reportStart(String itemId, String msid, String playSessionId, Duration position, bool transcoding) =>
@@ -820,81 +1014,11 @@ class JellyfinClient {
     }
   }
 
-  // ---------------------------------------------------------------- Ember Trailers plugin
+  // ---------------------------------------------------------------- Ember Trailers plugin (optional)
+  // Ember needs nothing on the server. If the plugin happens to be installed, its release
+  // calendar is used for Coming Soon; trailers are found on the device (lib/api/youtube.dart).
 
-  /// Trailer service status, or null when the Ember Trailers plugin isn't installed.
-  // ------------------------------------------------- trailer service setup (admin only)
-
-  static const trailerRepoName = 'Ember';
-  static const trailerRepoUrl = 'https://raw.githubusercontent.com/abelm963/ember-trailers/main/manifest.json';
-  static const trailerPluginId = '6f1c8f2e6a434c4e9d555e2a7b3c9e11';
-
-  /// The Ember Trailers plugin as Jellyfin lists it (Status: Active, Restart, Disabled…), or null.
-  Future<Map<String, dynamic>?> trailerPlugin() async {
-    final list = await _send('GET', '/Plugins');
-    for (final p in (list as List? ?? const [])) {
-      final m = (p as Map).cast<String, dynamic>();
-      if ('${m['Id']}'.replaceAll('-', '').toLowerCase() == trailerPluginId) return m;
-    }
-    return null;
-  }
-
-  /// Whether [version] is the newest Ember Trailers the server's catalog offers.
-  Future<bool> trailerPluginIsNewest(String? version) async {
-    if (version == null) return false;
-    try {
-      final p = (await _send('GET', '/Packages/Ember%20Trailers', query: {'assemblyGuid': trailerPluginId})) as Map;
-      final versions = ((p['versions'] as List?) ?? const []).map((v) => '${(v as Map)['version']}').toList();
-      return versions.isNotEmpty && versions.first == version;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Adds Ember's plugin source to the server (keeps any sources already there).
-  Future<void> addTrailerRepository() async {
-    final repos = ((await _send('GET', '/Repositories')) as List? ?? const [])
-        .map((e) => (e as Map).cast<String, dynamic>())
-        .toList();
-    if (repos.any((r) => '${r['Url']}'.toLowerCase() == trailerRepoUrl.toLowerCase())) return;
-    repos.add({'Name': trailerRepoName, 'Url': trailerRepoUrl, 'Enabled': true});
-    await _send('POST', '/Repositories', body: repos);
-  }
-
-  /// Downloads and installs the plugin. Takes effect after a server restart.
-  Future<void> installTrailerPlugin() async {
-    try {
-      await _send('POST', '/Packages/Installed/Ember%20Trailers',
-          query: {'assemblyGuid': trailerPluginId, 'repositoryUrl': trailerRepoUrl}, timeout: const Duration(minutes: 2));
-    } on ApiException catch (e) {
-      if (e.status == 404) {
-        throw ApiException(404, 'Your server couldn\'t find a version of Ember Trailers for its Jellyfin version.');
-      }
-      if (e.status == 403) throw ApiException(403, 'Only a server administrator can install the trailer service.');
-      rethrow;
-    }
-  }
-
-  Future<void> restartServer() => _send('POST', '/System/Restart');
-
-  /// Waits for the server to go down and come back after a restart.
-  Future<bool> waitForRestart({Duration limit = const Duration(minutes: 3)}) async {
-    final end = DateTime.now().add(limit);
-    var wentDown = false;
-    final started = DateTime.now();
-    while (DateTime.now().isBefore(end)) {
-      await Future.delayed(const Duration(seconds: 2));
-      try {
-        await _send('GET', '/System/Info/Public', timeout: const Duration(seconds: 4));
-        // Some servers restart faster than we poll; after 20 s assume it went round.
-        if (wentDown || DateTime.now().difference(started) > const Duration(seconds: 20)) return true;
-      } catch (_) {
-        wentDown = true;
-      }
-    }
-    return false;
-  }
-
+  /// The plugin's status, or null when it isn't installed.
   Future<Map<String, dynamic>?> trailerHealth() async {
     try {
       final json = await _send('GET', '/EmberTrailers/Health', timeout: const Duration(seconds: 15));
@@ -938,57 +1062,22 @@ class JellyfinClient {
     };
   }
 
-  /// The official trailer the server picked for a library item, or null.
-  Future<String?> trailerKeyForItem(String itemId) async => (await trailerCheckForItem(itemId)).$1;
+  /// Speed test against the server (used to pick a streaming quality automatically). Returns bits per second.
+  (DateTime, Future<double?>)? _speed;
 
-  final Map<String, (DateTime, Future<(String?, String?)>)> _trailerChecks = {};
-
-  /// The trailer key the server can stream for a library item, or null plus the server's reason.
-  /// Results are shared and kept for a while, so a check started when a page opens makes the
-  /// Trailer button instant.
-  Future<(String?, String?)> trailerCheckForItem(String itemId) {
-    final hit = _trailerChecks[itemId];
+  /// [measureBitrate], remembered for 20 minutes, so pressing Play doesn't wait for a 4 MB
+  /// download every time. Started early (when a title page opens) by `warmPlayback`.
+  Future<double?> connectionSpeed() {
+    final hit = _speed;
     if (hit != null && DateTime.now().difference(hit.$1) < const Duration(minutes: 20)) return hit.$2;
-    final f = _trailerCheck(itemId);
-    _trailerChecks[itemId] = (DateTime.now(), f);
-    f.then((r) {
-      // Don't hold on to failures for long; the next tap tries again.
-      if (r.$1 == null) _trailerChecks[itemId] = (DateTime.now().subtract(const Duration(minutes: 18)), f);
+    final f = measureBitrate();
+    _speed = (DateTime.now(), f);
+    f.then((v) {
+      if (v == null && identical(_speed?.$2, f)) _speed = null;
     });
     return f;
   }
 
-  Future<(String?, String?)> _trailerCheck(String itemId) async {
-    try {
-      final json = await _send('GET', '/EmberTrailers/Items/$itemId/Info', timeout: const Duration(seconds: 90));
-      final m = (json as Map).cast<String, dynamic>();
-      if (m['available'] == true) return (m['key'] as String?, null);
-      return (null, m['reason'] as String? ?? 'The server couldn\'t play this trailer.');
-    } on TimeoutException {
-      return (null, 'The server took too long to fetch the trailer.');
-    } catch (e) {
-      return (null, '$e');
-    }
-  }
-
-  /// Checks a YouTube trailer (for titles not on the server). Returns the key if it may be played.
-  Future<String?> trailerKeyChecked(String key) async {
-    try {
-      final json = await _send('GET', '/EmberTrailers/Videos/$key/Info', timeout: const Duration(seconds: 60));
-      return (json as Map)['available'] == true ? key : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// URL the player opens to stream a trailer through the server.
-  /// Admin diagnostics: Hearth runs the real trailer stream for up to 40 s and reports what happened.
-  Future<Map<String, dynamic>> testTrailerStream(String key) async =>
-      ((await _send('GET', '/EmberTrailers/Videos/$key/Test', timeout: const Duration(seconds: 120))) as Map).cast<String, dynamic>();
-
-  String trailerStreamUrl(String key) => _uri('/EmberTrailers/Videos/$key/Stream', {'api_key': token}).toString();
-
-  /// Speed test against the server (used to pick a streaming quality automatically). Returns bits per second.
   Future<double?> measureBitrate({int bytes = 4000000}) async {
     try {
       final sw = Stopwatch()..start();

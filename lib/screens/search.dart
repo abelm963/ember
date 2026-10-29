@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../platform.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
+import '../ui/tv_keyboard.dart';
 import '../ui/widgets.dart';
 import 'nav.dart';
 
@@ -69,7 +71,29 @@ class _SearchScreenState extends State<SearchScreen> {
     _changed(next);
   }
 
-  Widget _field(BuildContext context, AppState app) => FieldFocusEscape(
+  // On Apple TV the box is a button that opens Apple's keyboard (see editOnAppleTv): a focused
+  // Flutter text field there leaves the remote stuck in it.
+  Widget _field(BuildContext context, AppState app) {
+    if (!isAppleTv) return _textField(context, app);
+    return Focusable(
+      semanticLabel: 'Search',
+      onTap: () async {
+        final r = await editOnAppleTv(context, label: 'Search', text: _q.text);
+        if (r == null || !mounted) return;
+        _q.text = r.text;
+        _changed(r.text);
+      },
+      builder: (context, active) => Container(
+        decoration: BoxDecoration(
+          color: active ? C.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(context.px(10)),
+        ),
+        child: ExcludeFocus(child: _textField(context, app)),
+      ),
+    );
+  }
+
+  Widget _textField(BuildContext context, AppState app) => FieldFocusEscape(
         child: TextField(
           controller: _q,
           autofocus: !app.isTv,

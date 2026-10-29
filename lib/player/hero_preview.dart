@@ -2,14 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:media_kit/media_kit.dart' show AudioTrack;
 import 'package:provider/provider.dart';
 
 import '../api/jellyfin.dart';
+import '../api/youtube.dart';
+import '../screens/nav.dart' show findTrailer;
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'engine.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -31,8 +33,7 @@ class HeroPreview extends StatefulWidget {
 }
 
 class _HeroPreviewState extends State<HeroPreview> with RouteAware {
-  Player? _player;
-  VideoController? _video;
+  PlaybackEngine? _player;
   Timer? _delay;
   bool _visible = false;
   bool _finished = false;
@@ -58,33 +59,33 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
     if (route != null) routeObserver.subscribe(this, route);
   }
 
-  Future<String?> _url(AppState app) async {
+  /// A trailer file stored with the title, otherwise the official YouTube trailer, found on
+  /// this device (the same lookup the Trailer button uses, so it's shared and kept).
+  Future<TrailerStream?> _trailer(AppState app) async {
     final jf = app.jf!;
     if (widget.item.localTrailerCount > 0) {
       final local = await jf.localTrailers(widget.item.id);
       if (local.isNotEmpty) {
         try {
-          return (await jf.playbackSource(local.first.id)).url;
+          return TrailerStream((await jf.playbackSource(local.first.id)).url);
         } catch (_) {}
       }
     }
-    if (!app.trailerServiceOk || widget.item.remoteTrailers.isEmpty) return null;
-    final key = await jf.trailerKeyForItem(widget.item.id);
-    return key == null ? null : jf.trailerStreamUrl(key);
+    return (await findTrailer(app, item: widget.item)).$2;
   }
 
   Future<void> _start() async {
     final app = context.read<AppState>();
-    final url = await _url(app);
-    if (url == null || !mounted) return;
-    final p = Player(configuration: const PlayerConfiguration(title: 'Ember preview', bufferSize: 16 * 1024 * 1024));
+    final trailer = await _trailer(app);
+    if (trailer == null || !mounted) return;
+    final url = trailer.url;
+    final p = PlaybackEngine(title: 'Ember preview', bufferSize: 16 * 1024 * 1024);
     _player = p;
-    _video = VideoController(p);
     await p.setVolume(_muted ? 0 : 100);
-    _subs.add(p.stream.position.listen((pos) {
+    _subs.add(p.position.listen((pos) {
       if (!_visible && pos > const Duration(milliseconds: 300) && mounted) setState(() => _visible = true);
     }));
-    _subs.add(p.stream.completed.listen((done) {
+    _subs.add(p.completed.listen((done) {
       if (done && mounted) {
         setState(() {
           _visible = false;
@@ -92,7 +93,13 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
         });
       }
     }));
-    await p.open(Media(url));
+    try {
+      await p.open(url, headers: trailer.headers);
+      // Picture and sound in separate files: mpv joins them (Apple TV previews show the picture).
+      if (trailer.audioUrl != null && p is MpvEngine) await p.player.setAudioTrack(AudioTrack.uri(trailer.audioUrl!));
+    } catch (_) {
+      return; // no preview; the still backdrop stays
+    }
     _syncPlaying();
     if (mounted) setState(() {});
   }
@@ -139,13 +146,14 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    if (_video == null) return widget.overlay;
+    final player = _player;
+    if (player == null) return widget.overlay;
     return Stack(fit: StackFit.expand, children: [
       IgnorePointer(
         child: AnimatedOpacity(
           opacity: _visible ? 1 : 0,
           duration: const Duration(milliseconds: 700),
-          child: ExcludeFocus(child: Video(controller: _video!, controls: NoVideoControls, fit: BoxFit.cover, fill: Colors.transparent)),
+          child: ExcludeFocus(child: player.view(fit: BoxFit.cover, fill: Colors.transparent)),
         ),
       ),
       widget.overlay,

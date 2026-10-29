@@ -41,6 +41,15 @@ dependencies:
   provider: ^6.1.5+1
   shared_preferences: ^2.5.6
   url_launcher: ^6.3.3
+  # Apple TV (built with flutter-tvos): Apple's own player, and the tvOS halves of the plugins above.
+  video_player: ^2.14.1
+  video_player_tvos: ^0.0.1
+  shared_preferences_tvos: ^0.0.2
+  url_launcher_tvos: ^0.0.1
+  # Keeps the Apple TV screensaver away during playback.
+  wakelock_plus: ">=1.7.0 <1.8.0" # 1.8 declares tvOS itself but flutter-tvos can't build it; the _tvos package does
+  wakelock_plus_tvos: ^0.0.1
+  youtube_explode_dart: ^3.1.0
 
 dev_dependencies:
   flutter_test:

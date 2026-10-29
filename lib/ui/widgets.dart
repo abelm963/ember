@@ -407,7 +407,8 @@ class TitlePageSkeleton extends StatelessWidget {
 /// A placeholder that shows a title on a coloured card when there is no artwork.
 class TitleCard extends StatelessWidget {
   final String title;
-  const TitleCard(this.title, {super.key});
+  final bool label;
+  const TitleCard(this.title, {super.key, this.label = true});
   @override
   Widget build(BuildContext context) {
     final hue = (title.hashCode % 360).abs().toDouble();
@@ -415,7 +416,7 @@ class TitleCard extends StatelessWidget {
       color: HSLColor.fromAHSL(1, hue, 0.35, 0.22).toColor(),
       alignment: Alignment.bottomLeft,
       padding: EdgeInsets.all(context.px(18)),
-      child: Text(title, maxLines: 3, overflow: TextOverflow.ellipsis, style: display(context.px(26), height: 1.0)),
+      child: label ? Text(title, maxLines: 3, overflow: TextOverflow.ellipsis, style: display(context.px(26), height: 1.0)) : null,
     );
   }
 }
@@ -647,7 +648,8 @@ class _MediaRowState extends State<MediaRow> {
 /// Left/right page margin in design units, per form factor.
 double gutter(BuildContext context) {
   final app = context.read<AppState>();
-  return switch (app.formFactor) { FormFactor.tv => 160, FormFactor.desktop => 160, FormFactor.phone => 40 };
+  // TV and desktop line up with the menu bar and the billboard pages.
+  return switch (app.formFactor) { FormFactor.tv => 60, FormFactor.desktop => 60, FormFactor.phone => 40 };
 }
 
 // ======================================================================

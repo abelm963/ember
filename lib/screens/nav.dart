@@ -4,6 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../api/youtube.dart';
+import '../platform.dart';
+import '../player/native_player.dart';
 import '../player/player_screen.dart';
 import '../state/app_state.dart';
 import '../ui/widgets.dart';
@@ -31,6 +34,11 @@ void openSeerr(BuildContext context, SeerrMedia media) {
 /// Starts playback, resuming where the person left off unless [fromStart].
 Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bool isTrailer = false}) async {
   final start = fromStart || item.positionTicks == 0 ? null : ticksToDuration(item.positionTicks);
+  if (isAppleTv && context.read<AppState>().useApplePlayer && !isTrailer) {
+    // Apple's own player, when chosen in Settings: true HDR, Dolby Vision and Atmos.
+    await NativePlayer.play(context.read<AppState>(), item, start: start);
+    return;
+  }
   await Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => PlayerScreen(item: item, start: start, isTrailer: isTrailer),
   ));
@@ -57,54 +65,115 @@ Future<void> playSeries(BuildContext context, JellyfinClient jf, JfItem series) 
   if (context.mounted) await play(context, ep);
 }
 
-/// Plays a trailer the best way available: inside Ember when the server's Ember Trailers
-/// plugin can stream it, otherwise in the YouTube app.
+/// YouTube trailers for a title: the links Jellyfin keeps with it (from TMDB), then Seerr's
+/// official trailer when the library has none.
+Future<List<String>> trailerKeys(AppState app, JfItem item) async {
+  final keys = <String>[];
+  for (final t in item.remoteTrailers) {
+    final k = youtubeKey(t['Url'] as String?);
+    if (k != null && !keys.contains(k)) keys.add(k);
+  }
+  final tmdb = int.tryParse(item.tmdbId ?? '');
+  if (keys.isEmpty && tmdb != null && app.seerrConfigured) {
+    try {
+      final m = await app.seerr!.details(item.isSeries ? 'tv' : 'movie', tmdb);
+      final k = m.bestTrailer?['key'] as String?;
+      if (k != null) keys.add(k);
+    } catch (_) {}
+  }
+  return keys;
+}
+
+final Map<String, (DateTime, Future<(String?, TrailerStream?)>)> _trailers = {};
+
+/// The trailer for [item] (or YouTube video [key]) and its stream, found on this device.
+/// Tries the title's trailers in turn until one plays. Kept for 50 minutes, so looking it up
+/// when a page opens makes the Trailer button and the Home preview start at once.
+Future<(String?, TrailerStream?)> findTrailer(AppState app, {JfItem? item, String? key}) {
+  final id = item?.id ?? key ?? '';
+  final hit = _trailers[id];
+  if (hit != null && DateTime.now().difference(hit.$1) < const Duration(minutes: 50)) return hit.$2;
+  Future<(String?, TrailerStream?)> look() async {
+    final keys = key != null ? [key] : await trailerKeys(app, item!);
+    for (final k in keys.take(3)) {
+      final s = await YouTubeTrailers.resolve(k);
+      if (s != null) return (k, s);
+    }
+    return (keys.isEmpty ? null : keys.first, null);
+  }
+
+  final f = look();
+  _trailers[id] = (DateTime.now(), f);
+  f.then((r) {
+    if (r.$2 == null) _trailers.remove(id);
+  });
+  return f;
+}
+
+/// Plays a trailer inside Ember: a trailer file stored with the title, otherwise the official
+/// YouTube trailer, found and played on this device. Falls back to the YouTube app when YouTube
+/// won't hand the stream over (or when "Play trailers in the app" is off).
 Future<void> playTrailer(BuildContext context, {JfItem? item, String? ytKey, required String title, String? backdropUrl}) async {
   final app = context.read<AppState>();
   final jf = app.jf!;
-  var key = ytKey;
-  if (key == null && item != null) {
-    for (final t in item.remoteTrailers) {
-      key = youtubeKey(t['Url'] as String?);
-      if (key != null) break;
+  if (item != null && item.localTrailerCount > 0 && app.trailersInApp) {
+    final local = await jf.localTrailers(item.id);
+    if (local.isNotEmpty && context.mounted) {
+      await play(context, local.first, fromStart: true, isTrailer: true);
+      return;
     }
   }
-  if (app.trailersInApp && app.trailerServiceOk && (item != null || key != null)) {
-    // Open the player at once; it finds the trailer while showing what it's doing.
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => PlayerScreen(
-          item: JfItem({'Id': 'trailer-${item?.id ?? key}', 'Name': '$title · Trailer', 'Type': 'Trailer'}),
-          isTrailer: true,
-          youtubeKey: key,
-          backdropUrl: backdropUrl ?? (item != null ? jf.backdropImage(item) : null),
-          resolveUrl: () async {
-            String? ok;
-            String? reason;
-            if (item != null) {
-              (ok, reason) = await jf.trailerCheckForItem(item.id);
-            } else {
-              ok = await jf.trailerKeyChecked(key!);
-            }
-            if (ok == null) {
-              throw ApiException(0, reason ?? 'Your server couldn\'t play this trailer.');
-            }
-            return jf.trailerStreamUrl(ok);
-          },
-        ),
-    ));
+  if (item == null && ytKey == null) return;
+  final artwork = backdropUrl ?? (item != null ? jf.backdropImage(item) : null);
+
+  Future<void> fallback() async {
+    final key = ytKey ?? (item != null ? (await trailerKeys(app, item)).firstOrNull : null);
+    if (!context.mounted) return;
+    if (key != null) {
+      await openYouTube(context, key);
+    } else {
+      toast(context, 'No trailer available for this title.');
+    }
+  }
+
+  if (!app.trailersInApp) return fallback();
+
+  // When a stream won't play, the same trailer is asked for another way (see YouTubeTrailers).
+  final tried = <TrailerSource>{};
+  Future<TrailerStream?> resolve([TrailerStream? failed]) async {
+    if (failed != null) return YouTubeTrailers.nextAfter(failed, tried);
+    final (_, stream) = await findTrailer(app, item: item, key: ytKey);
+    return stream;
+  }
+
+  if (isAppleTv) {
+    final played = await NativePlayer.playTrailer(app, title: '$title · Trailer', artwork: artwork, resolve: resolve);
+    if (!played) await fallback();
     return;
   }
-  if (key != null && context.mounted) {
-    await openYouTube(context, key);
-  } else if (context.mounted) {
-    toast(context, 'No trailer available for this title.');
-  }
+  if (!context.mounted) return;
+  // Open the player at once; it finds the trailer while showing what it's doing.
+  await Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => PlayerScreen(
+      item: JfItem({'Id': 'trailer-${item?.id ?? ytKey}', 'Name': '$title · Trailer', 'Type': 'Trailer'}),
+      isTrailer: true,
+      youtubeKey: ytKey,
+      backdropUrl: artwork,
+      resolveTrailer: resolve,
+    ),
+  ));
 }
 
-/// Starts the server's trailer check early (when a page opens) so the Trailer button is instant.
+/// Gets playback ready while a title page is open: the connection test that Auto quality needs
+/// runs now (and is remembered), so pressing Play doesn't wait for it.
+void warmPlayback(AppState app) {
+  if (app.quality == 'auto') app.jf?.connectionSpeed().ignore();
+}
+
+/// Looks the trailer up early (when a page opens), so the Trailer button starts at once.
 void prefetchTrailer(AppState app, JfItem item) {
-  if (app.trailersInApp && app.trailerServiceOk && app.jf != null) {
-    app.jf!.trailerCheckForItem(item.id);
+  if (app.trailersInApp && app.jf != null && (item.remoteTrailers.isNotEmpty || item.tmdbId != null)) {
+    findTrailer(app, item: item).ignore();
   }
 }
 

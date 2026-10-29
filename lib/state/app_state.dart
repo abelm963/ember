@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
+import '../platform.dart';
 
 /// How the person is using Ember. Decides layout and navigation style.
 ///  - tv: remote / D-pad, focus highlight always on, side menu, 10-foot sizes.
@@ -95,6 +96,9 @@ class AppState extends ChangeNotifier {
   String? seerrUrl;
   String? seerrApiKey;
   Map<String, dynamic>? seerrUser;
+
+  /// Seerr's public settings, read at sign-in (null until then, or if Seerr wouldn't say).
+  Map<String, dynamic>? seerrSettings;
   /// Why Seerr isn't working right now (shown in Settings and on the Requests screen).
   String? seerrError;
   Future<bool>? _seerrSigningIn;
@@ -110,17 +114,44 @@ class AppState extends ChangeNotifier {
   bool audioPassthrough = false; // send Dolby / DTS bitstreams untouched to an AV receiver or soundbar
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
+  /// Ask "Are you still watching?" after this many episodes play one after another with no
+  /// remote input at all (Apple TV).
+  bool stillWatching = true;
+  int stillWatchingEpisodes = 3;
+  /// Apple TV: play films and episodes in Apple's own player (true HDR / Dolby Vision) instead
+  /// of Ember's player.
+  bool useApplePlayer = false;
   bool showTrendingRow = true;
+
+  /// Home shows "Because you watched …" rows of Seerr titles that aren't on the server yet.
+  bool showRecommendations = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
   String? preferredAudioLanguage;
   String subtitleMode = 'foreign'; // off, foreign, always
+  /// The subtitle language last picked in the player (null: the preferred audio language).
+  String? preferredSubtitleLanguage;
 
   JellyfinClient? jf;
   SeerrClient? seerr;
 
   /// Bumped whenever library data may have changed, so screens reload.
   int revision = 0;
+
+  /// The bitrate to ask the server for, for a file of [sourceBitrate]: the chosen quality, or
+  /// under Auto the original (null) unless the connection can't carry it comfortably.
+  Future<int?> maxBitrateFor(int? sourceBitrate, {String? qualityKey}) async {
+    final key = qualityKey ?? quality;
+    final q = qualityOptions.firstWhere((o) => o.key == key, orElse: () => qualityOptions.first);
+    if (q.key != 'auto' || sourceBitrate == null) return q.bitrate;
+    final bps = await jf?.connectionSpeed();
+    if (bps == null || bps >= sourceBitrate * 1.1) return null;
+    final target = (bps * 0.8).round();
+    return qualityOptions
+        .where((o) => o.bitrate != null && o.bitrate! <= target)
+        .map((o) => o.bitrate!)
+        .fold<int>(2000000, (a, b) => b > a ? b : a);
+  }
 
   FormFactor get formFactor => switch (interfaceMode) {
         InterfaceMode.tv => FormFactor.tv,
@@ -143,6 +174,14 @@ class AppState extends ChangeNotifier {
   bool get seerrConfigured => seerr != null && seerr!.isSignedIn;
   bool get canManageRequests => seerrUser != null ? SeerrClient.canManageRequests(seerrUser!) : (account?.isAdmin ?? false);
 
+  /// Whether to offer 4K: Seerr has a 4K Radarr / Sonarr and this person may ask for 4K.
+  bool canRequest4k({required bool tv}) {
+    final enabled = seerrSettings?[tv ? 'series4kEnabled' : 'movie4kEnabled'];
+    if (enabled == false) return false;
+    final user = seerrUser;
+    return user == null || SeerrClient.canRequest4k(user, tv: tv);
+  }
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     deviceId = _prefs.getString('deviceId') ?? _newId();
@@ -164,11 +203,16 @@ class AppState extends ChangeNotifier {
     previewsMuted = _prefs.getBool('previewsMuted') ?? true;
     hdrOutput = _prefs.getBool('hdrOutput') ?? true;
     autoplayNext = _prefs.getBool('autoplayNext') ?? true;
+    stillWatching = _prefs.getBool('stillWatching') ?? true;
+    stillWatchingEpisodes = _prefs.getInt('stillWatchingEpisodes') ?? 3;
+    useApplePlayer = _prefs.getBool('useApplePlayer') ?? false;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
+    showRecommendations = _prefs.getBool('showRecommendations') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
     preferredAudioLanguage = _prefs.getString('preferredAudioLanguage');
     subtitleMode = _prefs.getString('subtitleMode') ?? 'foreign';
+    preferredSubtitleLanguage = _prefs.getString('preferredSubtitleLanguage');
     final raw = _prefs.getString('accounts');
     if (raw != null) {
       try {
@@ -190,6 +234,7 @@ class AppState extends ChangeNotifier {
 
   String _deviceName() {
     try {
+      if (isAppleTv) return 'Apple TV';
       if (Platform.isWindows) return 'Windows - ${Platform.localHostname}';
       if (Platform.isAndroid) return 'Android';
       if (Platform.isIOS) return 'iOS';
@@ -209,6 +254,7 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
       return FormFactor.phone;
     }
+    if (isAppleTv) return FormFactor.tv;
     if (Platform.isIOS) return FormFactor.phone;
     return FormFactor.desktop;
   }
@@ -242,6 +288,7 @@ class AppState extends ChangeNotifier {
     _setOrRemove('seerrUrl', seerrUrl);
     _setOrRemove('seerrApiKey', seerrApiKey);
     _setOrRemove('preferredAudioLanguage', preferredAudioLanguage);
+    _setOrRemove('preferredSubtitleLanguage', preferredSubtitleLanguage);
     await _prefs.setString('interfaceMode', interfaceMode.name);
     await _prefs.setBool('autoSkipIntro', autoSkipIntro);
     await _prefs.setBool('audioPassthrough', audioPassthrough);
@@ -250,7 +297,11 @@ class AppState extends ChangeNotifier {
     await _prefs.setBool('previewsMuted', previewsMuted);
     await _prefs.setBool('hdrOutput', hdrOutput);
     await _prefs.setBool('autoplayNext', autoplayNext);
+    await _prefs.setBool('stillWatching', stillWatching);
+    await _prefs.setInt('stillWatchingEpisodes', stillWatchingEpisodes);
+    await _prefs.setBool('useApplePlayer', useApplePlayer);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
+    await _prefs.setBool('showRecommendations', showRecommendations);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);
     await _prefs.setString('subtitleMode', subtitleMode);
@@ -393,124 +444,8 @@ class AppState extends ChangeNotifier {
     }();
   }
 
-  /// Progress text while Ember sets up the trailer service, or null.
-  String? trailerSetupStep;
-
-  /// Whether this admin has said "Later" to the trailer setup prompt on this server.
-  bool get trailerPromptDismissed => _prefs.getBool('trailerPromptDismissed:$serverUrl') ?? false;
-  Future<void> dismissTrailerPrompt() async {
-    await _prefs.setBool('trailerPromptDismissed:$serverUrl', true);
-    notifyListeners();
-  }
-
-  /// 'missing', 'restart' (installed, waiting for a restart), 'disabled', 'active', or 'unknown'.
-  Future<String> trailerPluginState() async {
-    final c = jf;
-    if (c == null || !(account?.isAdmin ?? false)) return 'unknown';
-    try {
-      final p = await c.trailerPlugin();
-      if (p == null) return 'missing';
-      final st = '${p['Status']}'.toLowerCase();
-      if (st == 'restart') return 'restart';
-      if (st == 'disabled' || st == 'superceded' || st == 'malfunctioned' || st == 'notsupported') return 'disabled';
-      return 'active';
-    } catch (_) {
-      return 'unknown';
-    }
-  }
-
-  /// True when Ember should offer to set up trailers (admin, not installed, not dismissed).
-  Future<bool> shouldOfferTrailerSetup() async {
-    if (!(account?.isAdmin ?? false) || trailerPromptDismissed) return false;
-    await refreshTrailerService();
-    if (trailerService != null) return false;
-    return await trailerPluginState() == 'missing';
-  }
-
-  /// Installs the Ember Trailers plugin on the server, restarts it and waits for trailers to work.
-  /// Whether the running trailer plugin has everything this Ember needs.
-  bool get trailerServiceCurrent => ((trailerService?['features'] as List?)?.contains('streamtest') ?? false);
-
-  static const needsFullRestart =
-      'The new version is installed, but Jellyfin keeps the old one loaded until it is fully restarted. '
-      'Restart the Jellyfin container (or service) on your server, then tap "Check again".';
-
-  /// The installed trailer plugin's version and status, e.g. "0.3.1.0 · Active" (admins only).
-  String? trailerPluginVersion;
-
-  Future<void> refreshTrailerPluginVersion() async {
-    if (!(account?.isAdmin ?? false) || jf == null) return;
-    try {
-      final p = await jf!.trailerPlugin();
-      trailerPluginVersion = p == null ? null : '${p['Version']}${p['Status'] != 'Active' ? ' · ${p['Status']}' : ''}';
-      notifyListeners();
-    } catch (_) {}
-  }
-
-  /// Installs (or updates) the Ember Trailers plugin, restarts the server, and only reports success
-  /// once the server is really running the new version.
-  Future<void> installTrailerService() async {
-    final c = jf;
-    if (c == null) return;
-    void step(String? s) {
-      trailerSetupStep = s;
-      notifyListeners();
-    }
-
-    try {
-      final before = await c.trailerPlugin().catchError((_) => null);
-      final beforeVersion = before?['Version'] as String?;
-      final outdated = trailerService != null && !trailerServiceCurrent;
-      // Installed already, just not loaded yet: only a full restart helps.
-      if (outdated && before != null && before['Status'] == 'Active' && await c.trailerPluginIsNewest(before['Version'] as String?)) {
-        throw ApiException(0, needsFullRestart);
-      }
-      if (before == null || outdated || before['Status'] == 'Restart') {
-        if (before?['Status'] != 'Restart') {
-          step('Adding Ember\'s plugin source to your server…');
-          await c.addTrailerRepository();
-          step('Downloading the newest trailer plugin…');
-          await c.installTrailerPlugin();
-        }
-        step('Restarting your server to switch it on…');
-        await c.restartServer();
-        // Wait until the server has really restarted with the new version (up to 4 minutes).
-        final end = DateTime.now().add(const Duration(minutes: 4));
-        var running = false;
-        await Future.delayed(const Duration(seconds: 5));
-        while (DateTime.now().isBefore(end)) {
-          try {
-            final now = await c.trailerPlugin();
-            if (now != null && now['Status'] == 'Active' && now['Version'] != beforeVersion) {
-              running = true;
-              break;
-            }
-          } catch (_) {
-            step('Waiting for your server to come back…');
-          }
-          await Future.delayed(const Duration(seconds: 3));
-        }
-        if (!running) {
-          throw ApiException(0, 'The new version is installed but your server hasn\'t restarted to load it. '
-              'Restart it from Jellyfin › Dashboard (or restart the container), then tap "Check again".');
-        }
-      }
-      step('Getting the trailer player ready…');
-      trailerService = null;
-      for (var i = 0; i < 20 && !trailerServiceOk; i++) {
-        await refreshTrailerService();
-        if (!trailerServiceOk) await Future.delayed(const Duration(seconds: 3));
-      }
-      if (trailerService == null) {
-        throw ApiException(0, 'The plugin is installed but didn\'t start. Open Dashboard › Plugins on your server to check it.');
-      }
-      if (!trailerServiceCurrent) throw ApiException(0, needsFullRestart);
-    } finally {
-      await refreshTrailerPluginVersion();
-      step(null);
-    }
-  }
-
+  /// The optional Ember Trailers plugin, if the server happens to have it: only its release
+  /// calendar is used (more complete dates than Seerr's). Nothing needs it.
   Future<void> refreshTrailerService() async {
     final c = jf;
     if (c == null || c.token == null) {
@@ -519,7 +454,6 @@ class AppState extends ChangeNotifier {
     }
     trailerService = await c.trailerHealth();
     notifyListeners();
-    refreshTrailerPluginVersion();
   }
 
   Future<void> _refreshSeerrUser() async {
@@ -549,6 +483,9 @@ class AppState extends ChangeNotifier {
         }
       }
       if (seerr == s) seerrError = null;
+      try {
+        seerrSettings = await s.publicSettings();
+      } catch (_) {}
     } catch (e) {
       seerrUser = null;
       seerrError ??= '$e';
