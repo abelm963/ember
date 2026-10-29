@@ -9,6 +9,7 @@ import '../state/app_state.dart';
 import '../ui/browse.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'nav.dart';
 import 'preview.dart';
 import 'shared/media_entries.dart';
@@ -57,7 +58,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
     if (it.isSeries && app.seerrConfigured && it.tmdbId != null) {
       try {
         d.seerr = await app.seerr!.details('tv', int.parse(it.tmdbId!));
-      } catch (_) {}
+      } catch (e) {
+        logWarning('Seerr details tv/${it.tmdbId}', e);
+      }
     }
     // Have the title logo and backdrop ready so the page appears whole.
     prefetchTrailer(app, it);

@@ -7,6 +7,7 @@ import '../api/seerr.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'nav.dart';
 import 'requests.dart';
 
@@ -53,7 +54,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (linked != null && linked.isNotEmpty) {
         try {
           return await app.jf!.item(linked);
-        } catch (_) {}
+        } catch (e) {
+          logWarning('library copy $linked', e);
+        }
       }
       return app.jf!.findByTmdb('${widget.tmdbId}', widget.mediaType, title: p.media.title);
     }

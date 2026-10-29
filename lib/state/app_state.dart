@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api/jellyfin.dart';
 import '../api/seerr.dart';
 import '../platform.dart';
+import '../util/log.dart';
 
 /// How the person is using Ember. Decides layout and navigation style.
 ///  - tv: remote / D-pad, focus highlight always on, side menu, 10-foot sizes.
@@ -112,7 +113,6 @@ class AppState extends ChangeNotifier {
 
   /// Status from the server's Ember Trailers plugin; null = not installed / unreachable.
   Map<String, dynamic>? trailerService;
-  bool get trailerServiceOk => trailerService?['status'] == 'Online' || trailerService?['status'] == 'Degraded';
   bool audioPassthrough = false; // send Dolby / DTS bitstreams untouched to an AV receiver or soundbar
   bool hdrOutput = true; // ask the display for HDR when the video is HDR
   bool autoplayNext = true;
@@ -492,7 +492,9 @@ class AppState extends ChangeNotifier {
       if (seerr == s) seerrError = null;
       try {
         seerrSettings = await s.publicSettings();
-      } catch (_) {}
+      } catch (e) {
+        logWarning('Seerr settings', e);
+      }
     } catch (e) {
       seerrUser = null;
       seerrError ??= '$e';

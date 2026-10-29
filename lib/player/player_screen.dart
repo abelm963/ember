@@ -12,6 +12,7 @@ import '../state/app_state.dart';
 import '../ui/browse.dart' show MetaDots;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'engine.dart';
 import 'player_controls.dart';
 import 'segments.dart';
@@ -77,7 +78,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool get _isStream => widget.directUrl != null || widget.resolveTrailer != null;
 
   static String _clean(Object e) {
-    var m = '$e'.replaceAll(RegExp(r'(api_key|ApiKey)=[^&\s]+'), r'$1=…');
+    var m = redact('$e');
     if (m.contains('Failed to open')) m = 'YouTube didn\'t start sending the trailer.';
     return m;
   }

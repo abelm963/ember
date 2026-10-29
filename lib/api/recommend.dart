@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../util/log.dart';
 import 'jellyfin.dart';
 import 'seerr.dart';
 import 'taste.dart';
@@ -147,7 +148,9 @@ class _DayCache {
     try {
       _prefs ??= await SharedPreferences.getInstance();
       await _prefs!.setString('rec1.$key', jsonEncode({'t': now.millisecondsSinceEpoch, 'v': value}));
-    } catch (_) {}
+    } catch (e) {
+      logWarning('saving recommendations', e);
+    }
   }
 }
 

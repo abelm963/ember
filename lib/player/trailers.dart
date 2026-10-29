@@ -5,6 +5,7 @@ import '../api/jellyfin.dart';
 import '../api/youtube.dart';
 import '../state/app_state.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 
 /// YouTube trailers for a title: the links Jellyfin keeps with it (from TMDB), then Seerr's
 /// official trailer when the library has none.
@@ -20,7 +21,9 @@ Future<List<String>> trailerKeys(AppState app, JfItem item) async {
       final m = await app.seerr!.details(item.isSeries ? 'tv' : 'movie', tmdb);
       final k = m.bestTrailer?['key'] as String?;
       if (k != null) keys.add(k);
-    } catch (_) {}
+    } catch (e) {
+      logWarning('Seerr trailer for ${item.id}', e);
+    }
   }
   return keys;
 }

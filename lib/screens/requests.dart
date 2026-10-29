@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import '../ui/browse.dart' show FilterGroup, PageHeader;
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'nav.dart';
 import 'settings.dart';
 
@@ -38,7 +39,9 @@ class _RequestsScreenState extends State<RequestsScreen> {
         final key = '${r.mediaType}/${r.tmdbId}';
         try {
           _cache[key] ??= await app.seerr!.details(r.mediaType, r.tmdbId!);
-        } catch (_) {}
+        } catch (e) {
+          logWarning('Seerr details $key', e);
+        }
         return _Row(r, _cache[key]);
       }),
     );

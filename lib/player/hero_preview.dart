@@ -10,6 +10,7 @@ import '../api/youtube.dart';
 import '../state/app_state.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import '../util/log.dart';
 import 'engine.dart';
 import 'trailers.dart';
 
@@ -68,7 +69,9 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       if (local.isNotEmpty) {
         try {
           return TrailerStream((await jf.playbackSource(local.first.id)).url);
-        } catch (_) {}
+        } catch (e) {
+          logWarning('local trailer preview', e);
+        }
       }
     }
     return (await findTrailer(app, item: widget.item)).$2;

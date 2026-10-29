@@ -7,6 +7,7 @@ library;
 
 import '../api/jellyfin.dart';
 import '../state/app_state.dart';
+import '../util/log.dart';
 
 /// Languages with two three-letter codes (files use either; Settings stores the first), and the
 /// two-letter codes some files carry instead.
@@ -212,7 +213,9 @@ Future<PlaybackPlan> planPlayback(AppState app, JfItem item, {String? qualityKey
   if (sources.isEmpty) {
     try {
       sources = (await jf.item(item.id)).mediaSources;
-    } catch (_) {}
+    } catch (e) {
+      logWarning('versions of ${item.id}', e);
+    }
   }
   final msid = pickMediaSource(sources, app.preferredAudioLanguage);
   final streams = streamsOf(sources, msid);
