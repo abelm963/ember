@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../api/jellyfin.dart';
 import '../api/youtube.dart';
 import '../state/app_state.dart';
+import 'segments.dart';
 import 'tracks.dart';
 
 /// Apple TV: full-screen playback with Apple's own player (`tvos/Runner/NativePlayer.swift`).
@@ -165,8 +166,12 @@ class NativePlayer {
         _defaultsDone ? Future.value(null) : _pickDefaults(item),
         _jf.mediaSegments(item.id),
         item.isEpisode ? _jf.nextEpisode(item).catchError((_) => null) : Future.value(null),
+        _jf.item(item.id).then<JfItem?>((f) => f).catchError((_) => null),
       ]);
-      final segments = results[1] as List<MediaSegment>;
+      final full = results[3] as JfItem?;
+      // Checked against the episode's length, with the file's chapter names when the server has none.
+      final segments = tidySegments(results[1] as List<MediaSegment>, (full ?? item).runtime ?? Duration.zero,
+          chapters: full == null ? const [] : chaptersOf(full));
       _next = results[2] as JfItem?;
       final src = await _source(item);
       _src = src;

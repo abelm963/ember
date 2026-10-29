@@ -406,7 +406,7 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
   }
 
   private func inCredits(_ pos: Double) -> Bool {
-    if let outro = segments.first(where: { $0.type == "Outro" }) { return pos >= outro.start }
+    if let end = segments.first(where: { $0.type == "Outro" || $0.type == "Preview" }) { return pos >= end.start }
     return duration - pos <= 25
   }
 

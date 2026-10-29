@@ -15,6 +15,7 @@ import '../ui/theme.dart';
 import '../screens/nav.dart' show openYouTube;
 import '../ui/widgets.dart';
 import 'engine.dart';
+import 'segments.dart';
 import 'tracks.dart';
 
 /// Full-screen player. Built on mpv (via media_kit), which plays every common container,
@@ -126,7 +127,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Tracks _tracks = const Tracks();
   Track _track = const Track();
 
-  List<MediaSegment> _segments = [];
+  List<MediaSegment> _rawSegments = [];
+  List<Chapter> _chapters = const [];
+
+  /// The intro, recap and credits times, checked against the episode's length (`segments.dart`).
+  List<MediaSegment> get _segments =>
+      tidySegments(_rawSegments, _duration > Duration.zero ? _duration : (_item.runtime ?? Duration.zero), chapters: _chapters);
   TrickplayInfo? _trick;
   JfItem? _next;
   bool _upNextDismissed = false;
@@ -290,7 +296,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _upNextDismissed = false;
       _countdown = null;
       _introSkippedAuto = false;
-      _segments = [];
+      _rawSegments = [];
+      _chapters = const [];
       _next = null;
       _askStillWatching = false;
       _pauseInfo = false;
@@ -365,14 +372,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
           final s = _src;
           if (s != null) _jf.reportProgress(_item.id, s.mediaSourceId, s.playSessionId, _position, !_playing, s.transcoding);
         });
-        _jf.mediaSegments(item.id).then((s) => mounted ? setState(() => _segments = s) : null);
+        // Answers for an episode that is no longer playing (Next Episode was quick) are dropped.
+        _jf.mediaSegments(item.id).then((s) => mounted && _item.id == item.id ? setState(() => _rawSegments = s) : null);
         _jf
             .item(item.id)
             .then((full) {
-              if (mounted) setState(() => _trick = TrickplayInfo.fromItem(full));
+              if (mounted && _item.id == item.id) {
+                setState(() {
+                  _trick = TrickplayInfo.fromItem(full);
+                  _chapters = chaptersOf(full);
+                });
+              }
             })
             .catchError((_) {});
-        if (item.isEpisode) _jf.nextEpisode(item).then((n) => mounted ? setState(() => _next = n) : null).catchError((_) => null);
+        if (item.isEpisode) {
+          _jf.nextEpisode(item).then((n) => mounted && _item.id == item.id ? setState(() => _next = n) : null).catchError((_) => null);
+        }
       }
       setState(() => _loading = false);
       _showControls();
@@ -700,8 +715,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   bool get _showUpNext {
     if (_next == null || _upNextDismissed || _duration == Duration.zero) return false;
-    final outro = _segments.where((s) => s.type == 'Outro').toList();
-    if (outro.isNotEmpty) return _position >= outro.first.start;
+    // From the credits (or the preview of the next episode, when only that is marked).
+    final end = _segments.where((s) => s.type == 'Outro' || s.type == 'Preview').toList();
+    if (end.isNotEmpty) return _position >= end.first.start;
     return _duration - _position <= const Duration(seconds: 25);
   }
 
