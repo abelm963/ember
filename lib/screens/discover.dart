@@ -49,7 +49,6 @@ const discoverGenres = [
 enum DiscoverKind { all, movies, shows }
 
 extension on DiscoverKind {
-  String get label => switch (this) { DiscoverKind.all => 'Movies & Shows', DiscoverKind.movies => 'Movies', DiscoverKind.shows => 'Shows' };
   List<String> get types => switch (this) { DiscoverKind.all => ['movie', 'tv'], DiscoverKind.movies => ['movie'], DiscoverKind.shows => ['tv'] };
 }
 
@@ -168,9 +167,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
   }
 
-  void _pickKind() => pickOption<DiscoverKind>(
-      context, 'Show', {for (final k in DiscoverKind.values) k: k.label}, _kind, (v) => setState(() => _kind = v));
-
   void _pickGenre() {
     final types = _kind.types;
     pickOption<DiscoverGenre?>(
@@ -202,25 +198,48 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   // ---------------------------------------------------------------- TV and desktop
 
-  /// "Discover" with the tabs (and on Explore, Movies/Shows and Genres) along the top.
+  /// Movies or Shows on its own; choosing the chosen one again goes back to both.
+  void _toggleKind(DiscoverKind k) => setState(() {
+        _kind = _kind == k ? DiscoverKind.all : k;
+        if (_genre != null && !_kind.types.any((t) => _genre!.idFor(t) != null)) _genre = null;
+      });
+
+  /// "Discover" with the tabs along the top. On Explore a second line holds the filters, as on
+  /// the big streaming apps: Movies and Shows toggles, and Genres, which opens a list to pick one.
   Widget _tvHeader(BuildContext context) => FocusTraversalGroup(
-        child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(14), runSpacing: context.px(10), children: [
-          Padding(
-            padding: EdgeInsets.only(right: context.px(10)),
-            child: Text('Discover', style: display(context.px(52))),
-          ),
-          for (final (i, t) in _visibleTabs.indexed)
-            PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(14), runSpacing: context.px(10), children: [
+            Padding(
+              padding: EdgeInsets.only(right: context.px(10)),
+              child: Text('Discover', style: display(context.px(52))),
+            ),
+            for (final (i, t) in _visibleTabs.indexed)
+              PillButton(label: t, compact: true, scrollIntoView: false, selected: _tab == i, onTap: () => setState(() => _tab = i)),
+          ]),
           if (_tab == 2) ...[
-            SizedBox(width: context.px(20)),
-            PillButton(
-                label: _kind.label, icon: Icons.keyboard_arrow_down_rounded, compact: true, scrollIntoView: false, onTap: _pickKind),
-            PillButton(
-                label: _genre?.name ?? 'All genres',
-                icon: Icons.keyboard_arrow_down_rounded,
-                compact: true,
-                scrollIntoView: false,
-                onTap: _pickGenre),
+            SizedBox(height: context.px(16)),
+            Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: context.px(14), runSpacing: context.px(10), children: [
+              PillButton(
+                  label: 'Movies',
+                  compact: true,
+                  scrollIntoView: false,
+                  selected: _kind == DiscoverKind.movies,
+                  onTap: () => _toggleKind(DiscoverKind.movies)),
+              PillButton(
+                  label: 'Shows',
+                  compact: true,
+                  scrollIntoView: false,
+                  selected: _kind == DiscoverKind.shows,
+                  onTap: () => _toggleKind(DiscoverKind.shows)),
+              PillButton(
+                  label: _genre?.name ?? 'Genres',
+                  icon: Icons.keyboard_arrow_down_rounded,
+                  compact: true,
+                  scrollIntoView: false,
+                  selected: _genre != null,
+                  onTap: _pickGenre),
+              Text('Not on your server yet', style: body(context.px(20), color: C.faint)),
+            ]),
           ],
         ]),
       );
@@ -318,8 +337,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         if (_tab == 2) ...[
           SizedBox(height: context.px(12)),
           Wrap(spacing: context.px(12), runSpacing: context.px(12), children: [
-            Chip2(label: '${_kind.label} ▾', selected: _kind != DiscoverKind.all, onTap: _pickKind),
-            Chip2(label: '${_genre?.name ?? 'All genres'} ▾', selected: _genre != null, onTap: _pickGenre),
+            Chip2(label: 'Movies', selected: _kind == DiscoverKind.movies, onTap: () => _toggleKind(DiscoverKind.movies)),
+            Chip2(label: 'Shows', selected: _kind == DiscoverKind.shows, onTap: () => _toggleKind(DiscoverKind.shows)),
+            Chip2(label: '${_genre?.name ?? 'Genres'} ▾', selected: _genre != null, onTap: _pickGenre),
           ]),
         ],
         SizedBox(height: context.px(30)),
