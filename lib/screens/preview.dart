@@ -28,6 +28,22 @@ class PreviewScreen extends StatefulWidget {
 class _PreviewScreenState extends State<PreviewScreen> {
   int _tab = 0;
   int _reload = 0;
+  bool? _onWatchlist;
+
+  /// Adds the title to this person's Seerr watchlist (shown on My List), or takes it off.
+  Future<void> _toggleWatchlist(SeerrMedia m) async {
+    final seerr = context.read<AppState>().seerr!;
+    final on = _onWatchlist ?? m.onWatchlist;
+    setState(() => _onWatchlist = !on);
+    try {
+      on ? await seerr.removeFromWatchlist(m) : await seerr.addToWatchlist(m);
+      if (mounted) toast(context, on ? 'Removed from your watchlist' : 'Added to your watchlist');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _onWatchlist = on);
+      toast(context, 'Seerr couldn\'t change your watchlist. Try again in a moment.');
+    }
+  }
 
   Future<_Preview> _load(AppState app) async {
     final p = _Preview()..media = await app.seerr!.details(widget.mediaType, widget.tmdbId);
@@ -222,6 +238,12 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         icon: Icons.list_alt,
                         autofocus: app.isTv && p.inLibrary == null,
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Scaffold(body: RequestsScreen()))),
+                      ),
+                    if (p.inLibrary == null)
+                      EmberButton(
+                        label: (_onWatchlist ?? m.onWatchlist) ? 'On Watchlist' : 'Watchlist',
+                        icon: (_onWatchlist ?? m.onWatchlist) ? Icons.check : Icons.add,
+                        onTap: () => _toggleWatchlist(m),
                       ),
                     if (trailer != null)
                       EmberButton(

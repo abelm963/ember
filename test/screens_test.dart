@@ -116,6 +116,14 @@ http.Client mockClient() => MockClient((req) async {
              'PremiereDate': DateTime.now().add(const Duration(days: 3)).toUtc().toIso8601String(), 'ImageTags': {}},
           ]
         };
+      } else if (p.endsWith('/api/v1/discover/watchlist')) {
+        body = {
+          'page': 1,
+          'totalPages': 1,
+          'results': [
+            {'tmdbId': 5, 'mediaType': 'tv', 'title': 'Kingfisher'},
+          ]
+        };
       } else if (p.endsWith('/api/v1/discover/trending')) {
         body = {
           'results': [
@@ -215,6 +223,11 @@ void main() {
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
+          // My List: the Seerr watchlist has its own part.
+          if (label == 'My List') {
+            expect(find.text('Watchlist', skipOffstage: false), findsOneWidget);
+            expect(find.text('Kingfisher', skipOffstage: false), findsWidgets);
+          }
         }
 
         // Discover: New & Hot, Explore (Seerr titles not on the server) and the Coming Soon calendar.
@@ -223,7 +236,7 @@ void main() {
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));
           }
-          expect(find.text('New on Test Server', skipOffstage: false), findsOneWidget);
+          expect(find.text('Because you watched The Quiet Orbit', skipOffstage: false), findsWidgets);
           await tester.tap(find.text('Explore').first, warnIfMissed: false);
           for (var i = 0; i < 6; i++) {
             await tester.pump(const Duration(milliseconds: 100));

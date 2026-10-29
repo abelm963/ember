@@ -185,6 +185,14 @@ void main() {
     expect(rows.map((r) => r.$1), ['Because you watched First']);
     expect(rows[0].$2.map((m) => m.id), [10, 12, 13, 14]);
   });
+
+  test('watchlist entries read both Seerr\'s and Plex\'s spelling', () {
+    final a = WatchlistEntry.from({'tmdbId': 5, 'mediaType': 'tv', 'title': 'Kingfisher'})!;
+    final b = WatchlistEntry.from({'tmdbId': 6, 'type': 'show', 'title': 'Ashfall'})!;
+    final c = WatchlistEntry.from({'tmdbId': 7, 'type': 'movie', 'title': 'Copper Coast'})!;
+    expect([a.mediaType, b.mediaType, c.mediaType], ['tv', 'tv', 'movie']);
+    expect(WatchlistEntry.from({'title': 'No id'}), isNull);
+  });
 }
 
 ApiException _api(int status, String message) => ApiException(status, message);

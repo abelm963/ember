@@ -14,7 +14,7 @@ import 'nav.dart';
 import 'preview.dart' show showRequestDialog;
 import 'settings.dart' show pickOption;
 
-const _tabs = ['New & Hot', 'Coming Soon', 'Explore'];
+const _tabs = ['Recommended', 'Coming Soon', 'Explore'];
 
 /// A genre as TMDB numbers it: movies and shows have separate lists (null: not in that list).
 class DiscoverGenre {
@@ -61,6 +61,16 @@ class _Row {
   bool get isEmpty => items.isEmpty && seerr.isEmpty;
 }
 
+/// A title Recommended picks from, and why ("Because you watched").
+class _Seed {
+  final String reason;
+  final String title;
+  final String? jfId;
+  final String mediaType;
+  final int? tmdbId;
+  const _Seed(this.reason, this.title, this.jfId, this.mediaType, this.tmdbId);
+}
+
 /// Seerr titles that aren't (even partly) on the server.
 List<SeerrMedia> notOnServer(Iterable<SeerrMedia> list) =>
     list.where((m) => !m.isAvailable && m.status != MediaStatus.partiallyAvailable).toList();
@@ -77,8 +87,9 @@ List<SeerrMedia> interleave(List<List<SeerrMedia>> lists) {
   return out;
 }
 
-/// Discover: New & Hot (what just arrived on the server), Coming Soon (the release calendar) and
-/// Explore (Seerr's movies and shows that aren't on the server yet, by genre).
+/// Discover: Recommended (picked from what this person watched, liked and put on their watchlist),
+/// Coming Soon (the release calendar) and Explore (Seerr's movies and shows that aren't on the
+/// server yet, by genre).
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
   @override
@@ -91,21 +102,75 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   DiscoverGenre? _genre;
   int _reload = 0;
 
-  Future<List<_Row>> _loadNewHot(AppState app) async {
+  /// Recommended: titles picked from what this person watched, liked (My List) and put on their
+  /// Seerr watchlist. What's on the server comes first in each row (ready to watch); Seerr's picks
+  /// that aren't on the server follow, to request.
+  Future<List<_Row>> _loadRecommended(AppState app) async {
     final jf = app.jf!;
+    final seerr = app.seerrConfigured ? app.seerr : null;
     final server = app.serverName ?? 'your server';
-    final r = await Future.wait([
-      jf.items(types: const ['Movie', 'Series'], sortBy: 'DateCreated', sortOrder: 'Descending', limit: 24).catchError((_) => <JfItem>[]),
-      jf.items(types: const ['Episode'], sortBy: 'DateCreated', sortOrder: 'Descending', limit: 24).catchError((_) => <JfItem>[]),
-      jf.items(types: const ['Movie'], sortBy: 'PremiereDate', sortOrder: 'Descending', limit: 24).catchError((_) => <JfItem>[]),
-      jf.items(types: const ['Series'], sortBy: 'PremiereDate', sortOrder: 'Descending', limit: 24).catchError((_) => <JfItem>[]),
+    final r = await Future.wait<Object>([
+      jf.resume().catchError((_) => <JfItem>[]),
+      jf
+          .items(types: const ['Movie', 'Episode'], sortBy: 'DatePlayed', sortOrder: 'Descending', filters: 'IsPlayed', limit: 40)
+          .catchError((_) => <JfItem>[]),
+      jf.items(types: const ['Movie', 'Series'], filters: 'IsFavorite', sortBy: 'Random', limit: 3).catchError((_) => <JfItem>[]),
+      seerr?.watchlist(pages: 1).catchError((_) => <WatchlistEntry>[]) ?? Future.value(<WatchlistEntry>[]),
+      jf
+          .items(types: const ['Movie', 'Series'], filters: 'IsUnplayed', sortBy: 'CommunityRating', sortOrder: 'Descending', limit: 24)
+          .catchError((_) => <JfItem>[]),
     ]);
-    return [
-      _Row('New on $server', items: r[0]),
-      _Row('New episodes', items: r[1]),
-      _Row('Latest movie releases', items: r[2]),
-      _Row('Latest shows', items: r[3]),
-    ].where((x) => !x.isEmpty).toList();
+
+    // The titles to recommend from: the last few watched (an episode counts as its show), a few
+    // liked, and the newest on the watchlist.
+    final seeds = <_Seed>[];
+    final seedKeys = <String>{};
+    for (final it in [...r[0] as List<JfItem>, ...r[1] as List<JfItem>]) {
+      if (seeds.length >= 3) break;
+      final id = it.isEpisode ? it.seriesId : (it.isMovie ? it.id : null);
+      if (id == null || !seedKeys.add(id)) continue;
+      final title = it.isEpisode ? await jf.item(id).catchError((_) => it) : it;
+      if (!title.isMovie && !title.isSeries) continue;
+      seeds.add(_Seed('Because you watched', title.name, title.id, title.isSeries ? 'tv' : 'movie', int.tryParse(title.tmdbId ?? '')));
+    }
+    for (final it in r[2] as List<JfItem>) {
+      if (!seedKeys.add(it.id)) continue;
+      seeds.add(_Seed('Because you liked', it.name, it.id, it.isSeries ? 'tv' : 'movie', int.tryParse(it.tmdbId ?? '')));
+    }
+    for (final w in (r[3] as List<WatchlistEntry>).take(2)) {
+      if (w.title.isEmpty) continue;
+      seeds.add(_Seed('More like', w.title, null, w.mediaType, w.tmdbId));
+    }
+
+    final found = await Future.wait(seeds.map((x) => Future.wait<Object>([
+          x.jfId == null
+              ? Future.value(<JfItem>[])
+              : jf.similar(x.jfId!, limit: 16).then((l) => l.where((i) => !i.played).toList()).catchError((_) => <JfItem>[]),
+          seerr == null || x.tmdbId == null
+              ? Future.value(<SeerrMedia>[])
+              : seerr.recommendations(x.mediaType, x.tmdbId!).then(notOnServer).catchError((_) => <SeerrMedia>[]),
+        ])));
+    final onServer = [for (final f in found) f[0] as List<JfItem>];
+    final toRequest = [for (final f in found) f[1] as List<SeerrMedia>];
+
+    // Top picks: the best few from each, taken in turn; the rows below don't repeat them.
+    final seen = <String>{...seedKeys};
+    final top = <JfItem>[];
+    for (var i = 0; i < 4; i++) {
+      for (final l in onServer) {
+        if (i < l.length && seen.add(l[i].id)) top.add(l[i]);
+      }
+    }
+    final seenSeerr = <String>{for (final x in seeds) if (x.tmdbId != null) '${x.mediaType}:${x.tmdbId}'};
+    final rows = <_Row>[if (top.length >= 4) _Row('Top picks for you', items: top)];
+    for (var i = 0; i < seeds.length; i++) {
+      final items = onServer[i].where((it) => seen.add(it.id)).take(10).toList();
+      final more = toRequest[i].where((m) => seenSeerr.add('${m.mediaType}:${m.id}')).take(12).toList();
+      if (items.length + more.length >= 4) rows.add(_Row('${seeds[i].reason} ${seeds[i].title}', items: items, seerr: more));
+    }
+    final popular = (r[4] as List<JfItem>).where((it) => seen.add(it.id)).toList();
+    if (popular.length >= 4) rows.add(_Row('Popular on $server', items: popular));
+    return rows;
   }
 
   Future<List<_Row>> _loadExplore(AppState app, DiscoverKind kind, DiscoverGenre? genre) async {
@@ -185,7 +250,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       ];
 
   Future<List<_Row>> _load(AppState app) =>
-      _tab == 2 ? _loadExplore(app, _kind, _genre) : _loadNewHot(app);
+      _tab == 2 ? _loadExplore(app, _kind, _genre) : _loadRecommended(app);
 
   String get _deps => '$_tab-${_kind.name}-${_genre?.name}-$_reload';
 
@@ -274,7 +339,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           return Billboard(header: header, rows: [
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.px(60)),
-              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Nothing new on your server yet.',
+              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Watch a few things, or add some to My List, and recommendations show up here.',
                   style: body(context.px(24), color: C.faint)),
             ),
           ]);
@@ -385,7 +450,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           if (rows.isEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: pad),
-              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Nothing new on your server yet.',
+              child: Text(_tab == 2 ? 'Nothing here that isn\'t on your server already.' : 'Watch a few things, or add some to My List, and recommendations show up here.',
                   style: body(context.px(22), color: C.faint)),
             ),
         ],

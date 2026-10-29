@@ -67,6 +67,22 @@ Future<List<(String, List<SeerrMedia>)>> becauseYouWatched(
   return out;
 }
 
+/// A title on someone's Seerr watchlist.
+class WatchlistEntry {
+  final int tmdbId;
+  final String mediaType;
+  final String title;
+  const WatchlistEntry(this.tmdbId, this.mediaType, this.title);
+
+  /// Seerr's own watchlist says `mediaType`; a Plex watchlist says `type` ("movie" or "show").
+  static WatchlistEntry? from(Map<String, dynamic> r) {
+    final id = (r['tmdbId'] as num?)?.toInt();
+    final kind = (r['mediaType'] ?? r['type']) as String?;
+    if (id == null || kind == null) return null;
+    return WatchlistEntry(id, kind == 'movie' ? 'movie' : 'tv', r['title'] as String? ?? '');
+  }
+}
+
 /// A movie or series as Seerr describes it (from TMDB).
 class SeerrMedia {
   final Map<String, dynamic> raw;
@@ -86,6 +102,8 @@ class SeerrMedia {
   MediaStatus get status => mediaStatusFrom((mediaInfo?['status'] as num?)?.toInt());
   List<Map<String, dynamic>> get requests =>
       (mediaInfo?['requests'] as List?)?.map((e) => (e as Map).cast<String, dynamic>()).toList() ?? const [];
+  /// On this person's Seerr watchlist (details only).
+  bool get onWatchlist => raw['onUserWatchlist'] == true;
   bool get isAvailable => status == MediaStatus.available;
   bool get isRequested =>
       status == MediaStatus.pending || status == MediaStatus.processing || (requests.isNotEmpty && !isAvailable);
@@ -514,6 +532,28 @@ class SeerrClient {
       return m;
     }).toList();
   }
+
+  /// This person's Seerr watchlist, newest first: titles they want to see, on the server or not.
+  /// Only the TMDB id, kind and name come back; [details] has the rest.
+  Future<List<WatchlistEntry>> watchlist({int pages = 2}) async {
+    final out = <WatchlistEntry>[];
+    for (var page = 1; page <= pages; page++) {
+      final json = await _send('GET', '/discover/watchlist', query: {'page': '$page'});
+      final results = (json is Map ? json['results'] : null) as List? ?? const [];
+      for (final r in results.whereType<Map>()) {
+        final e = WatchlistEntry.from(r.cast<String, dynamic>());
+        if (e != null) out.add(e);
+      }
+      if (json is! Map || page >= ((json['totalPages'] as num?)?.toInt() ?? 1)) break;
+    }
+    return out;
+  }
+
+  Future<void> addToWatchlist(SeerrMedia m) =>
+      _send('POST', '/watchlist', body: {'tmdbId': m.id, 'mediaType': m.mediaType, 'title': m.title});
+
+  Future<void> removeFromWatchlist(SeerrMedia m) =>
+      _send('DELETE', '/watchlist/${m.id}', query: {'mediaType': m.mediaType});
 
   /// Sends a request and returns it as Seerr stored it (its status says whether it was
   /// approved straight away or waits for an admin).
