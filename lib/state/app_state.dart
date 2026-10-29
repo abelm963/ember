@@ -115,6 +115,9 @@ class AppState extends ChangeNotifier {
   /// remote input at all (Apple TV).
   bool stillWatching = true;
   int stillWatchingEpisodes = 3;
+  /// Apple TV: play films and episodes in Apple's own player (true HDR / Dolby Vision) instead
+  /// of Ember's player.
+  bool useApplePlayer = false;
   bool showTrendingRow = true;
   bool addRequestsToMyList = true;
   String quality = 'auto';
@@ -126,6 +129,21 @@ class AppState extends ChangeNotifier {
 
   /// Bumped whenever library data may have changed, so screens reload.
   int revision = 0;
+
+  /// The bitrate to ask the server for, for a file of [sourceBitrate]: the chosen quality, or
+  /// under Auto the original (null) unless the connection can't carry it comfortably.
+  Future<int?> maxBitrateFor(int? sourceBitrate, {String? qualityKey}) async {
+    final key = qualityKey ?? quality;
+    final q = qualityOptions.firstWhere((o) => o.key == key, orElse: () => qualityOptions.first);
+    if (q.key != 'auto' || sourceBitrate == null) return q.bitrate;
+    final bps = await jf?.connectionSpeed();
+    if (bps == null || bps >= sourceBitrate * 1.1) return null;
+    final target = (bps * 0.8).round();
+    return qualityOptions
+        .where((o) => o.bitrate != null && o.bitrate! <= target)
+        .map((o) => o.bitrate!)
+        .fold<int>(2000000, (a, b) => b > a ? b : a);
+  }
 
   FormFactor get formFactor => switch (interfaceMode) {
         InterfaceMode.tv => FormFactor.tv,
@@ -171,6 +189,7 @@ class AppState extends ChangeNotifier {
     autoplayNext = _prefs.getBool('autoplayNext') ?? true;
     stillWatching = _prefs.getBool('stillWatching') ?? true;
     stillWatchingEpisodes = _prefs.getInt('stillWatchingEpisodes') ?? 3;
+    useApplePlayer = _prefs.getBool('useApplePlayer') ?? false;
     showTrendingRow = _prefs.getBool('showTrendingRow') ?? true;
     addRequestsToMyList = _prefs.getBool('addRequestsToMyList') ?? true;
     quality = _prefs.getString('quality') ?? 'auto';
@@ -261,6 +280,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setBool('autoplayNext', autoplayNext);
     await _prefs.setBool('stillWatching', stillWatching);
     await _prefs.setInt('stillWatchingEpisodes', stillWatchingEpisodes);
+    await _prefs.setBool('useApplePlayer', useApplePlayer);
     await _prefs.setBool('showTrendingRow', showTrendingRow);
     await _prefs.setBool('addRequestsToMyList', addRequestsToMyList);
     await _prefs.setString('quality', quality);

@@ -234,7 +234,9 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
     }
     lastTick = nil
     player.replaceCurrentItem(with: item)
-    player.play()
+    // Resuming: start playing only once the jump to the resume point is done, so the server
+    // doesn't first prepare the beginning of the film for nothing.
+    if pendingSeek == nil { player.play() }
   }
 
   private func metadata() -> [AVMetadataItem] {
@@ -277,7 +279,7 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
       spinner.stopAnimating()
       if let s = pendingSeek {
         pendingSeek = nil
-        seek(to: s)
+        seek(to: s, exact: false) { [weak self] in self?.player.play() }
       }
       if opts["showSubtitles"] as? Bool == true { selectServerSubtitles(it) }
     case .failed where opts["isTrailer"] as? Bool == true:
@@ -408,9 +410,15 @@ final class NativePlayer: NSObject, AVPlayerViewControllerDelegate, UIGestureRec
     return duration - pos <= 25
   }
 
-  private func seek(to seconds: Double) {
+  /// [exact] false lets the player land on the nearest frame it can start from (up to a couple
+  /// of seconds early), which is much quicker; used when resuming.
+  private func seek(to seconds: Double, exact: Bool = true, then done: (() -> Void)? = nil) {
     ownSeekUntil = Date().addingTimeInterval(3)
-    player.seek(to: CMTime(seconds: seconds, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+    let slack = exact ? CMTime.zero : CMTime(seconds: 3, preferredTimescale: 600)
+    player.seek(to: CMTime(seconds: seconds, preferredTimescale: 600), toleranceBefore: slack, toleranceAfter: .zero) { _ in
+      guard let done else { return }
+      DispatchQueue.main.async(execute: done)
+    }
   }
 
   private func startCountdown() {

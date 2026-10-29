@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../api/jellyfin.dart';
 import '../api/youtube.dart';
 import '../state/app_state.dart';
+import 'tracks.dart';
 
 /// Apple TV: full-screen playback with Apple's own player (`tvos/Runner/NativePlayer.swift`).
 ///
@@ -120,138 +121,31 @@ class NativePlayer {
 
   // ------------------------------------------------------------------ choosing what to play
 
-  QualityOption get _quality =>
-      qualityOptions.firstWhere((o) => o.key == app.quality, orElse: () => qualityOptions.first);
+  Future<PlaybackSource> _source(JfItem item) => _jf.playbackSource(
+        item.id,
+        maxBitrate: _maxBitrate,
+        audioStreamIndex: _audioIndex,
+        subtitleStreamIndex: _subIndex,
+        mediaSourceId: _mediaSourceId,
+      );
 
-  Future<PlaybackSource> _source(JfItem item) async {
-    var bitrate = _quality.bitrate;
-    var src = await _jf.playbackSource(
-      item.id,
-      maxBitrate: bitrate,
-      audioStreamIndex: _audioIndex,
-      subtitleStreamIndex: _subIndex,
-    );
-    // Auto quality: if the connection can't carry the original comfortably, ask for less.
-    if (_quality.key == 'auto' && src.bitrate != null && !isTrailer) {
-      final bps = await _jf.measureBitrate();
-      if (bps != null && bps < src.bitrate! * 1.1) {
-        final target = (bps * 0.8).round();
-        bitrate = qualityOptions
-            .where((o) => o.bitrate != null && o.bitrate! <= target)
-            .map((o) => o.bitrate!)
-            .fold<int>(2000000, (a, b) => b > a ? b : a);
-        src = await _jf.playbackSource(
-          item.id,
-          maxBitrate: bitrate,
-          audioStreamIndex: _audioIndex,
-          subtitleStreamIndex: _subIndex,
-        );
-      }
-    }
-    return src;
-  }
+  String? _mediaSourceId;
+  int? _maxBitrate;
 
   static List<Map<String, dynamic>> _of(PlaybackSource s, String type) =>
       s.streams.where((x) => x['Type'] == type).toList();
 
   static int? _indexOf(Map<String, dynamic>? s) => (s?['Index'] as num?)?.toInt();
 
-  /// Languages with two three-letter codes (files use either; Settings stores the first).
-  static const _sameLanguage = {
-    'ger': 'deu',
-    'fre': 'fra',
-    'dut': 'nld',
-    'chi': 'zho',
-    'cze': 'ces',
-    'gre': 'ell',
-    'per': 'fas',
-    'rum': 'ron',
-    'slo': 'slk',
-    'alb': 'sqi',
-    'arm': 'hye',
-    'baq': 'eus',
-    'bur': 'mya',
-    'geo': 'kat',
-    'ice': 'isl',
-    'mac': 'mkd',
-    'mao': 'mri',
-    'may': 'msa',
-    'tib': 'bod',
-    'wel': 'cym',
-  };
-
-  static bool _langMatch(String? a, String? b) {
-    if (a == null || b == null || a.length < 2 || b.length < 2) return false;
-    a = _sameLanguage[a.toLowerCase()] ?? a.toLowerCase();
-    b = _sameLanguage[b.toLowerCase()] ?? b.toLowerCase();
-    return a == b || a.startsWith(b.substring(0, 2)) || b.startsWith(a.substring(0, 2));
-  }
-
-  static String _describeStream(Map<String, dynamic> s) =>
-      '${s['Profile'] ?? ''} ${s['DisplayTitle'] ?? ''} ${s['Title'] ?? ''}'.toLowerCase();
-
-  static bool _isAtmos(Map<String, dynamic> s) => _describeStream(s).contains('atmos');
-
-  /// How well Apple TV plays a soundtrack as it is: Dolby Digital Plus with Atmos is passed
-  /// straight to the TV or receiver; TrueHD and DTS have to be converted by the server.
-  static int _audioScore(Map<String, dynamic> s) {
-    final codec = (s['Codec'] as String? ?? '').toLowerCase();
-    final ch = (s['Channels'] as num?)?.toInt() ?? 2;
-    var score = ch;
-    if (codec == 'eac3' && _isAtmos(s)) score += 100;
-    if (codec == 'eac3' || codec == 'ac3' || codec == 'aac' || codec == 'flac' || codec == 'alac') score += 20;
-    return score;
-  }
-
-  /// Picks the defaults for [src] and returns true when the stream must be reopened with them.
-  bool _pickDefaults(PlaybackSource src) {
+  /// Picks the version, soundtrack, subtitles and quality before the server is asked, so it's
+  /// asked once, for exactly that (see `planPlayback`).
+  Future<void> _pickDefaults(JfItem item) async {
     _defaultsDone = true;
-    final (audio, sub, reopen) = chooseTracks(src.streams, app.preferredAudioLanguage, app.subtitleMode);
-    _audioIndex = audio;
-    _subIndex = sub;
-    return reopen;
-  }
-
-  /// The person's language, the best soundtrack Apple TV can play in it (Atmos first, and
-  /// never a commentary), and subtitles following Settings › Subtitles ('off', 'foreign',
-  /// 'always'). Returns the audio index to ask for (null = the file's default), the subtitle
-  /// index (null = none), and whether that differs from what the server sends by default.
-  static (int?, int?, bool) chooseTracks(
-    List<Map<String, dynamic>> streams,
-    String? preferredLanguage,
-    String subtitleMode,
-  ) {
-    final audio = streams.where((s) => s['Type'] == 'Audio').toList();
-    if (audio.isEmpty) return (null, null, false);
-    final defaultAudio = audio.firstWhere((s) => s['IsDefault'] == true, orElse: () => audio.first);
-    var lang = defaultAudio['Language'] as String?;
-    if (preferredLanguage != null && audio.any((s) => _langMatch(s['Language'] as String?, preferredLanguage))) {
-      lang = preferredLanguage;
-    }
-    final sameLang = audio.where((s) => lang == null || _langMatch(s['Language'] as String?, lang)).toList();
-    var chosen = sameLang.contains(defaultAudio) ? defaultAudio : sameLang.first;
-    for (final s in sameLang) {
-      if (_audioScore(s) > _audioScore(chosen) && !_describeStream(s).contains('comment')) chosen = s;
-    }
-
-    final subLang = preferredLanguage ?? 'eng';
-    final wantSubs = switch (subtitleMode) {
-      'off' => false,
-      'always' => true,
-      _ => chosen['Language'] != null && !_langMatch(chosen['Language'] as String?, subLang),
-    };
-    final subs = wantSubs
-        ? streams
-              .where(
-                (s) =>
-                    s['Type'] == 'Subtitle' && _langMatch(s['Language'] as String?, subLang) && s['IsForced'] != true,
-              )
-              .toList()
-        : const <Map<String, dynamic>>[];
-
-    final audioIndex = _indexOf(chosen) != _indexOf(defaultAudio) ? _indexOf(chosen) : null;
-    final subIndex = subs.isEmpty ? null : _indexOf(subs.first);
-    return (audioIndex, subIndex, audioIndex != null || subIndex != null);
+    final plan = await planPlayback(app, item);
+    _mediaSourceId = plan.mediaSourceId;
+    _audioIndex = plan.audioIndex;
+    _subIndex = plan.subtitleIndex;
+    _maxBitrate = isTrailer ? null : plan.maxBitrate;
   }
 
   // ------------------------------------------------------------------ loading
@@ -268,14 +162,13 @@ class NativePlayer {
     _item = item;
     try {
       final results = await Future.wait<Object?>([
-        _source(item),
+        _defaultsDone ? Future.value(null) : _pickDefaults(item),
         _jf.mediaSegments(item.id),
         item.isEpisode ? _jf.nextEpisode(item).catchError((_) => null) : Future.value(null),
       ]);
-      var src = results[0] as PlaybackSource;
       final segments = results[1] as List<MediaSegment>;
       _next = results[2] as JfItem?;
-      if (!_defaultsDone && _pickDefaults(src)) src = await _source(item);
+      final src = await _source(item);
       _src = src;
       _position = start ?? Duration.zero;
 
@@ -310,6 +203,15 @@ class NativePlayer {
       unawaited(_jf.reportStart(item.id, src.mediaSourceId, src.playSessionId, _position, src.transcoding));
     } catch (e) {
       await _invoke('failed', {'message': '$e'});
+    }
+  }
+
+  /// A soundtrack picked in the player becomes the preferred language, so the next film starts in it.
+  void _rememberLanguage(int index) {
+    final s = _src?.streams.where((x) => x['Type'] == 'Audio' && _indexOf(x) == index).firstOrNull;
+    final lang = s == null ? null : trackLanguage(s);
+    if (lang != null && !langMatch(lang, app.preferredAudioLanguage)) {
+      app.update((a) => a.preferredAudioLanguage = preferredCode(lang));
     }
   }
 
@@ -350,12 +252,14 @@ class NativePlayer {
         if (n == null) return;
         _audioIndex = null;
         _subIndex = null;
+        _mediaSourceId = null;
         _defaultsDone = false;
         await _load(n, n.positionTicks > 0 ? ticksToDuration(n.positionTicks) : null);
       case 'track':
         final index = (args['index'] as num?)?.toInt() ?? -1;
         if (args['kind'] == 'audio') {
           _audioIndex = index >= 0 ? index : null;
+          _rememberLanguage(index);
         } else {
           _subIndex = index >= 0 ? index : null;
         }
