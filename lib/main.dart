@@ -35,6 +35,17 @@ void main() async {
     }
     return false;
   });
+  // The server stopped accepting the profile's session: close whatever was open on top (a
+  // title page, the player) so "Who's watching?" shows, and say why.
+  state.onSignedOut = (message) {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+    nav.popUntil((r) => r.isFirst);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = navigatorKey.currentContext;
+      if (context != null && context.mounted) toast(context, message);
+    });
+  };
   runApp(ChangeNotifierProvider.value(value: state, child: const EmberApp()));
 }
 

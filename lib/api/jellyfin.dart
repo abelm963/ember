@@ -249,6 +249,10 @@ class JellyfinClient {
     return 'MediaBrowser ${parts.join(', ')}';
   }
 
+  /// Called when the server refuses this session's token (see `AppState`, which checks it
+  /// really has expired and takes the person back to sign in).
+  void Function()? onUnauthorized;
+
   Map<String, String> get _headers => {
     'Authorization': authHeader,
     'Content-Type': 'application/json',
@@ -292,7 +296,14 @@ class JellyfinClient {
       default:
         throw ArgumentError(method);
     }
-    if (res.statusCode == 401) throw ApiException(401, 'Your session has expired. Please sign in again.');
+    if (res.statusCode == 401) {
+      // Signing in and Quick Connect answer 401 for their own reasons (a wrong password, Quick
+      // Connect switched off); anywhere else it means the server no longer knows this session.
+      if (token != null && !path.startsWith('/Users/Authenticate') && !path.startsWith('/QuickConnect')) {
+        onUnauthorized?.call();
+      }
+      throw ApiException(401, 'Your session has expired. Please sign in again.');
+    }
     if (res.statusCode >= 400) {
       throw ApiException(res.statusCode, 'Server returned ${res.statusCode} for $path');
     }

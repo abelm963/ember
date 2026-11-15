@@ -85,6 +85,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   bool _loading = true;
 
+  /// Counts [_open] calls: an answer for a title that is no longer the one being opened (Next
+  /// Episode pressed twice, the player closed while it was loading) is dropped.
+  int _openCount = 0;
+
+  /// Apple TV: the original file wouldn't open once already, and a converted copy was tried.
+  bool _convertedAfterFailure = false;
+
+  /// What to tell the person when a film or episode won't play, without the technical wrapping.
+  static String _problem(Object e) {
+    var m = redact(e is ApiException ? e.message : '$e');
+    if (m.contains('TimeoutException')) return "Your server took too long to answer. Check it's on and reachable.";
+    if (m.contains('SocketException') || m.contains('ClientException') || m.contains('Connection')) {
+      return "Ember couldn't reach your server. Check the connection and try again.";
+    }
+    final platform = RegExp(r'PlatformException\([^,]*,\s*(.*?),\s*null').firstMatch(m);
+    if (platform != null) m = platform.group(1)!;
+    return m.replaceFirst(RegExp(r'^(Exception|Failed to load video):\s*'), '');
+  }
+
+  /// The film or episode stopped or wouldn't start. On Apple TV, the original file is tried
+  /// once more as a copy the server converts (Apple's player can't open every file); otherwise
+  /// the reason is shown with Try again.
+  void _playbackFailed(Object e) {
+    if (!mounted || _error != null) return;
+    if (isAppleTv && !_isStream && !_convertedAfterFailure && _quality.bitrate == null) {
+      _convertedAfterFailure = true;
+      _sessionQuality = '20m';
+      logWarning('Playing ${_item.id} as it is failed, asking for a converted copy', e);
+      _reopenAtCurrent();
+      return;
+    }
+    setState(() {
+      _loading = false;
+      _error = _problem(e);
+    });
+  }
+
   _Panel _panel = _Panel.none;
   Timer? _hideTimer;
   Timer? _reportTimer;
@@ -222,8 +259,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         // A trailer that won't open is asked for another way before showing an error.
         if (_trailer != null && _position == Duration.zero) {
           _trailerFailed(_clean(e));
-        } else if (_loading || (_isStream && _position == Duration.zero)) {
-          setState(() => _error = _isStream ? _clean(e) : 'Playback failed: $e');
+        } else if (_isStream) {
+          if (_position == Duration.zero) setState(() => _error = _clean(e));
+        } else if (_mpv == null) {
+          // Apple's player stops for good when it reports an error; mpv's are often passing.
+          // While a title is still opening, _open hears about it and deals with it.
+          if (!_loading) _playbackFailed(e);
+        } else if (_loading) {
+          _playbackFailed(e);
         }
       }),
     ]);
@@ -268,8 +311,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _open(JfItem item, Duration? start, {int? audioStreamIndex, int? subtitleStreamIndex}) async {
+    final mine = ++_openCount;
+    bool stale() => !mounted || mine != _openCount;
     await _stopReporting();
+    if (stale()) return;
     if (item.id != _item.id) {
+      // The next title gets its own chance to play as it is.
+      if (_convertedAfterFailure) _sessionQuality = null;
+      _convertedAfterFailure = false;
       _position = Duration.zero;
       _duration = Duration.zero;
       _audioIndex = null;
@@ -304,17 +353,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final url = widget.directUrl;
         if (url != null) {
           await _engine.open(url);
+          if (stale()) return;
           setState(() => _loading = false);
           _showControls();
         } else {
           setState(() => _status = 'Finding the official trailer…');
           final t = await widget.resolveTrailer!();
-          if (!mounted) return;
+          if (stale()) return;
           if (t == null) throw ApiException(0, 'YouTube didn\'t hand this trailer over.');
           await _openTrailer(t);
         }
       } catch (e) {
-        if (!mounted) return;
+        if (stale()) return;
         if (_trailer != null) return _trailerFailed(_clean(e));
         setState(() {
           _loading = false;
@@ -331,6 +381,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         // is asked once and sends exactly that soundtrack (instead of the file's default).
         _serverDefaultsDone = true;
         final plan = await planPlayback(_app, item, qualityKey: _quality.key);
+        if (stale()) return;
         _mediaSourceId = plan.mediaSourceId;
         _audioIndex = plan.audioIndex;
         final sub = plan.streams.where((s) => (s['Index'] as num?)?.toInt() == plan.subtitleIndex).firstOrNull;
@@ -360,8 +411,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         bitrate = await _app.maxBitrateFor(src.bitrate, qualityKey: _quality.key);
         if (bitrate != null) src = await ask();
       }
+      if (stale()) return;
       _src = src;
       await _engine.open(src.url, start: start);
+      if (stale()) return;
       // Text subtitles (picked now, or before a reopen for another quality or soundtrack) come on.
       if (_serverTracks && _subIndex != null && !_subBurnedIn) unawaited(_showServerSubtitle(_subIndex!));
       if (!widget.isTrailer) {
@@ -399,10 +452,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       setState(() => _loading = false);
       _showControls();
     } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = '$e';
-      });
+      if (stale()) return;
+      _playbackFailed(e);
     }
   }
 

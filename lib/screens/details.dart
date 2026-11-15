@@ -57,7 +57,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
     d.nextEpisode = r[4] as JfItem?;
     if (it.isSeries && app.seerrConfigured && it.tmdbId != null) {
       try {
-        d.seerr = await app.seerr!.details('tv', int.parse(it.tmdbId!));
+        // Seerr only adds the missing seasons here: a slow Seerr mustn't hold the page back.
+        d.seerr = await app.seerr!.details('tv', int.parse(it.tmdbId!)).timeout(const Duration(seconds: 6));
       } catch (e) {
         logWarning('Seerr details tv/${it.tmdbId}', e);
       }

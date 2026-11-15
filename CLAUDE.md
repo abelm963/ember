@@ -11,7 +11,7 @@ say what to click or run to see it.
 
 - Flutter 3.47 / Dart 3.13, at `C:\dev\flutter`. Windows Developer Mode is on (needed for symlinks).
 - `dart format .` (120 columns, set in `analysis_options.yaml`), `flutter analyze` → "No issues found",
-  `flutter test` → 71 tests, all pass. GitHub runs all three on every push (`checks.yml`).
+  `flutter test` → 78 tests, all pass. GitHub runs all three on every push (`checks.yml`).
   Tests use a mock server through `http.runWithClient` (see `test/screens_test.dart`); add routes
   there when a screen calls a new endpoint.
 - How the code fits together, and the layering rules: `docs/ARCHITECTURE.md`. Working rules:
@@ -105,8 +105,17 @@ Working:
 Trailers: played in Ember's own player on every platform, with no server plugin. If YouTube won't
 hand a stream over, they open in the YouTube app (also when Settings › "Play trailers in the app" is off).
 
-Smaller known issues:
-- The side menu can stay open after clicking, and swallow the next click.
+Staying usable when something goes wrong (tested in `test/resilience_test.dart`):
+- A Jellyfin session the server no longer accepts (401 on anything but sign-in / Quick Connect) is checked once
+  with `/Users/Me`; if it really is gone, `AppState` forgets that profile and `main.dart` goes back to "Who's
+  watching?" with a message, instead of every page saying "session expired".
+- Seerr not answering at all: `SeerrClient` fails every request at once for 45 s (`unreachable`) instead of each
+  page waiting out its own time limit. Home waits at most 8 s for Seerr's rows, a series page 6 s.
+- The player drops answers that arrive after it was closed or moved on (`_openCount`, the engines' `_disposed`),
+  so nothing starts playing behind the next screen. On Apple TV a file that won't open as it is is asked for
+  once more as a converted copy (1080p) before an error shows, and an error in the middle of a film shows too.
+- `AppShell` no longer rebuilds the whole page on `app.revision` (that lost the row, filters and tab after every
+  film); pages reload their own data on it through `Loader(deps:)`, which keeps showing the old content meanwhile.
 
 ## Apple TV
 

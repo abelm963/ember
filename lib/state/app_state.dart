@@ -280,7 +280,7 @@ class AppState extends ChangeNotifier {
         deviceName: deviceName,
         token: a?.token,
         userId: a?.userId,
-      );
+      )..onUnauthorized = _sessionRefused;
     } else {
       jf = null;
     }
@@ -410,6 +410,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Called (from `main.dart`) after the server stopped accepting the profile's session and
+  /// Ember went back to "Who's watching?", with what to tell the person.
+  void Function(String message)? onSignedOut;
+  Future<void>? _checkingSession;
+
+  /// The server answered 401. Asks it once more who this is; if it still refuses, the saved
+  /// session is gone (signed out from the dashboard, a password change, a server reinstall):
+  /// forget it and go back to the profiles, where signing in again takes a moment. Without
+  /// this every page would just show "session expired" with a Try again that can't work.
+  void _sessionRefused() {
+    final j = jf, a = account;
+    if (j == null || a == null || _checkingSession != null) return;
+    _checkingSession = () async {
+      try {
+        // A client of its own, so this check can't call back into here.
+        final probe = JellyfinClient(
+          baseUrl: a.serverUrl,
+          deviceId: deviceId,
+          deviceName: deviceName,
+          token: a.token,
+          userId: a.userId,
+        );
+        try {
+          await probe.me();
+          return; // still signed in: the 401 was about something else
+        } on ApiException catch (e) {
+          if (e.status != 401) return;
+        } catch (_) {
+          return; // couldn't reach the server: says nothing about the session
+        }
+        if (account != a) return;
+        accounts.remove(a);
+        currentUserId = null;
+        seerrUser = null;
+        _rebuildClients();
+        await _save();
+        notifyListeners();
+        onSignedOut?.call('${a.name} was signed out by the server. Choose the profile to sign in again.');
+      } finally {
+        _checkingSession = null;
+      }
+    }();
+  }
+
   // ------------------------------------------------------------ Seerr
 
   Future<void> setSeerr({required String url, String? apiKey}) async {
@@ -528,7 +572,9 @@ class AppState extends ChangeNotifier {
   Future<void> _refreshSeerrUser() async {
     refreshTrailerService();
     final s = seerr;
-    final wasConnected = seerrUser != null;
+    // Whether pages could already show Seerr rows before this check (a session saved from last
+    // time counts), so they reload only when that really changes, not on every start.
+    final wasConnected = seerrConfigured;
     if (s == null || account == null) {
       seerrUser = null;
       // Not set up on this device yet: look for it once, without asking.
@@ -542,6 +588,7 @@ class AppState extends ChangeNotifier {
     if (!s.hasSession) await seerrAutoSignIn();
     if (!s.isSignedIn) {
       seerrUser = null;
+      if (wasConnected) revision++;
       notifyListeners();
       return;
     }
@@ -565,16 +612,19 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       seerrUser = null;
-      seerrError ??= '$e';
+      seerrError ??= s.unreachable
+          ? "Ember can't reach Seerr from here right now. Check that it's on and that this device is on the same network (or Tailscale)."
+          : '$e';
     }
     // Pages that show Seerr rows reload once Seerr becomes (un)available.
-    if (wasConnected != (seerrUser != null)) revision++;
+    if (seerr == s && wasConnected != seerrConfigured) revision++;
     notifyListeners();
   }
 
   /// Re-checks Seerr from scratch (used by Settings › Seerr › Check connection).
   Future<void> refreshSeerr() async {
     seerrError = null;
+    seerr?.tryAgain();
     await _refreshSeerrUser();
   }
 

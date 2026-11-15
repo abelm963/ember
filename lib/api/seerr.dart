@@ -36,7 +36,9 @@ String requestErrorText(Object e) {
   if (e is ApiException && e.status >= 500) {
     return 'Seerr had a problem sending this on (${e.message}). Try again in a minute.';
   }
-  if (e is! ApiException) return "Ember couldn't reach Seerr. Check that the server is on, then try again.";
+  if (e is! ApiException || e.status == -1) {
+    return "Ember couldn't reach Seerr. Check that the server is on, then try again.";
+  }
   return text;
 }
 
@@ -391,17 +393,36 @@ class SeerrClient {
     return 'HTTP ${res.statusCode}';
   }
 
-  Future<http.Response> _raw(String method, Uri uri, String? body) {
-    const t = Duration(seconds: 20);
-    switch (method) {
-      case 'GET':
-        return http.get(uri, headers: _headers).timeout(t);
-      case 'POST':
-        return http.post(uri, headers: _headers, body: body).timeout(t);
-      case 'DELETE':
-        return http.delete(uri, headers: _headers).timeout(t);
-      default:
-        throw ArgumentError(method);
+  /// Set when Seerr didn't answer at all (off, or not reachable from this network). Until then
+  /// every request fails at once instead of each waiting out its own time limit, which is what
+  /// made Home and title pages take a long time to appear whenever Seerr was away.
+  DateTime? _awayUntil;
+
+  /// True while Seerr is being left alone after not answering.
+  bool get unreachable => _awayUntil != null && DateTime.now().isBefore(_awayUntil!);
+
+  /// Lets the next request through again (Settings › Seerr › Check connection).
+  void tryAgain() => _awayUntil = null;
+
+  Future<http.Response> _raw(String method, Uri uri, String? body) async {
+    if (unreachable) throw ApiException(-1, "Seerr isn't answering right now.");
+    // Looking something up is quick or not coming; sending a request on can take Seerr longer.
+    final t = Duration(seconds: method == 'GET' ? 12 : 20);
+    try {
+      final res = await switch (method) {
+        'GET' => http.get(uri, headers: _headers).timeout(t),
+        'POST' => http.post(uri, headers: _headers, body: body).timeout(t),
+        'DELETE' => http.delete(uri, headers: _headers).timeout(t),
+        _ => throw ArgumentError(method),
+      };
+      _awayUntil = null;
+      return res;
+    } on ArgumentError {
+      rethrow;
+    } catch (e) {
+      // No answer at all (timed out, refused, no route): leave Seerr alone for a while.
+      _awayUntil = DateTime.now().add(const Duration(seconds: 45));
+      throw ApiException(-1, "Seerr isn't answering right now.");
     }
   }
 
@@ -418,7 +439,7 @@ class SeerrClient {
     _keepCookies(res);
     // With CSRF protection on, Seerr wants the token from a cookie echoed in a header.
     if (res.statusCode == 403 && method != 'GET' && !retried && res.body.toLowerCase().contains('csrf')) {
-      _keepCookies(await http.get(_uri('/status'), headers: _headers).timeout(const Duration(seconds: 15)));
+      _keepCookies(await _raw('GET', _uri('/status'), null));
       return _send(method, path, query: query, body: body, retried: true);
     }
     if ((res.statusCode == 401 || res.statusCode == 403) && !retried && reauth != null && !path.startsWith('/auth/')) {

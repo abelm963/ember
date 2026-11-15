@@ -74,7 +74,10 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final page = KeyedSubtree(key: ValueKey('${_section.name}-${app.revision}-${app.currentUserId}'), child: _page());
+    // Not keyed on app.revision: that threw the whole page away after every film (and when Seerr
+    // connected a moment after start), losing the row, the filters and the tab the person was on.
+    // Pages that show things that change reload their own data on app.revision instead.
+    final page = KeyedSubtree(key: ValueKey('${_section.name}-${app.currentUserId}'), child: _page());
 
     // Back on a section other than Home returns to Home before leaving the app.
     final body = PopScope(
