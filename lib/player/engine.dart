@@ -333,7 +333,7 @@ class AvEngine implements PlaybackEngine {
     c?.removeListener(_onValue);
     // A controller that is still getting ready is closed by [open] when it finishes.
     if (c != null && !_gettingReady.contains(c)) await c.dispose();
-    WakelockPlus.disable().catchError((_) {});
+    if (_wasPlaying) WakelockPlus.disable().catchError((_) {});
     for (final s in [_playing, _position, _duration, _buffer, _buffering, _completed, _error]) {
       await s.close();
     }

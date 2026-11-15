@@ -127,6 +127,17 @@ class _DetailsBodyState extends State<_DetailsBody> {
     }
   }
 
+  /// My List / watched: reloads the page when the server took the change, and says so when it didn't.
+  Future<void> _change(Future<void> Function() send) async {
+    try {
+      await send();
+      widget.onChanged();
+    } catch (e) {
+      logWarning('changing ${widget.d.item.id}', e);
+      if (mounted) toast(context, "Couldn't save that. Check the connection to your server and try again.");
+    }
+  }
+
   List<int> get _missing {
     final s = widget.d.seerr;
     if (s == null) return [];
@@ -328,16 +339,14 @@ class _DetailsBodyState extends State<_DetailsBody> {
                         label: it.isFavorite ? 'Remove from My List' : 'Add to My List',
                         icon: it.isFavorite ? Icons.close : Icons.add,
                         onTap: () async {
-                          await jf.setFavorite(it.id, !it.isFavorite);
-                          widget.onChanged();
+                          await _change(() => jf.setFavorite(it.id, !it.isFavorite));
                         },
                       ),
                       ActionItem(
                         label: it.played ? 'Mark as unwatched' : 'Mark as watched',
                         icon: it.played ? Icons.visibility_off_outlined : Icons.check_circle_outline,
                         onTap: () async {
-                          await jf.setPlayed(it.id, !it.played);
-                          widget.onChanged();
+                          await _change(() => jf.setPlayed(it.id, !it.played));
                         },
                       ),
                       if (it.isMovie &&
@@ -518,16 +527,14 @@ class _DetailsBodyState extends State<_DetailsBody> {
                           label: it.isSeries ? (it.isFavorite ? 'In My List' : 'My List') : '',
                           icon: it.isFavorite ? Icons.check : Icons.add,
                           onTap: () async {
-                            await jf.setFavorite(it.id, !it.isFavorite);
-                            widget.onChanged();
+                            await _change(() => jf.setFavorite(it.id, !it.isFavorite));
                           },
                         ),
                         EmberButton(
                           label: '',
                           icon: it.played ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           onTap: () async {
-                            await jf.setPlayed(it.id, !it.played);
-                            widget.onChanged();
+                            await _change(() => jf.setPlayed(it.id, !it.played));
                           },
                         ),
                         if (hasTrailer && it.isSeries)

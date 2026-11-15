@@ -50,7 +50,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
   Future<void> _act(Future<void> Function() f) async {
     try {
       await f();
-      setState(() => _reload++);
+      if (mounted) setState(() => _reload++);
     } catch (e) {
       if (mounted) toast(context, requestErrorText(e));
     }

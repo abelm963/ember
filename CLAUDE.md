@@ -114,6 +114,10 @@ Staying usable when something goes wrong (tested in `test/resilience_test.dart`)
 - The player drops answers that arrive after it was closed or moved on (`_openCount`, the engines' `_disposed`),
   so nothing starts playing behind the next screen. On Apple TV a file that won't open as it is is asked for
   once more as a converted copy (1080p) before an error shows, and an error in the middle of a film shows too.
+- `nav.dart` opens one player at a time (`_oneAtATime`): a second press of Play while the first is still
+  starting is ignored. Hero previews pause while Apple's player is up (`NativePlayer.showing`).
+- Handing a trailer to the YouTube app: opened directly (no `canLaunchUrl`, which is always false on Apple TV
+  unless the scheme is in `tvos/Runner/Info.plist`, where `youtube` now is).
 - `AppShell` no longer rebuilds the whole page on `app.revision` (that lost the row, filters and tab after every
   film); pages reload their own data on it through `Loader(deps:)`, which keeps showing the old content meanwhile.
 

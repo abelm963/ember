@@ -12,6 +12,7 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import '../util/log.dart';
 import 'engine.dart';
+import 'native_player.dart';
 import 'trailers.dart';
 
 /// Lets previews pause when another screen opens on top and resume on return.
@@ -51,6 +52,7 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
       _delay = Timer(const Duration(seconds: 2), _start);
     }
     widget.active?.addListener(_syncPlaying);
+    NativePlayer.showing.addListener(_syncPlaying);
   }
 
   @override
@@ -79,7 +81,12 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
 
   Future<void> _start() async {
     final app = context.read<AppState>();
-    final trailer = await _trailer(app);
+    TrailerStream? trailer;
+    try {
+      trailer = await _trailer(app);
+    } catch (e) {
+      logWarning('preview for ${widget.item.id}', e);
+    }
     if (trailer == null || !mounted) return;
     final url = trailer.url;
     final p = PlaybackEngine(title: 'Ember preview', bufferSize: 16 * 1024 * 1024);
@@ -114,7 +121,7 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
   void _syncPlaying() {
     final p = _player;
     if (p == null || _finished) return;
-    final active = (widget.active?.value ?? true) && !_covered;
+    final active = (widget.active?.value ?? true) && !_covered && !NativePlayer.showing.value;
     if (active) {
       p.play();
     } else {
@@ -143,6 +150,7 @@ class _HeroPreviewState extends State<HeroPreview> with RouteAware {
   void dispose() {
     routeObserver.unsubscribe(this);
     widget.active?.removeListener(_syncPlaying);
+    NativePlayer.showing.removeListener(_syncPlaying);
     _delay?.cancel();
     for (final s in _subs) {
       s.cancel();
