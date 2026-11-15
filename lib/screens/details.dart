@@ -57,7 +57,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
     d.nextEpisode = r[4] as JfItem?;
     if (it.isSeries && app.seerrConfigured && it.tmdbId != null) {
       try {
-        d.seerr = await app.seerr!.details('tv', int.parse(it.tmdbId!));
+        // Seerr only adds the missing seasons here: a slow Seerr mustn't hold the page back.
+        d.seerr = await app.seerr!.details('tv', int.parse(it.tmdbId!)).timeout(const Duration(seconds: 6));
       } catch (e) {
         logWarning('Seerr details tv/${it.tmdbId}', e);
       }
@@ -123,6 +124,17 @@ class _DetailsBodyState extends State<_DetailsBody> {
       _seasonId =
           widget.initialSeasonId ??
           (next?.seasonId != null && seasons.any((s) => s.id == next!.seasonId) ? next!.seasonId : seasons.first.id);
+    }
+  }
+
+  /// My List / watched: reloads the page when the server took the change, and says so when it didn't.
+  Future<void> _change(Future<void> Function() send) async {
+    try {
+      await send();
+      widget.onChanged();
+    } catch (e) {
+      logWarning('changing ${widget.d.item.id}', e);
+      if (mounted) toast(context, "Couldn't save that. Check the connection to your server and try again.");
     }
   }
 
@@ -327,16 +339,14 @@ class _DetailsBodyState extends State<_DetailsBody> {
                         label: it.isFavorite ? 'Remove from My List' : 'Add to My List',
                         icon: it.isFavorite ? Icons.close : Icons.add,
                         onTap: () async {
-                          await jf.setFavorite(it.id, !it.isFavorite);
-                          widget.onChanged();
+                          await _change(() => jf.setFavorite(it.id, !it.isFavorite));
                         },
                       ),
                       ActionItem(
                         label: it.played ? 'Mark as unwatched' : 'Mark as watched',
                         icon: it.played ? Icons.visibility_off_outlined : Icons.check_circle_outline,
                         onTap: () async {
-                          await jf.setPlayed(it.id, !it.played);
-                          widget.onChanged();
+                          await _change(() => jf.setPlayed(it.id, !it.played));
                         },
                       ),
                       if (it.isMovie &&
@@ -517,16 +527,14 @@ class _DetailsBodyState extends State<_DetailsBody> {
                           label: it.isSeries ? (it.isFavorite ? 'In My List' : 'My List') : '',
                           icon: it.isFavorite ? Icons.check : Icons.add,
                           onTap: () async {
-                            await jf.setFavorite(it.id, !it.isFavorite);
-                            widget.onChanged();
+                            await _change(() => jf.setFavorite(it.id, !it.isFavorite));
                           },
                         ),
                         EmberButton(
                           label: '',
                           icon: it.played ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           onTap: () async {
-                            await jf.setPlayed(it.id, !it.played);
-                            widget.onChanged();
+                            await _change(() => jf.setPlayed(it.id, !it.played));
                           },
                         ),
                         if (hasTrailer && it.isSeries)

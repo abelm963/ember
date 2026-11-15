@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -39,11 +41,35 @@ void openSeerr(BuildContext context, SeerrMedia media) {
   );
 }
 
+/// True from the moment something is asked to play until its player closes. A second press of
+/// Play while the first is still getting going (easy to do with a remote) would otherwise open
+/// two players on top of each other, both with sound.
+bool _playerOpen = false;
+
+/// Apple's player covers the screen within a moment and tells Ember when it closes. Should that
+/// message ever go missing, Play must not stay switched off, so it is let go once the player is up.
+void _applePlayerShowing() => Timer(const Duration(seconds: 3), () => _playerOpen = false);
+
+/// Runs [open] unless a player is already open or on its way.
+Future<void> _oneAtATime(Future<void> Function() open) async {
+  if (_playerOpen) return;
+  _playerOpen = true;
+  try {
+    await open();
+  } finally {
+    _playerOpen = false;
+  }
+}
+
 /// Starts playback, resuming where the person left off unless [fromStart].
-Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bool isTrailer = false}) async {
+Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bool isTrailer = false}) =>
+    _oneAtATime(() => _play(context, item, fromStart: fromStart, isTrailer: isTrailer));
+
+Future<void> _play(BuildContext context, JfItem item, {bool fromStart = false, bool isTrailer = false}) async {
   final start = fromStart || item.positionTicks == 0 ? null : ticksToDuration(item.positionTicks);
   if (isAppleTv && context.read<AppState>().useApplePlayer && !isTrailer) {
     // Apple's own player, when chosen in Settings: true HDR, Dolby Vision and Atmos.
+    _applePlayerShowing();
     await NativePlayer.play(context.read<AppState>(), item, start: start);
     return;
   }
@@ -55,9 +81,18 @@ Future<void> play(BuildContext context, JfItem item, {bool fromStart = false, bo
 }
 
 /// Plays a series: the next unwatched (or in-progress) episode.
-Future<void> playSeries(BuildContext context, JellyfinClient jf, JfItem series) async {
-  final next = await jf.nextUp(limit: 50);
+Future<void> playSeries(BuildContext context, JellyfinClient jf, JfItem series) =>
+    _oneAtATime(() => _playSeries(context, jf, series));
+
+Future<void> _playSeries(BuildContext context, JellyfinClient jf, JfItem series) async {
   JfItem? ep;
+  List<JfItem> next;
+  try {
+    next = await jf.nextUp(limit: 50);
+  } catch (e) {
+    if (context.mounted) toast(context, "Couldn't reach your server. Try again.");
+    return;
+  }
   for (final e in next) {
     if (e.seriesId == series.id) {
       ep = e;
@@ -65,14 +100,14 @@ Future<void> playSeries(BuildContext context, JellyfinClient jf, JfItem series) 
     }
   }
   if (ep == null) {
-    final all = await jf.episodes(series.id, limit: 1);
+    final all = await jf.episodes(series.id, limit: 1).catchError((_) => <JfItem>[]);
     if (all.isNotEmpty) ep = all.first;
   }
   if (ep == null) {
     if (context.mounted) toast(context, 'No episodes on the server yet.');
     return;
   }
-  if (context.mounted) await play(context, ep);
+  if (context.mounted) await _play(context, ep);
 }
 
 /// Plays a trailer inside Ember: a trailer file stored with the title, otherwise the official
@@ -84,13 +119,21 @@ Future<void> playTrailer(
   String? ytKey,
   required String title,
   String? backdropUrl,
+}) => _oneAtATime(() => _playTrailer(context, item: item, ytKey: ytKey, title: title, backdropUrl: backdropUrl));
+
+Future<void> _playTrailer(
+  BuildContext context, {
+  JfItem? item,
+  String? ytKey,
+  required String title,
+  String? backdropUrl,
 }) async {
   final app = context.read<AppState>();
   final jf = app.jf!;
   if (item != null && item.localTrailerCount > 0 && app.trailersInApp) {
     final local = await jf.localTrailers(item.id);
     if (local.isNotEmpty && context.mounted) {
-      await play(context, local.first, fromStart: true, isTrailer: true);
+      await _play(context, local.first, fromStart: true, isTrailer: true);
       return;
     }
   }
@@ -118,6 +161,7 @@ Future<void> playTrailer(
   }
 
   if (isAppleTv) {
+    _applePlayerShowing();
     final played = await NativePlayer.playTrailer(app, title: '$title · Trailer', artwork: artwork, resolve: resolve);
     if (!played) await fallback();
     return;

@@ -34,6 +34,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  /// The featured title, kept while Home reloads (after a film, say) so it doesn't swap to
+  /// another one under the person.
+  String? _heroId;
+
+  /// How long Home waits for Seerr's rows before showing without them.
+  static const _seerrWait = Duration(seconds: 8);
+
   /// The hero preview plays only while the hero is on screen.
   final _heroActive = ValueNotifier<bool>(true);
 
@@ -54,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
       jf.nextUp().catchError((_) => <JfItem>[]),
       jf.favorites().catchError((_) => <JfItem>[]),
       if (app.seerrConfigured && app.showTrendingRow)
-        app.seerr!.trending().catchError((_) => <SeerrMedia>[])
+        app.seerr!.trending().timeout(_seerrWait).catchError((_) => <SeerrMedia>[])
       else
         Future.value(<SeerrMedia>[]),
     ]);
@@ -69,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
               .then(
                 (w) => becauseYouWatched(app.seerr!, w, skip: {for (final m in d.trending) '${m.mediaType}:${m.id}'}),
               )
+              .timeout(_seerrWait)
               .catchError((_) => <(String, List<SeerrMedia>)>[])
         : Future.value(<(String, List<SeerrMedia>)>[]);
 
@@ -83,7 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final l in d.latest) ...l.$2.where((i) => (i.isMovie || i.isSeries) && i.backdropTags.isNotEmpty),
     ];
     if (pool.isNotEmpty) {
-      final pick = pool[Random().nextInt(min(pool.length, 8))];
+      final pick = pool.where((i) => i.id == _heroId).firstOrNull ?? pool[Random().nextInt(min(pool.length, 8))];
+      _heroId = pick.id;
       // Full details carry the file's formats (4K, HDR…) for the badge.
       d.hero = await jf.item(pick.id).catchError((_) => pick);
       if (mounted) await warmImages(context, [jf.logoImage(d.hero!), jf.backdropImage(d.hero!)]);

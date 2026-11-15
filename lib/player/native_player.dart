@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../api/jellyfin.dart';
@@ -19,6 +20,10 @@ import 'tracks.dart';
 /// progress. The native side shows the player, Skip Intro, Next Episode and "Are you still
 /// watching?", and says what happened.
 class NativePlayer {
+  /// True while Apple's player covers the screen. It isn't a Flutter screen, so the previews
+  /// behind it can't tell from the navigator that they should pause.
+  static final showing = ValueNotifier<bool>(false);
+
   static const _channel = MethodChannel('ember/player');
   static NativePlayer? _current;
 
@@ -111,6 +116,7 @@ class NativePlayer {
 
   static void _bind(NativePlayer p) {
     _current = p;
+    showing.value = true;
     _channel.setMethodCallHandler(
       (call) async => _current?._onEvent(call.method, (call.arguments as Map?) ?? const {}),
     );
@@ -282,7 +288,10 @@ class NativePlayer {
         if (isTrailer) await _trailerFailed();
       case 'closed':
         await _stopped();
-        if (_current == this) _current = null;
+        if (_current == this) {
+          _current = null;
+          showing.value = false;
+        }
         if (!isTrailer) app.bumpRevision();
         if (!_done.isCompleted) _done.complete();
     }

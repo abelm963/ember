@@ -65,8 +65,10 @@ void prefetchTrailer(AppState app, JfItem item) {
 Future<void> openYouTube(BuildContext context, String key) async {
   final app = Uri.parse('youtube://watch?v=$key');
   final web = Uri.parse('https://www.youtube.com/watch?v=$key');
+  // Opened without asking first whether it can be: on Apple TV and iPhone that question is only
+  // answered truthfully for apps listed in Info.plist, and opening simply fails when it can't.
   try {
-    if (await canLaunchUrl(app) && await launchUrl(app)) return;
+    if (await launchUrl(app, mode: LaunchMode.externalApplication)) return;
   } catch (_) {}
   try {
     if (await launchUrl(web, mode: LaunchMode.externalApplication)) return;

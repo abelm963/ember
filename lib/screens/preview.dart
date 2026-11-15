@@ -544,12 +544,13 @@ class _RequestDialogState extends State<_RequestDialog> {
         is4k: _uhd,
       );
       app.bumpRevision();
+      if (!mounted) return;
       setState(() {
         _done = true;
         _waitsForApproval = sent?.status == 1;
       });
     } catch (e) {
-      setState(() => _error = requestErrorText(e));
+      if (mounted) setState(() => _error = requestErrorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

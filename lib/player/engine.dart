@@ -70,29 +70,56 @@ class MpvEngine implements PlaybackEngine {
   @override
   Stream<String> get error => player.stream.error;
 
+  /// Set when the screen that owns the player has gone. Anything still on its way (a server
+  /// answer that arrives late) must not start playing behind the next screen.
+  bool _disposed = false;
+
   @override
-  Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}}) =>
-      player.open(Media(url, start: start, httpHeaders: headers));
+  Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}}) async {
+    if (_disposed) return;
+    await player.open(Media(url, start: start, httpHeaders: headers));
+  }
+
   @override
-  Future<void> play() => player.play();
+  Future<void> play() async {
+    if (!_disposed) await player.play();
+  }
+
   @override
-  Future<void> pause() => player.pause();
+  Future<void> pause() async {
+    if (!_disposed) await player.pause();
+  }
+
   @override
-  Future<void> playOrPause() => player.playOrPause();
+  Future<void> playOrPause() async {
+    if (!_disposed) await player.playOrPause();
+  }
+
   @override
-  Future<void> seek(Duration to) => player.seek(to);
+  Future<void> seek(Duration to) async {
+    if (!_disposed) await player.seek(to);
+  }
+
   @override
-  Future<void> setVolume(double volume) => player.setVolume(volume);
+  Future<void> setVolume(double volume) async {
+    if (!_disposed) await player.setVolume(volume);
+  }
+
   @override
-  Future<void> setTextSubtitles(String? url) =>
-      player.setSubtitleTrack(url == null ? SubtitleTrack.no() : SubtitleTrack.uri(url));
+  Future<void> setTextSubtitles(String? url) async {
+    if (_disposed) return;
+    await player.setSubtitleTrack(url == null ? SubtitleTrack.no() : SubtitleTrack.uri(url));
+  }
 
   @override
   Widget view({BoxFit fit = BoxFit.contain, Color fill = Colors.black}) =>
       Video(controller: _video, controls: NoVideoControls, fit: fit, fill: fill);
 
   @override
-  Future<void> dispose() => player.dispose();
+  Future<void> dispose() {
+    _disposed = true;
+    return player.dispose();
+  }
 }
 
 /// Apple's AVPlayer, through video_player (video_player_tvos on Apple TV).
@@ -100,6 +127,11 @@ class AvEngine implements PlaybackEngine {
   VideoPlayerController? _c;
   final _changed = ValueNotifier<int>(0);
   double _volume = 100;
+  bool _disposed = false;
+
+  /// Counts [open] calls, so an older one that finishes late doesn't take over from a newer one.
+  int _opening = 0;
+  final _gettingReady = <VideoPlayerController>{};
   bool _wasPlaying = false, _wasBuffering = false, _wasCompleted = false;
   Duration _lastDuration = Duration.zero;
   String? _lastError;
@@ -129,7 +161,7 @@ class AvEngine implements PlaybackEngine {
 
   void _onValue() {
     final c = _c;
-    if (c == null) return;
+    if (c == null || _disposed) return;
     final v = c.value;
     _position.add(v.position);
     if (v.duration != _lastDuration) {
@@ -159,26 +191,51 @@ class AvEngine implements PlaybackEngine {
 
   @override
   Future<void> open(String url, {Duration? start, Map<String, String> headers = const {}}) async {
+    if (_disposed) return;
+    final mine = ++_opening;
     final old = _c;
+    // Stop what was playing first: otherwise its sound carries on over the loading screen
+    // until the new stream is ready (changing soundtrack, quality or episode).
+    if (old != null) {
+      old.removeListener(_onValue);
+      try {
+        await old.pause();
+      } catch (_) {}
+    }
+    if (_wasPlaying) {
+      _wasPlaying = false;
+      _playing.add(false);
+    }
     final c = VideoPlayerController.networkUrl(Uri.parse(url), httpHeaders: headers);
     _c = c;
-    _wasPlaying = _wasBuffering = _wasCompleted = false;
+    _wasBuffering = _wasCompleted = false;
     _lastDuration = Duration.zero;
     _lastError = null;
     c.addListener(_onValue);
+    _gettingReady.add(c);
     try {
       await c.initialize();
     } catch (e) {
-      _error.add('$e');
+      if (!_disposed && mine == _opening) _error.add('$e');
+      if (_disposed) c.dispose().ignore();
       rethrow;
     } finally {
-      old?.removeListener(_onValue);
+      _gettingReady.remove(c);
       await old?.dispose();
+    }
+    // The player was closed, or something newer was opened, while this one was getting ready:
+    // it must not start playing unseen.
+    if (_disposed || mine != _opening) {
+      c.removeListener(_onValue);
+      if (identical(_c, c)) _c = null;
+      await c.dispose();
+      return;
     }
     await c.setVolume(_volume / 100);
     if (start != null && start > Duration.zero) await c.seekTo(start);
+    if (_disposed || mine != _opening) return;
     await c.play();
-    _changed.value++;
+    if (!_disposed) _changed.value++;
   }
 
   @override
@@ -269,10 +326,13 @@ class AvEngine implements PlaybackEngine {
 
   @override
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
     final c = _c;
     _c = null;
     c?.removeListener(_onValue);
-    await c?.dispose();
+    // A controller that is still getting ready is closed by [open] when it finishes.
+    if (c != null && !_gettingReady.contains(c)) await c.dispose();
     if (_wasPlaying) WakelockPlus.disable().catchError((_) {});
     for (final s in [_playing, _position, _duration, _buffer, _buffering, _completed, _error]) {
       await s.close();

@@ -34,6 +34,11 @@
   <string>flutter_assets</string>
   <!-- Jellyfin servers at home are usually plain http (http://192.168.1.20:8096), and Apple's
        video player refuses http unless this allows it. -->
+  <!-- Lets Ember ask whether the YouTube app is installed, to hand a trailer over to it. -->
+  <key>LSApplicationQueriesSchemes</key>
+  <array>
+    <string>youtube</string>
+  </array>
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>
